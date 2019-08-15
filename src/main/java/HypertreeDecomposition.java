@@ -17,6 +17,7 @@ public class HypertreeDecomposition {
     Graph<HypertreeNode, DefaultEdge> decompositionTree = new SimpleDirectedGraph<HypertreeNode, DefaultEdge>(DefaultEdge.class);
     Map<String, Set<String>> hyperedges = new HashMap<>();
     Map<String, String> variableNames = new HashMap<>();
+    DBSchema schema = new DBSchema();
 
     private class HypertreeNode {
         String id;
@@ -69,8 +70,32 @@ public class HypertreeDecomposition {
 
     }
 
-    public HypertreeDecomposition(File hypertreeFile, File hypergraphFile, File sqlFile) {
+    private void readSchema(File schemaFile) {
+        try {
+            Files.lines(Paths.get(schemaFile.getAbsolutePath())).forEach((line) -> {
+                String[] splits = line.split(";");
+                String tableName = splits[0].trim();
+                String[] colSplits = splits[1].split(",");
+                List<String> columns = new LinkedList<>();
+                for (String col : colSplits) {
+                    columns.add(col.trim());
+                }
+
+                Table t = new Table();
+                t.setName(tableName);
+                t.setColumns(columns);
+                schema.getTables().add(t);
+            });
+        } catch (IOException e) {
+            System.err.println("Error reading schema file: " + e.getMessage());
+        }
+    }
+
+    public HypertreeDecomposition(File hypertreeFile, File hypergraphFile, File sqlFile, File schemaFile) {
         buildCQFromSQL(sqlFile);
+        readSchema(schemaFile);
+
+        System.out.println(schema);
 
         VertexProvider<HypertreeNode> vp = new VertexProvider<>() {
             private Pattern edgePattern = Pattern.compile("^\\s*\\{(.*)\\}");
