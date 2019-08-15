@@ -12,6 +12,10 @@ import java.nio.file.Paths;
 
 public class Main {
     public static void main(String[] args) {
+        if (args.length != 3) {
+            System.out.printf("Usage: java -jar %s {hypertree} {hypergraph} {query}", getJarName());
+        }
+
         String gmlFileName = args[0];
         String dtlFileName = args[1];
         String sqlFileName = args[2];
@@ -28,5 +32,13 @@ public class Main {
         } catch (IOException e) {
             System.err.println("Error reading hypertree file: " + e.getMessage());
         }
+    }
+
+    public static String getJarName() {
+        return new File(Main.class.getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .getPath())
+                .getName();
     }
 }
