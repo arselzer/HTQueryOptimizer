@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 public class HypertreeDecomposition {
     Graph<HypertreeNode, DefaultEdge> decompositionTree = new SimpleDirectedGraph<HypertreeNode, DefaultEdge>(DefaultEdge.class);
     Map<String, Set<String>> hyperedges = new HashMap<>();
-    Map<String, String> tableNames = new HashMap<>();
+    Map<String, String> variableNames = new HashMap<>();
 
     private class HypertreeNode {
         String id;
@@ -65,7 +65,13 @@ public class HypertreeDecomposition {
         }
     }
 
+    private void buildCQFromSQL(File sqlFile) {
+
+    }
+
     public HypertreeDecomposition(File hypertreeFile, File hypergraphFile, File sqlFile) {
+        buildCQFromSQL(sqlFile);
+
         VertexProvider<HypertreeNode> vp = new VertexProvider<>() {
             private Pattern edgePattern = Pattern.compile("^\\s*\\{(.*)\\}");
             @Override
@@ -120,9 +126,9 @@ public class HypertreeDecomposition {
 
                 // Populate table names
                 // TODO parse SQL and determine mapping
-                for (String relation : hyperedges.get(name)) {
-                    // For now just assume "t" before relation number
-                    tableNames.putIfAbsent(relation, "t" + relation);
+                for (String var : hyperedges.get(name)) {
+                    // For now just assume "t" before variable number
+                    variableNames.putIfAbsent(var, "v" + var);
                 }
             }
 
@@ -152,7 +158,7 @@ public class HypertreeDecomposition {
     }
 
     public String toUnoptimizedQuery() {
-        String query = "SELECT * FROM " + String.join(", ", tableNames.values()) + "\nWHERE ";
+        String query = "SELECT * FROM " + String.join(", ", variableNames.values()) + "\nWHERE ";
 
 
         return query;
