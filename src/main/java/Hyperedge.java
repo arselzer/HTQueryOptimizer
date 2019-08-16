@@ -1,13 +1,22 @@
-import java.util.List;
+import java.util.Set;
 
-public class Hyperedge {
-    List<Hypernode> nodes;
+public class Hyperedge<T extends Comparable> {
+    String name;
+    Set<T> nodes;
 
-    public List<Hypernode> getNodes() {
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Set<T> getNodes() {
         return nodes;
     }
 
-    public void setNodes(List<Hypernode> nodes) {
+    public void setNodes(Set<T> nodes) {
         this.nodes = nodes;
     }
 }

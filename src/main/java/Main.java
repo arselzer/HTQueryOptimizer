@@ -5,6 +5,7 @@ import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
 import org.jgrapht.io.GmlImporter;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +13,7 @@ import java.nio.file.Paths;
 
 public class Main {
     public static void main(String[] args) {
+
         if (args.length != 3) {
             System.out.printf("Usage: java -jar %s {hypertree} {hypergraph} {query} {schema}", getJarName());
         }

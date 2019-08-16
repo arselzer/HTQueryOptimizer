@@ -1,8 +1,8 @@
 import java.util.List;
 
 public class Table {
-    String name;
-    List<String> columns;
+    private String name;
+    private List<String> columns;
 
     public int getNumberOfColumns() {
         return columns.size();
