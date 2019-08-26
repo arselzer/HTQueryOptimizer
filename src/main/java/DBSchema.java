@@ -2,7 +2,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class DBSchema {
-    List<Table> tables;
+    private List<Table> tables;
 
     public DBSchema() {
         tables = new LinkedList<>();

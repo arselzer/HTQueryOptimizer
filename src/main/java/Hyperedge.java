@@ -1,8 +1,13 @@
+import java.util.HashSet;
 import java.util.Set;
 
 public class Hyperedge<T extends Comparable> {
     String name;
     Set<T> nodes;
+
+    public Hyperedge() {
+        nodes = new HashSet<>();
+    }
 
     public String getName() {
         return name;
@@ -18,5 +23,13 @@ public class Hyperedge<T extends Comparable> {
 
     public void setNodes(Set<T> nodes) {
         this.nodes = nodes;
+    }
+
+    @Override
+    public String toString() {
+        return "Hyperedge{" +
+                "name='" + name + '\'' +
+                ", nodes=" + nodes +
+                '}';
     }
 }

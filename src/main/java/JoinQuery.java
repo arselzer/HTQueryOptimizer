@@ -70,7 +70,7 @@ public class JoinQuery {
             Hyperedge<String> tableHE = new Hyperedge<>();
             tableHE.setName(t.getName());
             for (String column : t.getColumns()) {
-                tableHE.getNodes().add(equivalenceMapping.get(column));
+                tableHE.getNodes().add(equivalenceMapping.get(t.getName() + "." + column));
             }
             hg.addEdge(tableHE);
         }
