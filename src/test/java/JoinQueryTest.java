@@ -35,6 +35,8 @@ class JoinQueryTest {
 
         System.out.printf("Hypergraph: %s", q.toHypergraph());
 
+        System.out.printf("DTL: %s", q.toHypergraph().toDTL());
+
     }
 
     @Test
@@ -79,6 +81,7 @@ class JoinQueryTest {
 
         System.out.printf("Hypergraph: %s", q.toHypergraph());
 
+        System.out.printf("DTL: %s", q.toHypergraph().toDTL());
     }
 
 }

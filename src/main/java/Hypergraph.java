@@ -1,6 +1,8 @@
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Hypergraph<T extends Comparable> {
     Set<Hyperedge<T>> edges = new HashSet<>();
@@ -8,6 +10,15 @@ public class Hypergraph<T extends Comparable> {
 
     public Hypergraph() {
 
+    }
+
+    public String toDTL() {
+        List<String> edgeStrings = new LinkedList<>();
+        for (Hyperedge edge : edges) {
+            edgeStrings.add(edge.name + "(" + String.join(",", edge.getNodes()) + ")");
+        }
+
+        return String.join(",\n", edgeStrings) + ".";
     }
 
     public Set<Hyperedge<T>> getEdges() {
