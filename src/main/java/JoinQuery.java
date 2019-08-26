@@ -44,6 +44,7 @@ public class JoinQuery {
         HashMap<String, String> equivalenceMapping = new HashMap<>();
 
         int counter = 1;
+        // Create all equivalence classes of the join conditions
         for (EquiJoinCondition c : joinConditions) {
             if (!equivalenceMapping.containsKey(c.getCol1()) &&
               !equivalenceMapping.containsKey(c.getCol2())) {
@@ -62,6 +63,20 @@ public class JoinQuery {
             }
         }
 
+        // For the remaining variables, create an equivalence class each
+        for (Table t : schema.getTables()) {
+            for (String column : t.getColumns()) {
+                String identifier = t.getName() + "." + column;
+                if (!equivalenceMapping.containsKey(identifier)) {
+                    String newEC = "v" + counter;
+                    counter++;
+
+                    equivalenceMapping.put(identifier, newEC);
+                }
+            }
+        }
+
+        // For each equivalence class, create a hypergraph nodes
         for (String variable : equivalenceMapping.values()) {
             hg.addNode(variable);
         }
@@ -70,7 +85,10 @@ public class JoinQuery {
             Hyperedge<String> tableHE = new Hyperedge<>();
             tableHE.setName(t.getName());
             for (String column : t.getColumns()) {
-                tableHE.getNodes().add(equivalenceMapping.get(t.getName() + "." + column));
+                String identifier = t.getName() + "." + column;
+                if (equivalenceMapping.containsKey(identifier)) {
+                    tableHE.getNodes().add(equivalenceMapping.get(identifier));
+                }
             }
             hg.addEdge(tableHE);
         }

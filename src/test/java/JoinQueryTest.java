@@ -37,5 +37,48 @@ class JoinQueryTest {
 
     }
 
-    
+    @Test
+    void generateStarQuery() {
+        // The query:
+        /**
+         * SELECT *
+         * FROM t1, t2, t3, t4
+         * WHERE t1.a = t2.a
+         * AND t1.a = t3.a
+         * AND t1.a = t4.a
+         * AND t4.e = t5.a
+         */
+        Table t1 = new Table();
+        Table t2 = new Table();
+        Table t3 = new Table();
+        Table t4 = new Table();
+        Table t5 = new Table();
+        t1.setName("t1");
+        t2.setName("t2");
+        t3.setName("t3");
+        t4.setName("t4");
+        t5.setName("t5");
+
+        t1.setColumns(List.of("a", "b"));
+        t2.setColumns(List.of("a", "c"));
+        t3.setColumns(List.of("a", "d"));
+        t4.setColumns(List.of("a", "e"));
+        t5.setColumns(List.of("a", "f"));
+
+
+        DBSchema s = new DBSchema();
+        s.setTables(List.of(t1, t2, t3, t4, t5));
+        List<String> projectColumns = List.of("t1.a", "t2.a", "t3.a", "t1.b",
+                "t2.c", "t3.d", "t4.a", "t4.e", "t5.a", "t5.f");
+        List<EquiJoinCondition> joinConditions = List.of(
+                new EquiJoinCondition("t1.a", "t2.a"),
+                new EquiJoinCondition("t1.a", "t3.a"),
+                new EquiJoinCondition("t1.a", "t4.a"),
+                new EquiJoinCondition("t4.e", "t5.a"));
+        JoinQuery q = new JoinQuery(s, projectColumns, joinConditions);
+
+        System.out.printf("Hypergraph: %s", q.toHypergraph());
+
+    }
+
 }
