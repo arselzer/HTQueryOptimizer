@@ -1,6 +1,10 @@
+package query;
+
+import hypergraph.Hyperedge;
+import hypergraph.Hypergraph;
+
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 public class JoinQuery {
     DBSchema schema;
@@ -38,7 +42,7 @@ public class JoinQuery {
     }
 
     public Hypergraph toHypergraph() {
-        Hypergraph<String> hg = new Hypergraph<>();
+        Hypergraph hg = new Hypergraph();
 
         // Maps a column name to an equivalence class
         HashMap<String, String> equivalenceMapping = new HashMap<>();
@@ -82,7 +86,7 @@ public class JoinQuery {
         }
 
         for (Table t : schema.getTables()) {
-            Hyperedge<String> tableHE = new Hyperedge<>();
+            Hyperedge tableHE = new Hyperedge();
             tableHE.setName(t.getName());
             for (String column : t.getColumns()) {
                 String identifier = t.getName() + "." + column;
@@ -93,12 +97,14 @@ public class JoinQuery {
             hg.addEdge(tableHE);
         }
 
+        hg.setEquivalenceMapping(equivalenceMapping);
+
         return hg;
     }
 
     @Override
     public String toString() {
-        return "JoinQuery{" +
+        return "query.JoinQuery{" +
                 "projectColumns=" + projectColumns +
                 ", joinConditions=" + joinConditions +
                 '}';

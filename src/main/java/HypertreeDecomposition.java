@@ -3,6 +3,9 @@ import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
 import org.jgrapht.io.*;
 import org.jgrapht.traverse.BreadthFirstIterator;
+import query.DBSchema;
+import query.JoinTree;
+import query.Table;
 
 import java.util.*;
 import java.io.File;
@@ -178,7 +181,7 @@ public class HypertreeDecomposition {
         }
     }
 
-    public QueryTree toQueryTree() {
+    public JoinTree toQueryTree() {
         return null;
     }
 

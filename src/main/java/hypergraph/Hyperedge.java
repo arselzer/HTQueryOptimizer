@@ -1,9 +1,11 @@
+package hypergraph;
+
 import java.util.HashSet;
 import java.util.Set;
 
-public class Hyperedge<T extends Comparable> {
-    String name;
-    Set<T> nodes;
+public class Hyperedge {
+    private String name;
+    private Set<String> nodes;
 
     public Hyperedge() {
         nodes = new HashSet<>();
@@ -17,17 +19,17 @@ public class Hyperedge<T extends Comparable> {
         this.name = name;
     }
 
-    public Set<T> getNodes() {
+    public Set<String> getNodes() {
         return nodes;
     }
 
-    public void setNodes(Set<T> nodes) {
+    public void setNodes(Set<String> nodes) {
         this.nodes = nodes;
     }
 
     @Override
     public String toString() {
-        return "Hyperedge{" +
+        return "hypergraph.Hyperedge{" +
                 "name='" + name + '\'' +
                 ", nodes=" + nodes +
                 '}';

@@ -1,3 +1,5 @@
+package query;
+
 import java.util.List;
 
 public class Table {
@@ -26,7 +28,7 @@ public class Table {
 
     @Override
     public String toString() {
-        return "Table{" +
+        return "query.Table{" +
                 "name='" + name + '\'' +
                 ", columns=" + columns +
                 '}';

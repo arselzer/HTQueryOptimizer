@@ -1,3 +1,5 @@
+package query;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -18,7 +20,7 @@ public class DBSchema {
 
     @Override
     public String toString() {
-        return "DBSchema{" +
+        return "query.DBSchema{" +
                 "tables=" + tables +
                 '}';
     }

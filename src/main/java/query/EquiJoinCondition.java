@@ -1,3 +1,5 @@
+package query;
+
 public class EquiJoinCondition {
     private String col1;
     private String col2;
@@ -25,7 +27,7 @@ public class EquiJoinCondition {
 
     @Override
     public String toString() {
-        return "EquiJoinCondition{" +
+        return "query.EquiJoinCondition{" +
                 "col1='" + col1 + '\'' +
                 ", col2='" + col2 + '\'' +
                 '}';
