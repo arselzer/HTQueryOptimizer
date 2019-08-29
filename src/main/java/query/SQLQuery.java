@@ -22,6 +22,11 @@ public class SQLQuery {
     private String query;
     private Schema schema;
 
+    public SQLQuery(String query, DBSchema dbSchema) {
+        this.query = query;
+        this.schema = dbSchema.toSchema();
+    }
+
     public SQLQuery(String query, Schema schema) {
         this.query = query;
         this.schema = schema;

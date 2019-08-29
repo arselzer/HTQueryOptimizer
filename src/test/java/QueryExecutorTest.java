@@ -1,3 +1,4 @@
+import exceptions.QueryConversionException;
 import org.junit.jupiter.api.Test;
 
 import java.sql.*;
@@ -13,7 +14,7 @@ public class QueryExecutorTest {
             "AND t5.e = t6.e\n" +
             "\n";
     @Test
-    void connectAndQuery() throws SQLException {
+    void connectAndQuery() throws SQLException, QueryConversionException {
         String url = "jdbc:postgresql://localhost/testdb";
         String user = "test";
         String password = "test";

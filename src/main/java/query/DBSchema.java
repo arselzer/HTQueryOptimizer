@@ -1,5 +1,9 @@
 package query;
 
+import at.ac.tuwien.dbai.hgtools.sql2hg.PredicateDefinition;
+import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
+import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -16,6 +20,18 @@ public class DBSchema {
 
     public void setTables(List<Table> tables) {
         this.tables = tables;
+    }
+
+    public Schema toSchema() {
+        Schema otherSchema = new Schema();
+
+        for (Table table : tables) {
+            String predicateName = table.getName();
+
+            otherSchema.addPredicateDefinition(new PredicateDefinition(predicateName, table.getColumns()));
+        }
+
+        return otherSchema;
     }
 
     @Override

@@ -1,6 +1,8 @@
 import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
+import exceptions.QueryConversionException;
 import org.postgresql.copy.CopyManager;
 import query.DBSchema;
+import query.SQLQuery;
 import query.Table;
 
 import java.util.List;
@@ -26,8 +28,12 @@ public class QueryExecutor {
         return ps;
     }
 
-    public PreparedStatement execute(String query) throws SQLException {
-        PreparedStatement ps = connection.prepareStatement(query);
+    public PreparedStatement execute(String queryStr) throws SQLException, QueryConversionException {
+        SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
+
+        System.out.println(sqlQuery.toHypergraph());
+
+        PreparedStatement ps = connection.prepareStatement(queryStr);
 
         ps.execute();
 
