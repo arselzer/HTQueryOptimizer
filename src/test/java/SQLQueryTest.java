@@ -1,5 +1,5 @@
-import at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph;
 import exceptions.QueryConversionException;
+import hypergraph.Hypergraph;
 import org.junit.jupiter.api.Test;
 import query.SQLQuery;
 
@@ -22,5 +22,7 @@ public class SQLQueryTest {
         System.out.println(hg.getEdges());
 
         System.out.println(hg);
+        System.out.println(hg.toDTL());
+        System.out.println(hg.getEquivalenceMapping());
     }
 }

@@ -1,8 +1,10 @@
 package query;
 
-import at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph;
+import at.ac.tuwien.dbai.hgtools.hypergraph.Edge;
 import at.ac.tuwien.dbai.hgtools.sql2hg.*;
 import exceptions.QueryConversionException;
+import hypergraph.Hyperedge;
+import hypergraph.Hypergraph;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
@@ -11,7 +13,10 @@ import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.select.Select;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Set;
 
 public class SQLQuery {
     private String query;
@@ -88,6 +93,33 @@ public class SQLQuery {
             hgBuilder.buildJoin(join);
         }
 
-        return hgBuilder.getHypergraph();
+        // Convert the hgtools Hypergraph type to the local hypergraph type
+        Hypergraph result = new Hypergraph();
+
+        at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph queryHG = hgBuilder.getHypergraph();
+
+        for (Edge e : queryHG.getEdges()) {
+            Hyperedge newEdge = new Hyperedge();
+            newEdge.setName(e.getName());
+            HashSet<String> edgeSet = new HashSet<>();
+            for (String node : e.getVertices()) {
+                edgeSet.add(node);
+                result.addNode(node);
+            }
+            newEdge.setNodes(edgeSet);
+
+            result.addEdge(newEdge);
+        }
+
+        HashMap<String, String> equivalenceMapping = new HashMap<>();
+        for (String key : hgBuilder.getVarToColMapping().keySet()) {
+            for (String value : hgBuilder.getVarToColMapping().get(key)) {
+                equivalenceMapping.put(value, key);
+            }
+        }
+
+        result.setEquivalenceMapping(equivalenceMapping);
+
+        return result;
     }
 }
