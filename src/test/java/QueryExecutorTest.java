@@ -13,6 +13,7 @@ public class QueryExecutorTest {
             "AND t4.e = t5.a\n" +
             "AND t5.e = t6.e\n" +
             "\n";
+
     @Test
     void connectAndQuery() throws SQLException, QueryConversionException {
         String url = "jdbc:postgresql://localhost/testdb";

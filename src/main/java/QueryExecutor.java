@@ -19,19 +19,17 @@ public class QueryExecutor {
         this.connection = connection;
 
         extractSchema();
-        System.out.println(schema);
     }
 
-    public ResultSet execute(PreparedStatement ps) throws SQLException {
+    public ResultSet execute(PreparedStatement ps) throws SQLException, QueryConversionException {
         String query = ps.toString(); // Should work with postgres (and mysql) drivers
 
-        ps.execute();
-
-        return ps.executeQuery();
+        return execute(query);
     }
 
     public ResultSet execute(String queryStr) throws SQLException, QueryConversionException {
         SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
+        System.out.println(sqlQuery.toHypergraph().toJoinTree());
 
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);

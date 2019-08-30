@@ -2,6 +2,7 @@ package query;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class JoinTreeNode {
     private List<JoinTreeNode> successors = new LinkedList<>();
@@ -51,11 +52,27 @@ public class JoinTreeNode {
 
     @Override
     public String toString() {
-        return "JoinTreeNode{" +
+        return toIndentedString();
+    }
+
+
+    public String toIndentedString() {
+        return toIndentedString(0);
+    }
+
+    public String toIndentedString(int n) {
+        String indentation = "";
+        for (int i = 0; i < n; i++) {
+            indentation += "  ";
+        }
+        String successorsString = successors.stream().map(node -> node.toIndentedString(n+1)).collect(Collectors.joining("\n"));
+        if (!successorsString.isEmpty()) {
+            successorsString = "\n" + successorsString;
+        }
+        return indentation + "JoinTreeNode{" +
                 "tables=" + tables +
                 ", attributes=" + attributes +
-                ", successors=" + successors +
-
-                "}";
+                ", successors=[" + successorsString +
+                "]}";
     }
 }
