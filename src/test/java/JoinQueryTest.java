@@ -34,10 +34,9 @@ class JoinQueryTest {
                 new EquiJoinCondition("t2.c", "t3.a"), new EquiJoinCondition("t3.d", "t1.b"));
         JoinQuery q = new JoinQuery(s, projectColumns, joinConditions);
 
-        System.out.printf("hypergraph.Hypergraph: %s", q.toHypergraph());
+        System.out.printf("Hypergraph: %s", q.toHypergraph());
 
         System.out.printf("DTL: %s", q.toHypergraph().toDTL());
-
     }
 
     @Test

@@ -28,9 +28,7 @@ public class QueryExecutorTest {
 
         QueryExecutor qe = new QueryExecutor(conn);
 
-        PreparedStatement ps = qe.execute(query);
-
-        ResultSet rs = ps.getResultSet();
+        ResultSet rs = qe.execute(query);
 
         while (rs.next()) {
             System.out.println(rs.getString(1));

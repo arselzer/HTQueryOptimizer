@@ -65,12 +65,13 @@ public class SQLQuery {
 
     public String toFunction(String functionName) {
         FunctionBuilder fb = new FunctionBuilder(functionName);
+        fb.projectColumns(List.of(new Column("a", "int4")));
 
         return fb.build();
     }
 
     public static String generateFunctionName() {
-        return "htqo_" + UUID.randomUUID();
+        return "htqo_" + UUID.randomUUID().toString().replace("-", "");
     }
 
     public Hypergraph toHypergraph() throws QueryConversionException {

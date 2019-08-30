@@ -22,28 +22,32 @@ public class QueryExecutor {
         System.out.println(schema);
     }
 
-    public PreparedStatement execute(PreparedStatement ps) throws SQLException {
+    public ResultSet execute(PreparedStatement ps) throws SQLException {
         String query = ps.toString(); // Should work with postgres (and mysql) drivers
 
         ps.execute();
 
-        return ps;
+        return ps.executeQuery();
     }
 
-    public PreparedStatement execute(String queryStr) throws SQLException, QueryConversionException {
+    public ResultSet execute(String queryStr) throws SQLException, QueryConversionException {
         SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
 
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);
+        System.out.println(functionStr);
 
-        PreparedStatement ps = connection.prepareStatement(functionStr);
-        ps.execute();
+        PreparedStatement psFunction = connection.prepareStatement(functionStr);
+        psFunction.execute();
 
-        ResultSet rs = ps.executeQuery(String.format("SELECT %s()", functionName));
+        PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT %s();", functionName));
+        ResultSet rs = psSelect.executeQuery();
 
-        ps.execute();
+        // TODO maybe keep the function over several calls for performance
+        PreparedStatement psDelete = connection.prepareStatement(String.format("DROP FUNCTION %s;", functionName));
+        psDelete.execute();
 
-        return ps;
+        return rs;
     }
 
     private void extractSchema() throws SQLException {
