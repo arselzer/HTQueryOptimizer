@@ -2,6 +2,7 @@ import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
 import exceptions.QueryConversionException;
 import hypergraph.Hypergraph;
 import org.postgresql.copy.CopyManager;
+import query.Column;
 import query.DBSchema;
 import query.SQLQuery;
 import query.Table;
@@ -53,9 +54,10 @@ public class QueryExecutor {
         ResultSet rs = metaData.getTables(connection.getCatalog(), "public", "%", new String[]{"TABLE"});
         //ResultSet rs = metaData.getTables(null, null, "%", null);
 
+        // https://docs.oracle.com/javase/7/docs/api/java/sql/DatabaseMetaData.html#getColumns(java.lang.String,%20java.lang.String,%20java.lang.String,%20java.lang.String)
         List<Table> schemaTables = new LinkedList<>();
         while (rs.next()) {
-            String tableName = rs.getString(3);
+            String tableName = rs.getString("TABLE_NAME");
             if (!tableName.startsWith("sql_")) {
                 // Ignore internal tables
 
@@ -63,9 +65,11 @@ public class QueryExecutor {
                 table.setName(tableName);
 
                 ResultSet rs2 = metaData.getColumns(null, null, tableName, null);
-                LinkedList<String> tableColumns = new LinkedList<>();
+                LinkedList<Column> tableColumns = new LinkedList<>();
                 while (rs2.next()) {
-                    tableColumns.add(rs2.getString(4));
+                    String columnName = rs2.getString("COLUMN_NAME");
+                    String columnPostgresType = rs2.getString("TYPE_NAME");
+                    tableColumns.add(new Column(columnName, columnPostgresType));
                 }
                 table.setColumns(tableColumns);
                 schemaTables.add(table);

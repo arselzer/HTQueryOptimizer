@@ -6,6 +6,7 @@ import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class DBSchema {
     private List<Table> tables;
@@ -28,7 +29,9 @@ public class DBSchema {
         for (Table table : tables) {
             String predicateName = table.getName();
 
-            otherSchema.addPredicateDefinition(new PredicateDefinition(predicateName, table.getColumns()));
+            // Convert DBSchema to Schema (the latter does not include type information on columns)
+            otherSchema.addPredicateDefinition(new PredicateDefinition(predicateName,
+                    table.getColumns().stream().map(Column::getName).collect(Collectors.toList())));
         }
 
         return otherSchema;

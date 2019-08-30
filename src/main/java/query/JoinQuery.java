@@ -69,8 +69,8 @@ public class JoinQuery {
 
         // For the remaining variables, create an equivalence class each
         for (Table t : schema.getTables()) {
-            for (String column : t.getColumns()) {
-                String identifier = t.getName() + "." + column;
+            for (Column column : t.getColumns()) {
+                String identifier = t.getName() + "." + column.getName();
                 if (!equivalenceMapping.containsKey(identifier)) {
                     String newEC = "v" + counter;
                     counter++;
@@ -88,8 +88,8 @@ public class JoinQuery {
         for (Table t : schema.getTables()) {
             Hyperedge tableHE = new Hyperedge();
             tableHE.setName(t.getName());
-            for (String column : t.getColumns()) {
-                String identifier = t.getName() + "." + column;
+            for (Column column : t.getColumns()) {
+                String identifier = t.getName() + "." + column.getName();
                 if (equivalenceMapping.containsKey(identifier)) {
                     tableHE.getNodes().add(equivalenceMapping.get(identifier));
                 }

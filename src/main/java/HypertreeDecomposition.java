@@ -73,7 +73,7 @@ public class HypertreeDecomposition {
 
     }
 
-    private void readSchema(File schemaFile) {
+    /*private void readSchema(File schemaFile) {
         try {
             Files.lines(Paths.get(schemaFile.getAbsolutePath())).forEach((line) -> {
                 String[] splits = line.split(";");
@@ -92,11 +92,11 @@ public class HypertreeDecomposition {
         } catch (IOException e) {
             System.err.println("Error reading schema file: " + e.getMessage());
         }
-    }
+    }*/
 
     public HypertreeDecomposition(File hypertreeFile, File hypergraphFile, File sqlFile, File schemaFile) {
         buildCQFromSQL(sqlFile);
-        readSchema(schemaFile);
+        //readSchema(schemaFile);
 
         System.out.println(schema);
 

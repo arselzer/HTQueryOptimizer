@@ -4,7 +4,7 @@ import java.util.List;
 
 public class Table {
     private String name;
-    private List<String> columns;
+    private List<Column> columns;
 
     public int getNumberOfColumns() {
         return columns.size();
@@ -18,11 +18,11 @@ public class Table {
         this.name = name;
     }
 
-    public List<String> getColumns() {
+    public List<Column> getColumns() {
         return columns;
     }
 
-    public void setColumns(List<String> columns) {
+    public void setColumns(List<Column> columns) {
         this.columns = columns;
     }
 

@@ -1,9 +1,6 @@
 import hypergraph.Hypergraph;
 import org.junit.jupiter.api.Test;
-import query.DBSchema;
-import query.EquiJoinCondition;
-import query.JoinQuery;
-import query.Table;
+import query.*;
 
 import java.util.List;
 
@@ -25,9 +22,9 @@ class JoinQueryTest {
         t2.setName("t2");
         t3.setName("t3");
 
-        t1.setColumns(List.of("a", "b"));
-        t2.setColumns(List.of("a", "c"));
-        t3.setColumns(List.of("a", "d"));
+        t1.setColumns(List.of(new Column("a", "int4"), new Column("b", "int4")));
+        t2.setColumns(List.of(new Column("a", "int4"), new Column("c", "int4")));
+        t3.setColumns(List.of(new Column("a", "int4"), new Column("d", "int4")));
 
 
         DBSchema s = new DBSchema();
@@ -65,11 +62,11 @@ class JoinQueryTest {
         t4.setName("t4");
         t5.setName("t5");
 
-        t1.setColumns(List.of("a", "b"));
-        t2.setColumns(List.of("a", "c"));
-        t3.setColumns(List.of("a", "d"));
-        t4.setColumns(List.of("a", "e"));
-        t5.setColumns(List.of("a", "f"));
+        t1.setColumns(List.of(new Column("a", "int4"), new Column("b", "int4")));
+        t2.setColumns(List.of(new Column("a", "int4"), new Column("c", "int4")));
+        t3.setColumns(List.of(new Column("a", "int4"), new Column("d", "int4")));
+        t4.setColumns(List.of(new Column("a", "int4"), new Column("e", "int4")));
+        t5.setColumns(List.of(new Column("a", "int4"), new Column("f", "int4")));
 
 
         DBSchema s = new DBSchema();
@@ -110,11 +107,11 @@ class JoinQueryTest {
         t4.setName("t4");
         t5.setName("t5");
 
-        t1.setColumns(List.of("a", "b"));
-        t2.setColumns(List.of("a", "c"));
-        t3.setColumns(List.of("a", "d"));
-        t4.setColumns(List.of("a", "e"));
-        t5.setColumns(List.of("a", "f"));
+        t1.setColumns(List.of(new Column("a", "int4"), new Column("b", "int4")));
+        t2.setColumns(List.of(new Column("a", "int4"), new Column("c", "int4")));
+        t3.setColumns(List.of(new Column("a", "int4"), new Column("d", "int4")));
+        t4.setColumns(List.of(new Column("a", "int4"), new Column("e", "int4")));
+        t5.setColumns(List.of(new Column("a", "int4"), new Column("f", "int4")));
 
 
         DBSchema s = new DBSchema();
