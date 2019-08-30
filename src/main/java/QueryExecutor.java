@@ -29,7 +29,7 @@ public class QueryExecutor {
 
     public ResultSet execute(String queryStr) throws SQLException, QueryConversionException {
         SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
-        System.out.println(sqlQuery.toHypergraph().toJoinTree());
+        //System.out.println(sqlQuery.toHypergraph().toJoinTree());
 
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);

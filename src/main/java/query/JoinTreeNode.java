@@ -1,7 +1,7 @@
 package query;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.stream.Collectors;
 
 public class JoinTreeNode {
@@ -12,6 +12,48 @@ public class JoinTreeNode {
 
     public JoinTreeNode() {
 
+    }
+
+    public Set<JoinTreeNode> getDeepestLeaves() {
+        int height = getHeight();
+        System.out.println("height: " + height);
+
+        Set<JoinTreeNode> deepestLeaves = new HashSet<>();
+        HashMap<JoinTreeNode, Integer> depthMap = new HashMap<>();
+        Queue<JoinTreeNode> queue = new LinkedList<>();
+
+        // Add direct ancestors with depth 2
+        for (JoinTreeNode node : successors) {
+            queue.add(node);
+            depthMap.put(node, 2);
+        }
+
+        // Perform a search for the deepest leave nodes
+        while (!queue.isEmpty()) {
+            JoinTreeNode node = queue.poll();
+            int depth = depthMap.get(node);
+            if (depth == height) {
+                deepestLeaves.add(node);
+            }
+            for (JoinTreeNode successor : node.successors) {
+                queue.offer(successor);
+                depthMap.put(successor, depth + 1);
+            }
+        }
+
+        return deepestLeaves;
+    }
+
+    public int getHeight() {
+        Set<Integer> heights = successors.stream().map(JoinTreeNode::getHeight).collect(Collectors.toSet());
+        int max = 0;
+        for (Integer height : heights) {
+            if (height > max) {
+                max = height;
+            }
+        }
+
+        return max + 1;
     }
 
     public JoinTreeNode(JoinTreeNode predecessor) {
@@ -65,7 +107,8 @@ public class JoinTreeNode {
         for (int i = 0; i < n; i++) {
             indentation += "  ";
         }
-        String successorsString = successors.stream().map(node -> node.toIndentedString(n+1)).collect(Collectors.joining("\n"));
+        String successorsString = successors
+                .stream().map(node -> node.toIndentedString(n+1)).collect(Collectors.joining("\n"));
         if (!successorsString.isEmpty()) {
             successorsString = "\n" + successorsString;
         }
@@ -74,5 +117,20 @@ public class JoinTreeNode {
                 ", attributes=" + attributes +
                 ", successors=[" + successorsString +
                 "]}";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        JoinTreeNode that = (JoinTreeNode) o;
+        return Objects.equals(predecessor, that.predecessor) &&
+                tables.equals(that.tables) &&
+                attributes.equals(that.attributes);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(predecessor, tables, attributes);
     }
 }

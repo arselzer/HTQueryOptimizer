@@ -63,7 +63,12 @@ public class SQLQuery {
         return result;
     }
 
-    public String toFunction(String functionName) {
+    public String toFunction(String functionName) throws QueryConversionException {
+        Hypergraph hg = toHypergraph();
+        JoinTreeNode joinTree = hg.toJoinTree();
+        System.out.println(joinTree);
+        System.out.println(joinTree.getDeepestLeaves());
+
         FunctionBuilder fb = new FunctionBuilder(functionName);
         fb.projectColumns(List.of(new Column("a", "int4")));
 
