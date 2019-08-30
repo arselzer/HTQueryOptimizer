@@ -13,10 +13,7 @@ import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.select.Select;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
+import java.util.*;
 
 public class SQLQuery {
     private String query;
@@ -64,6 +61,16 @@ public class SQLQuery {
         }
 
         return result;
+    }
+
+    public String toFunction(String functionName) {
+        FunctionBuilder fb = new FunctionBuilder(functionName);
+
+        return fb.build();
+    }
+
+    public static String generateFunctionName() {
+        return "htqo_" + UUID.randomUUID();
     }
 
     public Hypergraph toHypergraph() throws QueryConversionException {

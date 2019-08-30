@@ -1,5 +1,6 @@
 import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
 import exceptions.QueryConversionException;
+import hypergraph.Hypergraph;
 import org.postgresql.copy.CopyManager;
 import query.DBSchema;
 import query.SQLQuery;
@@ -31,9 +32,13 @@ public class QueryExecutor {
     public PreparedStatement execute(String queryStr) throws SQLException, QueryConversionException {
         SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
 
-        System.out.println(sqlQuery.toHypergraph());
+        String functionName = SQLQuery.generateFunctionName();
+        String functionStr = sqlQuery.toFunction(functionName);
 
-        PreparedStatement ps = connection.prepareStatement(queryStr);
+        PreparedStatement ps = connection.prepareStatement(functionStr);
+        ps.execute();
+
+        ResultSet rs = ps.executeQuery(String.format("SELECT %s()", functionName));
 
         ps.execute();
 
