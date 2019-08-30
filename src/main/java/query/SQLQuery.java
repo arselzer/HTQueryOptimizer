@@ -14,6 +14,7 @@ import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.select.Select;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class SQLQuery {
     private String query;
@@ -66,13 +67,24 @@ public class SQLQuery {
     public String toFunction(String functionName) throws QueryConversionException {
         Hypergraph hg = toHypergraph();
         JoinTreeNode joinTree = hg.toJoinTree();
+
         System.out.println(joinTree);
         System.out.println(joinTree.getDeepestLeaves());
 
-        FunctionBuilder fb = new FunctionBuilder(functionName);
-        fb.projectColumns(List.of(new Column("a", "int4")));
+        String fnStr = "";
+        fnStr += String.format("CREATE FUNCTION %s()\n", functionName);
 
-        return fb.build();
+        List<Column> columns = List.of(new Column("a", "int4"));
+        List<String> columnDefinitions = columns.stream()
+                .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
+        fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
+        fnStr += "BEGIN\n";
+
+        fnStr += "RETURN QUERY SELECT 1;\n";
+        fnStr += "END;\n";
+        fnStr += "$$ LANGUAGE plpgsql\n";
+
+        return fnStr;
     }
 
     public static String generateFunctionName() {

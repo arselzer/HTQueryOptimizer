@@ -14,6 +14,10 @@ public class JoinTreeNode {
 
     }
 
+    public String getIdentifier() {
+        return "htqo_tbl_" + UUID.fromString(String.join("", tables)).toString().replace("-","");
+    }
+
     public Set<JoinTreeNode> getDeepestLeaves() {
         int height = getHeight();
         System.out.println("height: " + height);
