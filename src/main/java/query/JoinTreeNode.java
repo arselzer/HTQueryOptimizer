@@ -18,6 +18,32 @@ public class JoinTreeNode {
         return "htqo_tbl_" + UUID.fromString(String.join("", tables)).toString().replace("-","");
     }
 
+    public List<Set<JoinTreeNode>> getLayers() {
+        LinkedList<Set<JoinTreeNode>> layers = new LinkedList<>();
+        layers.add(Set.of(this));
+        layers.add(new HashSet<>(successors));
+
+        int currentLayerIndex = 1;
+
+        // Perform a BFS to find all height layers of the tree
+        while (layers.get(currentLayerIndex).size() > 0) {
+            Set<JoinTreeNode> nextLayer = new HashSet<>();
+
+            for (JoinTreeNode node : layers.get(currentLayerIndex)) {
+                nextLayer.addAll(node.successors);
+            }
+
+            layers.add(nextLayer);
+
+            currentLayerIndex++;
+        }
+
+        // Remove the last, empty layer
+        layers.removeLast();
+
+        return layers;
+    }
+
     public Set<JoinTreeNode> getDeepestLeaves() {
         int height = getHeight();
         System.out.println("height: " + height);

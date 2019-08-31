@@ -4,7 +4,7 @@ graph [
 
   node [
     id 1
-    label "{t5}    {X5, X7}"
+    label "{t5}    {X7, X5}"
     vgj [
       labelPosition "in"
       shape "Rectangle"

@@ -69,7 +69,10 @@ public class SQLQuery {
         JoinTreeNode joinTree = hg.toJoinTree();
 
         System.out.println(joinTree);
-        System.out.println(joinTree.getDeepestLeaves());
+        System.out.println(joinTree.getLayers());
+        for (Set<JoinTreeNode> layer : joinTree.getLayers()) {
+            System.out.println(layer.size() + " " + layer);
+        }
 
         String fnStr = "";
         fnStr += String.format("CREATE FUNCTION %s()\n", functionName);
