@@ -37,6 +37,11 @@ public class DBSchema {
         return otherSchema;
     }
 
+    public DBSchema fromString(String schemaStr) {
+        // TODO implement
+        return null;
+    }
+
     @Override
     public String toString() {
         return "query.DBSchema{" +

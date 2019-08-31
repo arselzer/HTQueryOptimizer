@@ -6,12 +6,14 @@ import exceptions.QueryConversionException;
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;
 import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.Statements;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
-import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.*;
+import net.sf.jsqlparser.statement.values.ValuesStatement;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,49 +21,34 @@ import java.util.stream.Collectors;
 public class SQLQuery {
     private String query;
     private Schema schema;
+    private DBSchema dbSchema;
+    private List<String> projectColumns;
+    private Statement stmt;
 
-    public SQLQuery(String query, DBSchema dbSchema) {
+    public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException {
         this.query = query;
         this.schema = dbSchema.toSchema();
+        this.dbSchema = dbSchema;
+        determineProjectColumns();
     }
 
-    public SQLQuery(String query, Schema schema) {
-        this.query = query;
-        this.schema = schema;
-    }
-
-    public SQLQuery(String query, String schemaString) throws QueryConversionException {
-        this.query = query;
-        this.schema = readSchema(schemaString);
-    }
-
-    public static Schema readSchema(String schemaString) throws QueryConversionException {
-        Schema result = new Schema();
-
-        Statements schemaStmts = null;
+    private void determineProjectColumns() throws QueryConversionException {
         try {
-            schemaStmts = CCJSqlParserUtil.parseStatements(schemaString);
+            stmt = CCJSqlParserUtil.parse(query);
+
+            SQLQueryParser queryParser = new SQLQueryParser(stmt, dbSchema);
+            projectColumns = queryParser.getProjectColumns();
         } catch (JSQLParserException e) {
-            throw new QueryConversionException("Error parsing schema: " + e.getMessage());
+            throw new QueryConversionException("Error parsing SQL statement: " + e.getMessage());
         }
-        for (Statement schemaStmt : schemaStmts.getStatements()) {
-            try {
-                CreateTable tbl = (CreateTable) schemaStmt;
+    }
 
-                // System.out.println("Table: "+tbl.getTable().getName());
-                String predicateName = tbl.getTable().getName();
-                LinkedList<String> attributes = new LinkedList<>();
-                for (ColumnDefinition cdef : tbl.getColumnDefinitions()) {
-                    // System.out.println("+++ " + cdef.getColumnName());
-                    attributes.add(cdef.getColumnName());
-                }
-                result.addPredicateDefinition(new PredicateDefinition(predicateName, attributes));
-            } catch (ClassCastException c) {
-                throw new QueryConversionException("\"" + schemaStmt + "\" is not a CREATE statement.");
-            }
-        }
+    private String buildFinalJoin() throws QueryConversionException {
+        String sqlStatement = String.format("SELECT %s\n", String.join(", ", projectColumns));
+        sqlStatement += String.format("FROM %s\n" );
+        sqlStatement += String.format("WHERE %s");
 
-        return result;
+        return sqlStatement;
     }
 
     public String toFunction(String functionName) throws QueryConversionException {
@@ -69,10 +56,6 @@ public class SQLQuery {
         JoinTreeNode joinTree = hg.toJoinTree();
 
         System.out.println(joinTree);
-        System.out.println(joinTree.getLayers());
-        for (Set<JoinTreeNode> layer : joinTree.getLayers()) {
-            System.out.println(layer.size() + " " + layer);
-        }
 
         String fnStr = "";
         fnStr += String.format("CREATE FUNCTION %s()\n", functionName);
@@ -83,7 +66,7 @@ public class SQLQuery {
         fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
         fnStr += "BEGIN\n";
 
-        fnStr += "RETURN QUERY SELECT 1;\n";
+        fnStr += String.format("RETURN QUERY %s;\n", buildFinalJoin());
         fnStr += "END;\n";
         fnStr += "$$ LANGUAGE plpgsql\n";
 
@@ -154,5 +137,36 @@ public class SQLQuery {
         result.setEquivalenceMapping(equivalenceMapping);
 
         return result;
+    }
+
+    public static Schema readSchema(String schemaString) throws QueryConversionException {
+        Schema result = new Schema();
+
+        Statements schemaStmts = null;
+        try {
+            schemaStmts = CCJSqlParserUtil.parseStatements(schemaString);
+        } catch (JSQLParserException e) {
+            throw new QueryConversionException("Error parsing schema: " + e.getMessage());
+        }
+        for (Statement schemaStmt : schemaStmts.getStatements()) {
+            try {
+                CreateTable tbl = (CreateTable) schemaStmt;
+
+                String predicateName = tbl.getTable().getName();
+                LinkedList<String> attributes = new LinkedList<>();
+                for (ColumnDefinition cdef : tbl.getColumnDefinitions()) {
+                    attributes.add(cdef.getColumnName());
+                }
+                result.addPredicateDefinition(new PredicateDefinition(predicateName, attributes));
+            } catch (ClassCastException c) {
+                throw new QueryConversionException("\"" + schemaStmt + "\" is not a CREATE statement.");
+            }
+        }
+
+        return result;
+    }
+
+    public List<String> getProjectColumns() {
+        return projectColumns;
     }
 }
