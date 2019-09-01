@@ -4,7 +4,7 @@ graph [
 
   node [
     id 1
-    label "{t3}    {X8, X1}"
+    label "{t6}    {X7, X3}"
     vgj [
       labelPosition "in"
       shape "Rectangle"
@@ -13,7 +13,7 @@ graph [
 
   node [
     id 2
-    label "{t1}    {X8, X9}"
+    label "{t5}    {X5, X7}"
     vgj [
       labelPosition "in"
       shape "Rectangle"
@@ -31,7 +31,7 @@ graph [
 
   node [
     id 4
-    label "{t5}    {X5, X7}"
+    label "{t2}    {X8, X11}"
     vgj [
       labelPosition "in"
       shape "Rectangle"
@@ -40,7 +40,7 @@ graph [
 
   node [
     id 5
-    label "{t6}    {X7, X3}"
+    label "{t1}    {X8, X9}"
     vgj [
       labelPosition "in"
       shape "Rectangle"
@@ -49,7 +49,7 @@ graph [
 
   node [
     id 6
-    label "{t2}    {X8, X11}"
+    label "{t3}    {X8, X1}"
     vgj [
       labelPosition "in"
       shape "Rectangle"
@@ -62,7 +62,7 @@ graph [
   ]
 
   edge [
-    source 1
+    source 2
     target 3
   ]
 
@@ -72,12 +72,12 @@ graph [
   ]
 
   edge [
-    source 4
+    source 3
     target 5
   ]
 
   edge [
-    source 1
+    source 3
     target 6
   ]
 

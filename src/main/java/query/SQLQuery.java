@@ -66,7 +66,7 @@ public class SQLQuery {
         List<String> columnDefinitions = columns.stream()
                 .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
         fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
-        fnStr += "BEGIN\n";
+        fnStr += "BEGIN;\n";
 
         List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
 
@@ -115,8 +115,29 @@ public class SQLQuery {
             fnStr += "-- layer " + i + "\n";
 
             for (JoinTreeNode node : layer) {
-                fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
-                fnStr += String.format("AS SELECT * \n");
+                fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+                fnStr += String.format("AS SELECT *\n");
+                fnStr += String.format("FROM %s\n", node.getIdentifier(1));
+                List<String> semiJoins = new LinkedList<>();
+                for (JoinTreeNode child : node.getSuccessors()) {
+                    String childName = child.getIdentifier(1);
+                    HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
+                    HashSet<String> childCols = new HashSet<>(child.getAttributes());
+                    // Perform set intersection
+                    sameNameColumns.retainAll(childCols);
+
+                    // Construct semi join conditions for WHERE statement
+                    List<String> semiJoinConditions = new LinkedList<>();
+                    for (String columnName : sameNameColumns) {
+                        semiJoinConditions.add(String.format("(%s.%s = %s.%s)",
+                                node.getIdentifier(1), columnName,
+                                childName, columnName));
+                    }
+
+                    // EXISTS is the only choice because IN does not support multiple columns
+                    semiJoins.add(String.format("(EXISTS (SELECT * FROM %s WHERE %s))", childName, String.join(" AND ", semiJoinConditions)));
+                }
+                fnStr += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
             }
         }
 
@@ -124,7 +145,10 @@ public class SQLQuery {
 
         // Stage 4 - join everything
 
-        fnStr += String.format("RETURN QUERY %s;\n", buildFinalJoin(hg));
+        fnStr += String.format("RETURN QUERY SELECT %s;\n", String.join(", ", projectColumns));
+
+        fnStr += String.format("FROM %s\n", "");
+        fnStr += String.format("WHERE %s;\n", "");
         fnStr += "END;\n";
         fnStr += "$$ LANGUAGE plpgsql\n";
 
