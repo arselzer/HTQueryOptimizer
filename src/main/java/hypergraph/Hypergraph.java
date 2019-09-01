@@ -5,7 +5,6 @@ import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
 import org.jgrapht.io.*;
 import org.jgrapht.traverse.BreadthFirstIterator;
-import query.JoinTree;
 import query.JoinTreeNode;
 
 import java.io.File;
@@ -25,6 +24,8 @@ public class Hypergraph {
     private Set<String> nodes = new HashSet<>();
     // Maps column -> variable
     private Map<String, String> equivalenceMapping = new HashMap<>();
+    // Maps variable -> (table -> column)
+    private Map<String, Map<String, String>> inverseEquivalenceMapping = new HashMap<>();
 
     private Graph<HypertreeNode, DefaultEdge> decompositionTree;
 
@@ -62,15 +63,11 @@ public class Hypergraph {
     }
 
     public JoinTreeNode toJoinTree() {
-
         // Write hypergraph out to a file
         String fileContent = toDTL();
 
-        JoinTreeNode rootNode = new JoinTreeNode();
-        JoinTree joinTree = new JoinTree(rootNode);
-
         try {
-            PrintWriter out = new PrintWriter("hypergraph.dtl");
+            PrintWriter out = new PrintWriter(HG_FILE_NAME);
 
             out.write(fileContent);
 
@@ -215,13 +212,31 @@ public class Hypergraph {
         return equivalenceMapping;
     }
 
+    public Map<String, Map<String, String>> getInverseEquivalenceMapping() {
+        return inverseEquivalenceMapping;
+    }
+
     public void setEquivalenceMapping(Map<String, String> equivalenceMapping) {
         this.equivalenceMapping = equivalenceMapping;
+
+        this.inverseEquivalenceMapping = new HashMap<>();
+
+        HashSet<String> variablesSet = new HashSet<>(equivalenceMapping.values());
+        for (String variable : variablesSet) {
+            inverseEquivalenceMapping.put(variable, new HashMap<String, String>());
+        }
+        for (String columnIdentifier : equivalenceMapping.keySet()) {
+            String[] splits = columnIdentifier.split("\\.");
+            String columnName = splits[1];
+            String tableName = splits[0];
+            String variableName = equivalenceMapping.get(columnIdentifier);
+            inverseEquivalenceMapping.get(variableName).put(tableName, columnName);
+        }
     }
 
     @Override
     public String toString() {
-        return "hypergraph.Hypergraph{" +
+        return "Hypergraph{" +
                 "edges=" + edges +
                 ", nodes=" + nodes +
                 '}';

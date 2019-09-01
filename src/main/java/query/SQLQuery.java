@@ -14,6 +14,7 @@ import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.select.*;
 import schema.Column;
 import schema.DBSchema;
+import schema.Table;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -61,11 +62,67 @@ public class SQLQuery {
         String fnStr = "";
         fnStr += String.format("CREATE FUNCTION %s()\n", functionName);
 
-        List<Column> columns = List.of(new Column("a", "int4"));
+        List<Column> columns = List.of(new Column("a", "int4")); // TODO ...
         List<String> columnDefinitions = columns.stream()
                 .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
         fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
         fnStr += "BEGIN\n";
+
+        List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
+
+        /**
+         * Stage 0 - Rename columns to match hypergraph variable
+         *
+         * Create a view for each table
+         */
+
+        for (Hyperedge he: hg.getEdges()) {
+            LinkedList<String> columnRewrites = new LinkedList<>();
+            String tableName = he.getName();
+            for (String variableName : he.getNodes()) {
+                String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName);
+                columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
+            }
+            fnStr += String.format("CREATE TEMP VIEW %s AS\n", "htqo_" + tableName + "_stage_0");
+            fnStr += String.format("SELECT %s\n FROM %s;\n", String.join(", ", columnRewrites), tableName);
+        }
+
+        /**
+         * Stage 1 - join tables inside tree nodes
+         *
+         * Create a view for each join tree node.
+         * Join the tables in the node.
+         * This step is redundant with hypertree width 1 and could be optimized away (if it has any significant overhead)
+         */
+
+        for (Set<JoinTreeNode> layer: joinLayers) {
+            for (JoinTreeNode node : layer) {
+                fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
+                fnStr += String.format("AS SELECT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", node.getTables()));
+            }
+        }
+
+
+        /**
+         * Stage 2 - semi joins upwards
+         *
+         * Create a view for each join tree node from the second one upwards.
+         * Join the tables in the node
+         */
+
+        for (int i = joinLayers.size()-2 ;i >= 0; i--) {
+            Set<JoinTreeNode> layer = joinLayers.get(i);
+            fnStr += "-- layer " + i + "\n";
+
+            for (JoinTreeNode node : layer) {
+                fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
+                fnStr += String.format("AS SELECT * \n");
+            }
+        }
+
+        // Stage 3 - semi joins downwards
+
+        // Stage 4 - join everything
 
         fnStr += String.format("RETURN QUERY %s;\n", buildFinalJoin(hg));
         fnStr += "END;\n";

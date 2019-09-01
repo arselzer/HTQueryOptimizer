@@ -15,7 +15,13 @@ public class JoinTreeNode {
     }
 
     public String getIdentifier() {
-        return "htqo_tbl_" + UUID.fromString(String.join("", tables)).toString().replace("-","");
+        //return "htqo_tbl_" + UUID.fromString(String.join("", tables)).toString().replace("-","");
+        return "htqo_" + String.join("_", tables);
+        // UUID or more readable form?
+    }
+
+    public String getIdentifier(int stage) {
+        return getIdentifier() + "_stage_" + stage;
     }
 
     public List<Set<JoinTreeNode>> getLayers() {
