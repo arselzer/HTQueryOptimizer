@@ -1,4 +1,6 @@
-package query;
+package schema;
+
+import schema.Column;
 
 import java.util.List;
 
@@ -28,7 +30,7 @@ public class Table {
 
     @Override
     public String toString() {
-        return "query.Table{" +
+        return "Table{" +
                 "name='" + name + '\'' +
                 ", columns=" + columns +
                 '}';

@@ -1,12 +1,10 @@
-import at.ac.tuwien.dbai.hgtools.sql2hg.PredicateDefinition;
-import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
 import exceptions.QueryConversionException;
 import hypergraph.Hypergraph;
 import org.junit.jupiter.api.Test;
-import query.Column;
-import query.DBSchema;
+import schema.Column;
+import schema.DBSchema;
 import query.SQLQuery;
-import query.Table;
+import schema.Table;
 import java.util.List;
 
 import java.util.LinkedList;

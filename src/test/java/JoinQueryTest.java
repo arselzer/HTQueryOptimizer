@@ -1,6 +1,9 @@
 import hypergraph.Hypergraph;
 import org.junit.jupiter.api.Test;
 import query.*;
+import schema.Column;
+import schema.DBSchema;
+import schema.Table;
 
 import java.util.List;
 

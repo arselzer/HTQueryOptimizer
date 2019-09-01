@@ -1,11 +1,8 @@
-import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
 import exceptions.QueryConversionException;
-import hypergraph.Hypergraph;
-import org.postgresql.copy.CopyManager;
-import query.Column;
-import query.DBSchema;
+import schema.Column;
+import schema.DBSchema;
 import query.SQLQuery;
-import query.Table;
+import schema.Table;
 
 import java.util.List;
 import java.sql.*;
@@ -33,6 +30,7 @@ public class QueryExecutor {
 
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);
+        System.out.println("equivalence mapping: " + sqlQuery.toHypergraph().getEquivalenceMapping());
         System.out.println(functionStr);
 
         PreparedStatement psFunction = connection.prepareStatement(functionStr);

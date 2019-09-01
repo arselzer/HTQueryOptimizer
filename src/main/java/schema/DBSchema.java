@@ -1,8 +1,7 @@
-package query;
+package schema;
 
 import at.ac.tuwien.dbai.hgtools.sql2hg.PredicateDefinition;
 import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
-import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -44,7 +43,7 @@ public class DBSchema {
 
     @Override
     public String toString() {
-        return "query.DBSchema{" +
+        return "DBSchema{" +
                 "tables=" + tables +
                 '}';
     }

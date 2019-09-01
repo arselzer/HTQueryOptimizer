@@ -11,6 +11,11 @@ public class Hyperedge {
         nodes = new HashSet<>();
     }
 
+    public Hyperedge(String name, Set<String> nodes) {
+        this.name = name;
+        this.nodes = nodes;
+    }
+
     public String getName() {
         return name;
     }

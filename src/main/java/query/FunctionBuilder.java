@@ -1,5 +1,7 @@
 package query;
 
+import schema.Column;
+
 import java.util.List;
 import java.util.stream.Collectors;
 

@@ -21,18 +21,7 @@ public class Main {
         String sqlFileName = args[2];
         String schemaFileName = args[3];
 
-        Graph<String, DefaultEdge> g = new SimpleGraph<String, DefaultEdge>(DefaultEdge.class);
 
-        try {
-            String gml = Files.lines(Paths.get(gmlFileName)).reduce("", (a,b) -> a + b);
-
-            HypertreeDecomposition hd = new HypertreeDecomposition(
-                    new File(gmlFileName), new File(dtlFileName), new File(sqlFileName), new File(schemaFileName));
-
-            System.out.printf("Query:\n%s", hd.toQuery());
-        } catch (IOException e) {
-            System.err.println("Error reading hypertree file: " + e.getMessage());
-        }
     }
 
     public static String getJarName() {

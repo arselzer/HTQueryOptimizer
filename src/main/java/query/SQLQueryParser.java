@@ -1,7 +1,5 @@
 package query;
 
-import at.ac.tuwien.dbai.hgtools.sql2hg.QueryVisitorUnsupportedAdapter;
-import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
 import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.arithmetic.*;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
@@ -25,6 +23,7 @@ import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 import net.sf.jsqlparser.statement.values.ValuesStatement;
+import schema.DBSchema;
 
 import java.util.LinkedList;
 import java.util.List;

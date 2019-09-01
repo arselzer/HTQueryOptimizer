@@ -2,6 +2,9 @@ package query;
 
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;
+import schema.Column;
+import schema.DBSchema;
+import schema.Table;
 
 import java.util.HashMap;
 import java.util.List;

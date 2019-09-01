@@ -13,6 +13,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,12 +23,18 @@ public class Hypergraph {
 
     private Set<Hyperedge> edges = new HashSet<>();
     private Set<String> nodes = new HashSet<>();
+    // Maps column -> variable
     private Map<String, String> equivalenceMapping = new HashMap<>();
 
     private Graph<HypertreeNode, DefaultEdge> decompositionTree;
 
     public Hypergraph() {
 
+    }
+
+    public Hypergraph(Set<String> nodes, Set<Hyperedge> edges) {
+        this.nodes = nodes;
+        this.edges = edges;
     }
 
     public boolean isAcyclic() {
@@ -153,6 +160,31 @@ public class Hypergraph {
         }
 
         return String.join(",\n", edgeStrings) + ".";
+    }
+
+    public static Hypergraph fromDTL(String dtlString) {
+
+        Set<Hyperedge> hgHyperedges = new HashSet<>();
+        Set<String> hgNodes = new HashSet<>();
+
+        String[] matches = Pattern.compile("(\\w+\\([,\\d\\s]*\\))")
+                .matcher(dtlString)
+                .results()
+                .map(MatchResult::group)
+                .toArray(String[]::new);
+
+        for (String match : matches) {
+            Matcher matcher = Pattern.compile("(\\w+)\\(([,\\d\\s]*)\\)").matcher(match);
+
+            if (matcher.find()) {
+                String heName = matcher.group(1);
+                Set<String> nodes = Set.of(matcher.group(2).split(","));
+                hgHyperedges.add(new Hyperedge(heName, nodes));
+                hgNodes.addAll(nodes);
+            }
+        }
+
+        return new Hypergraph();
     }
 
     public Set<Hyperedge> getEdges() {

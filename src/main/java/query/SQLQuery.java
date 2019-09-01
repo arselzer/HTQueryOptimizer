@@ -6,14 +6,14 @@ import exceptions.QueryConversionException;
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;
 import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.Statements;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.select.*;
-import net.sf.jsqlparser.statement.values.ValuesStatement;
+import schema.Column;
+import schema.DBSchema;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,10 +43,11 @@ public class SQLQuery {
         }
     }
 
-    private String buildFinalJoin() throws QueryConversionException {
+    private String buildFinalJoin(Hypergraph hypergraph) throws QueryConversionException {
         String sqlStatement = String.format("SELECT %s\n", String.join(", ", projectColumns));
-        sqlStatement += String.format("FROM %s\n" );
-        sqlStatement += String.format("WHERE %s");
+        sqlStatement += String.format("FROM %s\n",
+                hypergraph.getEdges().stream().map(Hyperedge::getName).collect(Collectors.joining(", ")));
+        sqlStatement += String.format("WHERE %s", "...");
 
         return sqlStatement;
     }
@@ -66,7 +67,7 @@ public class SQLQuery {
         fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
         fnStr += "BEGIN\n";
 
-        fnStr += String.format("RETURN QUERY %s;\n", buildFinalJoin());
+        fnStr += String.format("RETURN QUERY %s;\n", buildFinalJoin(hg));
         fnStr += "END;\n";
         fnStr += "$$ LANGUAGE plpgsql\n";
 
