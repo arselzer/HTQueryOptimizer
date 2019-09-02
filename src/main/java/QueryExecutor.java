@@ -29,7 +29,8 @@ public class QueryExecutor {
         //System.out.println(sqlQuery.toHypergraph().toJoinTree());
 
         String functionName = SQLQuery.generateFunctionName();
-        String functionStr = sqlQuery.toFunction(functionName);
+        String finalTableName = SQLQuery.generateFunctionName();
+        String functionStr = sqlQuery.toFunction(functionName, finalTableName);
         System.out.println("equivalence mapping: " + sqlQuery.toHypergraph().getEquivalenceMapping());
         System.out.println(functionStr);
 
@@ -37,7 +38,10 @@ public class QueryExecutor {
         psFunction.execute();
 
         PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT %s();", functionName));
-        ResultSet rs = psSelect.executeQuery();
+        psSelect.executeQuery();
+
+        PreparedStatement psSelectFromView = connection.prepareStatement(String.format("SELECT * FROM %s", finalTableName));
+        ResultSet rs = psSelectFromView.executeQuery();
 
         // TODO maybe keep the function over several calls for performance
         PreparedStatement psDelete = connection.prepareStatement(String.format("DROP FUNCTION %s;", functionName));

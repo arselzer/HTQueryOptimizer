@@ -53,7 +53,7 @@ public class SQLQuery {
         return sqlStatement;
     }
 
-    public String toFunction(String functionName) throws QueryConversionException {
+    public String toFunction(String functionName, String finalViewName) throws QueryConversionException {
         Hypergraph hg = toHypergraph();
         JoinTreeNode joinTree = hg.toJoinTree();
 
@@ -65,8 +65,9 @@ public class SQLQuery {
         List<Column> columns = List.of(new Column("a", "int4")); // TODO ...
         List<String> columnDefinitions = columns.stream()
                 .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
-        fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
-        fnStr += "BEGIN;\n";
+        //fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
+        fnStr += "RETURNS VOID AS $$\n";
+        fnStr += "BEGIN\n";
 
         List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
 
@@ -75,6 +76,7 @@ public class SQLQuery {
          *
          * Create a view for each table
          */
+        //fnStr += "-- STAGE 0\n";
 
         for (Hyperedge he: hg.getEdges()) {
             LinkedList<String> columnRewrites = new LinkedList<>();
@@ -94,11 +96,14 @@ public class SQLQuery {
          * Join the tables in the node.
          * This step is redundant with hypertree width 1 and could be optimized away (if it has any significant overhead)
          */
+        //fnStr += "-- STAGE 1\n";
 
         for (Set<JoinTreeNode> layer: joinLayers) {
             for (JoinTreeNode node : layer) {
                 fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
-                fnStr += String.format("AS SELECT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", node.getTables()));
+                fnStr += String.format("AS SELECT * FROM %s;\n", node.getTables()
+                .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
+                        .collect(Collectors.joining(" NATURAL INNER JOIN")));
             }
         }
 
@@ -109,10 +114,11 @@ public class SQLQuery {
          * Create a view for each join tree node from the second one upwards.
          * Join the tables in the node
          */
+        //fnStr += "-- STAGE 2\n";
 
         for (int i = joinLayers.size()-2 ;i >= 0; i--) {
             Set<JoinTreeNode> layer = joinLayers.get(i);
-            fnStr += "-- layer " + i + "\n";
+            //fnStr += "-- layer " + i + "\n";
 
             for (JoinTreeNode node : layer) {
                 fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
@@ -137,20 +143,73 @@ public class SQLQuery {
                     // EXISTS is the only choice because IN does not support multiple columns
                     semiJoins.add(String.format("(EXISTS (SELECT * FROM %s WHERE %s))", childName, String.join(" AND ", semiJoinConditions)));
                 }
-                fnStr += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
+                if (!semiJoins.isEmpty()) {
+                    // There are nodes without any children
+                    fnStr += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
+                }
+                else {
+                    fnStr += ";\n";
+                }
             }
         }
 
+        // Create views for the last layer (which are just an alias for the views from stage 1)
+        for (JoinTreeNode node : joinLayers.get(joinLayers.size()-1)) {
+            fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+            fnStr += String.format("AS SELECT * FROM %s;\n", node.getIdentifier(1));
+        }
+
         // Stage 3 - semi joins downwards
+        //fnStr += "-- STAGE 3\n";
+
+        for (int i = 1; i < joinLayers.size(); i++) {
+            Set<JoinTreeNode> layer = joinLayers.get(i);
+            //fnStr += "-- layer " + i + "\n";
+
+            for (JoinTreeNode node : layer) {
+                JoinTreeNode parent = node.getPredecessor();
+
+                String parentName = parent.getIdentifier(2);
+                HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
+                HashSet<String> childCols = new HashSet<>(parent.getAttributes());
+                // Perform set intersection
+                sameNameColumns.retainAll(childCols);
+
+                List<String> semiJoinConditions = new LinkedList<>();
+                for (String columnName : sameNameColumns) {
+                    semiJoinConditions.add(String.format("(%s.%s = %s.%s)",
+                            node.getIdentifier(2), columnName,
+                            parentName, columnName));
+                }
+
+                fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
+                fnStr += String.format("AS SELECT *\n");
+                fnStr += String.format("FROM %s\n", node.getIdentifier(2));
+                fnStr += String.format("WHERE EXISTS (SELECT * FROM %s WHERE %s);\n",
+                        parent.getIdentifier(2), String.join(" AND ", semiJoinConditions));
+            }
+        }
+
+        // Create one view for the root node
+        fnStr += String.format("CREATE TEMP VIEW %s\n", joinTree.getIdentifier(3));
+        fnStr += String.format("AS SELECT * FROM %s;\n", joinTree.getIdentifier(2));
+
 
         // Stage 4 - join everything
 
-        fnStr += String.format("RETURN QUERY SELECT %s;\n", String.join(", ", projectColumns));
+        //fnStr += "-- STAGE 4\n";
 
-        fnStr += String.format("FROM %s\n", "");
-        fnStr += String.format("WHERE %s;\n", "");
+        List<String> allStage3Tables = new LinkedList<>();
+        for (Set<JoinTreeNode> layer : joinLayers) {
+            for (JoinTreeNode node : layer) {
+                allStage3Tables.add(node.getIdentifier(3));
+            }
+        }
+
+        fnStr += String.format("CREATE TEMP VIEW %s AS SELECT %s\n", finalViewName, String.join(", ", projectColumns));
+        fnStr += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
         fnStr += "END;\n";
-        fnStr += "$$ LANGUAGE plpgsql\n";
+        fnStr += "$$ LANGUAGE plpgsql;\n";
 
         return fnStr;
     }
