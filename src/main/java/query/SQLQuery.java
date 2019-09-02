@@ -23,6 +23,7 @@ public class SQLQuery {
     private String query;
     private Schema schema;
     private DBSchema dbSchema;
+    private Map<String, Column> columnByNameMap;
     private List<String> projectColumns;
     private Statement stmt;
 
@@ -31,6 +32,7 @@ public class SQLQuery {
         this.schema = dbSchema.toSchema();
         this.dbSchema = dbSchema;
         determineProjectColumns();
+        buildColumnLookup();
     }
 
     private void determineProjectColumns() throws QueryConversionException {
@@ -44,16 +46,16 @@ public class SQLQuery {
         }
     }
 
-    private String buildFinalJoin(Hypergraph hypergraph) throws QueryConversionException {
-        String sqlStatement = String.format("SELECT %s\n", String.join(", ", projectColumns));
-        sqlStatement += String.format("FROM %s\n",
-                hypergraph.getEdges().stream().map(Hyperedge::getName).collect(Collectors.joining(", ")));
-        sqlStatement += String.format("WHERE %s", "...");
-
-        return sqlStatement;
+    private void buildColumnLookup() {
+        columnByNameMap = new HashMap<>();
+        for (Table t : dbSchema.getTables()) {
+            for (Column c : t.getColumns()) {
+                columnByNameMap.put(t.getName() + "." + c.getName(), c);
+            }
+        }
     }
 
-    public String toFunction(String functionName, String finalViewName) throws QueryConversionException {
+    public String toFunction(String functionName) throws QueryConversionException {
         Hypergraph hg = toHypergraph();
         JoinTreeNode joinTree = hg.toJoinTree();
 
@@ -62,11 +64,37 @@ public class SQLQuery {
         String fnStr = "";
         fnStr += String.format("CREATE FUNCTION %s()\n", functionName);
 
-        List<Column> columns = List.of(new Column("a", "int4")); // TODO ...
-        List<String> columnDefinitions = columns.stream()
+        List<Column> resultColumnStrings = new LinkedList<>();
+
+        if (projectColumns.size() == 1 && projectColumns.get(0).equals("*")) {
+            // Go through all hypergraph vertices
+            for (String node : hg.getNodes()) {
+                // Look up the column name for the vertex name - get any actual column
+                // from any table associated - the type has to be equal anyway
+                Map<String,String> nodeCols = hg.getInverseEquivalenceMapping().get(node);
+                // Get any table name
+                String table = (String) nodeCols.keySet().toArray()[0];
+                // Build the table.column identifier
+                String identifier = table + "." + nodeCols.get(table);
+
+                Column realColumn = columnByNameMap.get(identifier);
+
+                resultColumnStrings.add(new Column(node, realColumn.getType()));
+            }
+        }
+        else {
+            for (String projectCol : projectColumns) {
+                Column realColumn = columnByNameMap.get(projectCol);
+                String hyperedge = hg.getEquivalenceMapping().get(projectCol);
+                resultColumnStrings.add(new Column(hyperedge, realColumn.getType()));
+                // TODO support non-fully qualified columns
+            }
+        }
+
+        List<String> columnDefinitions = resultColumnStrings.stream()
                 .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
-        //fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
-        fnStr += "RETURNS VOID AS $$\n";
+        fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
+        //fnStr += "RETURNS VOID AS $$\n";
         fnStr += "BEGIN\n";
 
         List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
@@ -206,7 +234,7 @@ public class SQLQuery {
             }
         }
 
-        fnStr += String.format("CREATE TEMP VIEW %s AS SELECT %s\n", finalViewName, String.join(", ", projectColumns));
+        fnStr += String.format("RETURN QUERY SELECT %s\n", String.join(", ", projectColumns));
         fnStr += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
         fnStr += "END;\n";
         fnStr += "$$ LANGUAGE plpgsql;\n";
