@@ -11,14 +11,14 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Hypergraph {
-    private static String HG_FILE_NAME = "hypergraph.dtl";
-    private static String HT_FILE_NAME = "hypergraph.gml";
+    private static int HYPERTREE_WIDTH = 2;
 
     private Set<Hyperedge> edges = new HashSet<>();
     private Set<String> nodes = new HashSet<>();
@@ -43,6 +43,11 @@ public class Hypergraph {
         return false; // TODO implement
     }
 
+    public String generateHGFileName() {
+        return "hypergraph";
+        //return String.format("hypergraph-%s", new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date()));
+    }
+
     public JoinTreeNode hypertreeToJoinTree(HypertreeNode htNode) {
         // Recursively convert the hypertree data structure of jgrapht
         // to the simpler JoinTree
@@ -65,9 +70,12 @@ public class Hypergraph {
     public JoinTreeNode toJoinTree() {
         // Write hypergraph out to a file
         String fileContent = toDTL();
+        String fileNameBase = generateHGFileName();
+        String hgFileName = fileNameBase + ".dtl";
+        String htFileName = fileNameBase + ".gml";
 
         try {
-            PrintWriter out = new PrintWriter(HG_FILE_NAME);
+            PrintWriter out = new PrintWriter(hgFileName);
 
             out.write(fileContent);
 
@@ -79,7 +87,7 @@ public class Hypergraph {
         // Call detkdecomp
 
         try {
-            Process process = new ProcessBuilder("detkdecomp", "1", HG_FILE_NAME).start();
+            Process process = new ProcessBuilder("detkdecomp", HYPERTREE_WIDTH + "", hgFileName).start();
         } catch (IOException e) {
             System.err.println("Error executing detkdecomp");
         }
@@ -128,7 +136,7 @@ public class Hypergraph {
         try {
             GmlImporter<HypertreeNode, DefaultEdge> importer = new GmlImporter<>(vp, ep);
 
-            importer.importGraph(decompositionTree, new File(HT_FILE_NAME));
+            importer.importGraph(decompositionTree, new File(htFileName));
 
             Iterator<HypertreeNode> it = new BreadthFirstIterator<>(decompositionTree);
 

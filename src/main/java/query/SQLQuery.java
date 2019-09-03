@@ -131,7 +131,7 @@ public class SQLQuery {
                 fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
                 fnStr += String.format("AS SELECT * FROM %s;\n", node.getTables()
                 .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
-                        .collect(Collectors.joining(" NATURAL INNER JOIN")));
+                        .collect(Collectors.joining(" NATURAL INNER JOIN ")));
             }
         }
 
