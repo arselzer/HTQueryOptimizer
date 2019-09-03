@@ -7,15 +7,13 @@ import org.jgrapht.io.*;
 import org.jgrapht.traverse.BreadthFirstIterator;
 import query.JoinTreeNode;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class Hypergraph {
     private static int HYPERTREE_WIDTH = 2;
@@ -68,6 +66,20 @@ public class Hypergraph {
     }
 
     public JoinTreeNode toJoinTree() {
+        // Try creating an acyclic join tree first
+        int hypertreeWidth = 1;
+
+        JoinTreeNode tree = toJoinTree(1);
+        while (tree == null) {
+            //System.out.printf("Hypertree of width %d not found\n", hypertreeWidth);;
+            hypertreeWidth++;
+            tree = toJoinTree(hypertreeWidth);
+        }
+
+        return tree;
+    }
+
+    public JoinTreeNode toJoinTree(int hypertreeWidth) {
         // Write hypergraph out to a file
         String fileContent = toDTL();
         String fileNameBase = generateHGFileName();
@@ -87,7 +99,15 @@ public class Hypergraph {
         // Call detkdecomp
 
         try {
-            Process process = new ProcessBuilder("detkdecomp", HYPERTREE_WIDTH + "", hgFileName).start();
+            Process process = new ProcessBuilder("detkdecomp", hypertreeWidth + "", hgFileName).start();
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+            String output = br.lines().collect(Collectors.joining());
+
+            if (Pattern.compile("Hypertree of width \\d+ not found").matcher(output).find()) {
+                return null;
+            }
         } catch (IOException e) {
             System.err.println("Error executing detkdecomp");
         }

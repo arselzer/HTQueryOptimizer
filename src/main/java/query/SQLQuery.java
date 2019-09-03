@@ -169,7 +169,9 @@ public class SQLQuery {
                     }
 
                     // EXISTS is the only choice because IN does not support multiple columns
-                    semiJoins.add(String.format("(EXISTS (SELECT * FROM %s WHERE %s))", childName, String.join(" AND ", semiJoinConditions)));
+                    if (!semiJoinConditions.isEmpty()) {
+                        semiJoins.add(String.format("(EXISTS (SELECT * FROM %s WHERE %s))", childName, String.join(" AND ", semiJoinConditions)));
+                    }
                 }
                 if (!semiJoins.isEmpty()) {
                     // There are nodes without any children
@@ -213,8 +215,13 @@ public class SQLQuery {
                 fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
                 fnStr += String.format("AS SELECT *\n");
                 fnStr += String.format("FROM %s\n", node.getIdentifier(2));
-                fnStr += String.format("WHERE EXISTS (SELECT * FROM %s WHERE %s);\n",
-                        parent.getIdentifier(2), String.join(" AND ", semiJoinConditions));
+                if (!semiJoinConditions.isEmpty()) {
+                    fnStr += String.format("WHERE EXISTS (SELECT * FROM %s WHERE %s);\n",
+                            parent.getIdentifier(2), String.join(" AND ", semiJoinConditions));
+                }
+                else {
+                    fnStr += ";";
+                }
             }
         }
 

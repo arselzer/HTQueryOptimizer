@@ -23,6 +23,13 @@ public class QueryExecutorTest {
             "AND t2.c = t3.a\n" +
             "AND t3.d = t1.b";
 
+    private static final String triangleStarQuery = "SELECT *\n" +
+            "FROM t1, t2, t3, t4\n" +
+            "WHERE t1.a = t2.a\n" +
+            "AND t2.c = t3.a\n" +
+            "AND t3.d = t1.b\n" +
+            "AND t3.d = t4.a";
+
     @BeforeAll
     static void connect() throws SQLException {
         String url = "jdbc:postgresql://localhost/testdb";
@@ -55,6 +62,19 @@ public class QueryExecutorTest {
         QueryExecutor qe = new QueryExecutor(conn);
 
         ResultSet rs = qe.execute(triangleQuery);
+
+        int i = 0;
+        while (rs.next() && i < 100) {
+            System.out.println(rs.getString(1));
+            i++;
+        }
+    }
+
+    @Test
+    void triangleStarQuery() throws SQLException, QueryConversionException {
+        QueryExecutor qe = new QueryExecutor(conn);
+
+        ResultSet rs = qe.execute(triangleStarQuery);
 
         int i = 0;
         while (rs.next() && i < 100) {
