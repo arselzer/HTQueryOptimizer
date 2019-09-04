@@ -1,5 +1,6 @@
 import exceptions.QueryConversionException;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.sql.*;
@@ -13,25 +14,39 @@ public class QueryExecutorTest {
             "WHERE t1.a = t2.a\n" +
             "AND t1.a = t3.a\n" +
             "AND t1.a = t4.a\n" +
-            "AND t4.e = t5.a\n" +
-            "AND t5.e = t6.e\n" +
-            "\n";
+            "AND t4.b = t5.a\n" +
+            "AND t5.b = t6.a";
 
     private static final String triangleQuery = "SELECT *\n" +
             "FROM t1, t2, t3, t4\n" +
             "WHERE t1.a = t2.a\n" +
-            "AND t2.c = t3.a\n" +
-            "AND t3.d = t1.b";
+            "AND t2.b = t3.a\n" +
+            "AND t3.b = t1.b";
 
     private static final String triangleStarQuery = "SELECT *\n" +
             "FROM t1, t2, t3, t4\n" +
             "WHERE t1.a = t2.a\n" +
-            "AND t2.c = t3.a\n" +
-            "AND t3.d = t1.b\n" +
-            "AND t3.d = t4.a";
+            "AND t2.b = t3.a\n" +
+            "AND t3.b = t1.b\n" +
+            "AND t3.b = t4.a";
 
-    @BeforeAll
-    static void connect() throws SQLException {
+    private static final String multipleCyclesQuery = "SELECT *\n" +
+            "FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10\n" +
+            "WHERE t1.a = t2.a\n" +
+            "AND t2.b = t3.a\n" +
+            "AND t3.b = t1.b\n" +
+            "AND t4.a = t5.a\n" +
+            "AND t5.b = t6.a\n" +
+            "AND t6.b = t1.b\n" +
+            "AND t7.a = t8.a\n" +
+            "AND t8.b = t9.a\n" +
+            "AND t9.b = t10.a\n" +
+            "AND t10.b = t7.b\n" +
+            "AND t1.a = t10.a\n" +
+            "AND t6.a = t9.a;";
+
+    @BeforeEach
+    void connect() throws SQLException {
         String url = "jdbc:postgresql://localhost/testdb";
         String user = "test";
         String password = "test";
@@ -75,6 +90,19 @@ public class QueryExecutorTest {
         QueryExecutor qe = new QueryExecutor(conn);
 
         ResultSet rs = qe.execute(triangleStarQuery);
+
+        int i = 0;
+        while (rs.next() && i < 100) {
+            System.out.println(rs.getString(1));
+            i++;
+        }
+    }
+
+    @Test
+    void multipleCyclesQuery() throws SQLException, QueryConversionException {
+        QueryExecutor qe = new QueryExecutor(conn);
+
+        ResultSet rs = qe.execute(multipleCyclesQuery);
 
         int i = 0;
         while (rs.next() && i < 100) {
