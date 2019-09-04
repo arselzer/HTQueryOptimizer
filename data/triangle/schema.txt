@@ -1,6 +1,0 @@
-t1;a,b
-t2;a,c
-t3;a,d
-t4;a,e
-t5;a,e
-t6;a,f
