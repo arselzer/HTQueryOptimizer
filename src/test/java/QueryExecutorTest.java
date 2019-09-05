@@ -1,7 +1,9 @@
 import exceptions.QueryConversionException;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import queryexecutor.QueryExecutor;
+import queryexecutor.UnoptimizedQueryExecutor;
+import queryexecutor.ViewQueryExecutor;
 
 import java.sql.*;
 import java.util.Properties;
@@ -61,7 +63,7 @@ public class QueryExecutorTest {
 
     @Test
     void connectAndQuery() throws SQLException, QueryConversionException {
-        QueryExecutor qe = new QueryExecutor(conn);
+        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
         ResultSet rs = qe.execute(starQuery);
 
@@ -74,7 +76,7 @@ public class QueryExecutorTest {
 
     @Test
     void triangleQuery() throws SQLException, QueryConversionException {
-        QueryExecutor qe = new QueryExecutor(conn);
+        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
         ResultSet rs = qe.execute(triangleQuery);
 
@@ -87,7 +89,7 @@ public class QueryExecutorTest {
 
     @Test
     void triangleStarQuery() throws SQLException, QueryConversionException {
-        QueryExecutor qe = new QueryExecutor(conn);
+        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
         ResultSet rs = qe.execute(triangleStarQuery);
 
@@ -100,9 +102,18 @@ public class QueryExecutorTest {
 
     @Test
     void multipleCyclesQuery() throws SQLException, QueryConversionException {
-        QueryExecutor qe = new QueryExecutor(conn);
+        QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
+        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
+        long startTime = System.currentTimeMillis();
         ResultSet rs = qe.execute(multipleCyclesQuery);
+        long totalTime = System.currentTimeMillis() - startTime;
+        System.out.printf("Time elapsed: %d ms\n", totalTime);
+
+        startTime = System.currentTimeMillis();
+        uoqe.execute(multipleCyclesQuery);
+        totalTime = System.currentTimeMillis() - startTime;
+        System.out.printf("Time elapsed: %d ms\n", totalTime);
 
         int i = 0;
         while (rs.next() && i < 100) {

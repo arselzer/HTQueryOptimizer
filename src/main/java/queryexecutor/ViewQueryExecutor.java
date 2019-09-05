@@ -1,3 +1,5 @@
+package queryexecutor;
+
 import exceptions.QueryConversionException;
 import schema.Column;
 import schema.DBSchema;
@@ -8,22 +10,24 @@ import java.util.List;
 import java.sql.*;
 import java.util.LinkedList;
 
-public class QueryExecutor {
+public class ViewQueryExecutor implements QueryExecutor {
     private Connection connection;
     private DBSchema schema;
 
-    public QueryExecutor(Connection connection) throws SQLException {
+    public ViewQueryExecutor(Connection connection) throws SQLException {
         this.connection = connection;
 
         extractSchema();
     }
 
+    @Override
     public ResultSet execute(PreparedStatement ps) throws SQLException, QueryConversionException {
         String query = ps.toString(); // Should work with postgres (and mysql) drivers
 
         return execute(query);
     }
 
+    @Override
     public ResultSet execute(String queryStr) throws SQLException, QueryConversionException {
         SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
         //System.out.println(sqlQuery.toHypergraph().toJoinTree());
@@ -31,8 +35,11 @@ public class QueryExecutor {
         String functionName = SQLQuery.generateFunctionName();
         String finalTableName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);
+        //String functionStr = sqlQuery.toTableFunction(functionName);
         System.out.println("equivalence mapping: " + sqlQuery.toHypergraph().getEquivalenceMapping());
         System.out.println(functionStr);
+
+        //disableMergeJoin();
 
         PreparedStatement psFunction = connection.prepareStatement(functionStr);
         psFunction.execute();
@@ -47,7 +54,18 @@ public class QueryExecutor {
         PreparedStatement psDelete = connection.prepareStatement(String.format("DROP FUNCTION %s;", functionName));
         psDelete.execute();
 
+        //enableMergeJoin();
+        // TODO disabling merge join alters global db state ? - maybe isolate it if possible
+
         return rs;
+    }
+
+    private void enableMergeJoin() throws SQLException {
+        connection.prepareStatement("SET enable_mergejoin = 0;").execute();
+    }
+
+    private void disableMergeJoin() throws SQLException {
+        connection.prepareStatement("SET enable_mergejoin = 1;").execute();
     }
 
     private void extractSchema() throws SQLException {

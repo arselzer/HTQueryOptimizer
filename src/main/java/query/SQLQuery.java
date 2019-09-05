@@ -55,9 +55,13 @@ public class SQLQuery {
         }
     }
 
+
     public String toFunction(String functionName) throws QueryConversionException {
         Hypergraph hg = toHypergraph();
         JoinTreeNode joinTree = hg.toJoinTree();
+
+        List<String> tempTables = new LinkedList<>();
+        List<String> tempViews = new LinkedList<>();
 
         System.out.println(joinTree);
 
@@ -113,7 +117,9 @@ public class SQLQuery {
                 String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName);
                 columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
             }
-            fnStr += String.format("CREATE TEMP VIEW %s AS\n", "htqo_" + tableName + "_stage_0");
+            String tempViewName = "htqo_" + tableName + "_stage_0";
+            fnStr += String.format("CREATE TEMP VIEW %s AS\n", tempViewName);
+            tempViews.add(tempViewName);
             fnStr += String.format("SELECT %s\n FROM %s;\n", String.join(", ", columnRewrites), tableName);
         }
 
@@ -128,9 +134,10 @@ public class SQLQuery {
 
         for (Set<JoinTreeNode> layer: joinLayers) {
             for (JoinTreeNode node : layer) {
-                fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
+                fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
+                tempTables.add(node.getIdentifier(1));
                 fnStr += String.format("AS SELECT * FROM %s;\n", node.getTables()
-                .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
+                        .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
                         .collect(Collectors.joining(" NATURAL INNER JOIN ")));
             }
         }
@@ -149,7 +156,8 @@ public class SQLQuery {
             //fnStr += "-- layer " + i + "\n";
 
             for (JoinTreeNode node : layer) {
-                fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+                fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
+                tempTables.add(node.getIdentifier(2));
                 fnStr += String.format("AS SELECT *\n");
                 fnStr += String.format("FROM %s\n", node.getIdentifier(1));
                 List<String> semiJoins = new LinkedList<>();
@@ -185,7 +193,8 @@ public class SQLQuery {
 
         // Create views for the last layer (which are just an alias for the views from stage 1)
         for (JoinTreeNode node : joinLayers.get(joinLayers.size()-1)) {
-            fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+            fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
+            tempTables.add(node.getIdentifier(2));
             fnStr += String.format("AS SELECT * FROM %s;\n", node.getIdentifier(1));
         }
 
@@ -213,6 +222,7 @@ public class SQLQuery {
                 }
 
                 fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
+                tempViews.add(node.getIdentifier(3));
                 fnStr += String.format("AS SELECT *\n");
                 fnStr += String.format("FROM %s\n", node.getIdentifier(2));
                 if (!semiJoinConditions.isEmpty()) {
@@ -227,6 +237,7 @@ public class SQLQuery {
 
         // Create one view for the root node
         fnStr += String.format("CREATE TEMP VIEW %s\n", joinTree.getIdentifier(3));
+        tempViews.add(joinTree.getIdentifier(3));
         fnStr += String.format("AS SELECT * FROM %s;\n", joinTree.getIdentifier(2));
 
 
@@ -243,6 +254,14 @@ public class SQLQuery {
 
         fnStr += String.format("RETURN QUERY SELECT %s\n", String.join(", ", projectColumns));
         fnStr += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
+
+        for (String view : tempViews) {
+            fnStr += String.format("DROP VIEW %s;\n", view);
+        }
+        for (String table : tempTables) {
+            fnStr += String.format("DROP TABLE %s;\n", table);
+        }
+
         fnStr += "END;\n";
         fnStr += "$$ LANGUAGE plpgsql;\n";
 
