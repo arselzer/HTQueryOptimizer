@@ -30,7 +30,7 @@ public class ViewQueryExecutor implements QueryExecutor {
     @Override
     public ResultSet execute(String queryStr) throws SQLException, QueryConversionException {
         SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
-        //System.out.println(sqlQuery.toHypergraph().toJoinTree());
+        //System.out.println(sqlQuery.toHypergraph());
 
         String functionName = SQLQuery.generateFunctionName();
         String finalTableName = SQLQuery.generateFunctionName();

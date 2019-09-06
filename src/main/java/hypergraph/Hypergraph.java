@@ -8,6 +8,8 @@ import org.jgrapht.traverse.BreadthFirstIterator;
 import query.JoinTreeNode;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.MatchResult;
@@ -42,8 +44,8 @@ public class Hypergraph {
     }
 
     public String generateHGFileName() {
-        return "hypergraph";
-        //return String.format("hypergraph-%s", new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date()));
+        //return "hypergraph";
+        return String.format("hypergraph-%s", new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date()));
     }
 
     public JoinTreeNode hypertreeToJoinTree(HypertreeNode htNode) {
@@ -174,6 +176,14 @@ public class Hypergraph {
         } catch (ImportException e) {
             System.err.println("Error importing hypertree file " + e.getMessage());
         }
+
+        try {
+            Files.delete(Paths.get(hgFileName));
+            Files.delete(Paths.get(htFileName));
+        } catch (IOException e) {
+            System.err.println("Error deleting temporary files " + e.getMessage());
+        }
+
 
         return null;
     }
