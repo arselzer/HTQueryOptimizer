@@ -27,6 +27,8 @@ public class SQLQuery {
     private List<String> projectColumns;
     private Statement stmt;
 
+    private boolean explicitStage0 = false;
+
     public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException {
         this.query = query;
         this.schema = dbSchema.toSchema();
@@ -110,17 +112,19 @@ public class SQLQuery {
          */
         //fnStr += "-- STAGE 0\n";
 
-        for (Hyperedge he: hg.getEdges()) {
-            LinkedList<String> columnRewrites = new LinkedList<>();
-            String tableName = he.getName();
-            for (String variableName : he.getNodes()) {
-                String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName);
-                columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
+        if (explicitStage0) {
+            for (Hyperedge he : hg.getEdges()) {
+                LinkedList<String> columnRewrites = new LinkedList<>();
+                String tableName = he.getName();
+                for (String variableName : he.getNodes()) {
+                    String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName);
+                    columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
+                }
+                String tempViewName = "htqo_" + tableName + "_stage_0";
+                fnStr += String.format("CREATE TEMP VIEW %s AS\n", tempViewName);
+                tempViews.add(tempViewName);
+                fnStr += String.format("SELECT %s\n FROM %s;\n", String.join(", ", columnRewrites), tableName);
             }
-            String tempViewName = "htqo_" + tableName + "_stage_0";
-            fnStr += String.format("CREATE TEMP VIEW %s AS\n", tempViewName);
-            tempViews.add(tempViewName);
-            fnStr += String.format("SELECT %s\n FROM %s;\n", String.join(", ", columnRewrites), tableName);
         }
 
         /**
@@ -132,13 +136,39 @@ public class SQLQuery {
          */
         //fnStr += "-- STAGE 1\n";
 
-        for (Set<JoinTreeNode> layer: joinLayers) {
-            for (JoinTreeNode node : layer) {
-                fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
-                tempTables.add(node.getIdentifier(1));
-                fnStr += String.format("AS SELECT * FROM %s;\n", node.getTables()
-                        .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
-                        .collect(Collectors.joining(" NATURAL INNER JOIN ")));
+        if (explicitStage0) {
+            for (Set<JoinTreeNode> layer : joinLayers) {
+                for (JoinTreeNode node : layer) {
+                    fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
+                    tempTables.add(node.getIdentifier(1));
+                    fnStr += String.format("AS SELECT * FROM %s;\n", node.getTables()
+                            .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
+                            .collect(Collectors.joining(" NATURAL INNER JOIN ")));
+                }
+            }
+        }
+        else {
+            for (Set<JoinTreeNode> layer : joinLayers) {
+                for (JoinTreeNode node : layer) {
+                    LinkedList<String> aliasedTables = new LinkedList<>();
+
+                    for (String tableName : node.getTables()) {
+                        LinkedList<String> columnRewrites = new LinkedList<>();
+                        Hyperedge he = hg.getEdgeByName(tableName);
+                        for (String variableName : he.getNodes()) {
+                            String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName);
+                            columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
+                        }
+
+                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableName));
+                    }
+
+                    System.out.println("tables:" + node.getTables());
+                    fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
+                    tempTables.add(node.getIdentifier(1));
+                    fnStr += String.format("AS SELECT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
+                    //fnStr += String.format("WHERE %s;\n", String.join(", ", whereConditions));
+                }
             }
         }
 

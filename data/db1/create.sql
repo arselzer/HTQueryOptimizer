@@ -1,4 +1,4 @@
-drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11;
 
 create table t1 (a integer, b integer);
 create table t2 (a integer, b integer);
@@ -10,5 +10,6 @@ create table t7 (a integer, b integer);
 create table t8 (a integer, b integer);
 create table t9 (a integer, b integer);
 create table t10 (a integer, b integer);
+create table t11 (a integer, b integer);
 
 --copy t1 from 't1.csv' with (format csv);

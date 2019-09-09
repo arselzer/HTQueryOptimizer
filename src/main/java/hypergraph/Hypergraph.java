@@ -22,6 +22,8 @@ public class Hypergraph {
 
     private Set<Hyperedge> edges = new HashSet<>();
     private Set<String> nodes = new HashSet<>();
+    private Map<String, Hyperedge> edgesByName = new HashMap<>();
+
     // Maps column -> variable
     private Map<String, String> equivalenceMapping = new HashMap<>();
     // Maps variable -> (table -> column)
@@ -36,11 +38,19 @@ public class Hypergraph {
     public Hypergraph(Set<String> nodes, Set<Hyperedge> edges) {
         this.nodes = nodes;
         this.edges = edges;
+        populateEdgesByNameMap();
     }
 
     public boolean isAcyclic() {
         // Perform GYO reduction
         return false; // TODO implement
+    }
+
+    private void populateEdgesByNameMap() {
+        edgesByName.clear();
+        for (Hyperedge edge : this.edges) {
+            edgesByName.put(edge.getName(), edge);
+        }
     }
 
     public String generateHGFileName() {
@@ -219,7 +229,7 @@ public class Hypergraph {
             }
         }
 
-        return new Hypergraph();
+        return new Hypergraph(hgNodes, hgHyperedges);
     }
 
     public Set<Hyperedge> getEdges() {
@@ -228,10 +238,16 @@ public class Hypergraph {
 
     public void setEdges(Set<Hyperedge> edges) {
         this.edges = edges;
+        populateEdgesByNameMap();
     }
 
     public void addEdge(Hyperedge edge) {
         this.edges.add(edge);
+        edgesByName.put(edge.getName(), edge);
+    }
+
+    public Hyperedge getEdgeByName(String name) {
+        return edgesByName.get(name);
     }
 
     public Set<String> getNodes() {
