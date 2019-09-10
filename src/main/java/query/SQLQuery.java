@@ -251,8 +251,8 @@ public class SQLQuery {
                             parentName, columnName));
                 }
 
-                fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
-                tempViews.add(node.getIdentifier(3));
+                fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(3));
+                tempTables.add(node.getIdentifier(3));
                 fnStr += String.format("AS SELECT *\n");
                 fnStr += String.format("FROM %s\n", node.getIdentifier(2));
                 if (!semiJoinConditions.isEmpty()) {
@@ -266,8 +266,8 @@ public class SQLQuery {
         }
 
         // Create one view for the root node
-        fnStr += String.format("CREATE TEMP VIEW %s\n", joinTree.getIdentifier(3));
-        tempViews.add(joinTree.getIdentifier(3));
+        fnStr += String.format("CREATE TEMP TABLE %s\n", joinTree.getIdentifier(3));
+        tempTables.add(joinTree.getIdentifier(3));
         fnStr += String.format("AS SELECT * FROM %s;\n", joinTree.getIdentifier(2));
 
 
@@ -285,9 +285,9 @@ public class SQLQuery {
         fnStr += String.format("RETURN QUERY SELECT %s\n", String.join(", ", projectColumns));
         fnStr += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
 
-        for (String view : tempViews) {
-            fnStr += String.format("DROP VIEW %s;\n", view);
-        }
+//        for (String view : tempViews) {
+//            fnStr += String.format("DROP VIEW %s;\n", view);
+//        }
         for (String table : tempTables) {
             fnStr += String.format("DROP TABLE %s;\n", table);
         }
