@@ -5,8 +5,10 @@ import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
 import queryexecutor.ViewQueryExecutor;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -32,6 +34,7 @@ public class Benchmark {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
         BenchmarkResult result = new BenchmarkResult(conf);
+        System.out.printf("Benchmarking %s/%s", dbFileName, queryFileName);
 
         File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
         File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
@@ -40,8 +43,18 @@ public class Benchmark {
 
         ProcessBuilder pb = new ProcessBuilder();
 
-        pb.command(createFile.getAbsolutePath());
 
+        pb.command(createFile.getAbsolutePath());
+        //pb.start();
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(pb.start().getInputStream()));
+
+        String output = "";
+        String line;
+        while ((line = reader.readLine()) != null) {
+            output += line + "\n";
+        }
+        //System.out.println(output);
 
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
