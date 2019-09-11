@@ -27,6 +27,9 @@ public class SQLQuery {
     private List<String> projectColumns;
     private Statement stmt;
 
+    private Hypergraph hypergraph;
+    private JoinTreeNode joinTree;
+
     private boolean explicitStage0 = false;
 
     public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException {
@@ -60,12 +63,13 @@ public class SQLQuery {
 
     public String toFunction(String functionName) throws QueryConversionException {
         Hypergraph hg = toHypergraph();
-        JoinTreeNode joinTree = hg.toJoinTree();
+        this.hypergraph = hg;
+        joinTree = hg.toJoinTree();
 
         List<String> tempTables = new LinkedList<>();
         List<String> tempViews = new LinkedList<>();
 
-        System.out.println(joinTree);
+        //System.out.println(joinTree);
 
         String fnStr = "";
         fnStr += String.format("CREATE FUNCTION %s()\n", functionName);
@@ -393,5 +397,13 @@ public class SQLQuery {
 
     public List<String> getProjectColumns() {
         return projectColumns;
+    }
+
+    public Hypergraph getHypergraph() {
+        return hypergraph;
+    }
+
+    public JoinTreeNode getJoinTree() {
+        return joinTree;
     }
 }

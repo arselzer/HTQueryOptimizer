@@ -1,6 +1,8 @@
 package queryexecutor;
 
 import exceptions.QueryConversionException;
+import hypergraph.Hypergraph;
+import query.JoinTreeNode;
 import schema.Column;
 import schema.DBSchema;
 import query.SQLQuery;
@@ -13,6 +15,10 @@ import java.util.LinkedList;
 public class ViewQueryExecutor implements QueryExecutor {
     private Connection connection;
     private DBSchema schema;
+
+    private long queryRunningTime;
+    private Hypergraph hypergraph;
+    private JoinTreeNode joinTree;
 
     public ViewQueryExecutor(Connection connection) throws SQLException {
         this.connection = connection;
@@ -33,19 +39,27 @@ public class ViewQueryExecutor implements QueryExecutor {
         //System.out.println(sqlQuery.toHypergraph());
 
         String functionName = SQLQuery.generateFunctionName();
-        String finalTableName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);
+
+        // Save hypergraph and join tree for benchmarks and analysis
+        this.hypergraph = sqlQuery.getHypergraph();
+        this.joinTree = sqlQuery.getJoinTree();
+
         //String functionStr = sqlQuery.toTableFunction(functionName);
-        System.out.println("equivalence mapping: " + sqlQuery.toHypergraph().getEquivalenceMapping());
-        System.out.println(functionStr);
+        //System.out.println("equivalence mapping: " + sqlQuery.toHypergraph().getEquivalenceMapping());
+        //System.out.println(functionStr);
 
         //disableMergeJoin();
+
+        long startTime = System.currentTimeMillis();
 
         PreparedStatement psFunction = connection.prepareStatement(functionStr);
         psFunction.execute();
 
         PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT %s();", functionName));
         ResultSet rs = psSelect.executeQuery();
+
+        queryRunningTime = System.currentTimeMillis() - startTime;
 
         //PreparedStatement psSelectFromView = connection.prepareStatement(String.format("SELECT * FROM %s", finalTableName));
         //ResultSet rs = psSelectFromView.executeQuery();
@@ -58,6 +72,22 @@ public class ViewQueryExecutor implements QueryExecutor {
         // TODO disabling merge join alters global db state ? - maybe isolate it if possible
 
         return rs;
+    }
+
+    private DBSchema getSchema() {
+        return schema;
+    }
+
+    public long getQueryRunningTime() {
+        return queryRunningTime;
+    }
+
+    public Hypergraph getHypergraph() {
+        return hypergraph;
+    }
+
+    public JoinTreeNode getJoinTree() {
+        return joinTree;
     }
 
     private void enableMergeJoin() throws SQLException {

@@ -49,12 +49,28 @@ public class Benchmark {
         conn.prepareStatement("vacuum analyze;").execute();
         long startTimeOptimized = System.currentTimeMillis();
         ResultSet rs = qe.execute(query);
-        result.setOptimizedRuntime(System.currentTimeMillis() - startTimeOptimized);
+        result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
+        result.setOptimizedQueryRuntime(qe.getQueryRunningTime());
+
+        int count1 = 0;
+        while (rs.next()) {
+            count1++;
+        }
+        result.setOptimizedRows(count1);
+
+        result.setHypergraph(qe.getHypergraph());
+        result.setJoinTree(qe.getJoinTree());
 
         conn.prepareStatement("vacuum analyze;").execute();
         long startTimeUnoptimized = System.currentTimeMillis();
-        uoqe.execute(query);
+        ResultSet rs2 = uoqe.execute(query);
         result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
+
+        int count2 = 0;
+        while (rs2.next()) {
+            count2++;
+        }
+        result.setUnoptimizedRows(count2);
 
         results.add(result);
 
@@ -75,7 +91,7 @@ public class Benchmark {
         for (File subdir : subdirs) {
             String dbName = subdir.getName();
 
-            File[] sqlFiles = subdir.listFiles(file -> file.getName().endsWith(".sql"));
+            File[] sqlFiles = subdir.listFiles(file -> file.getName().endsWith(".sql") && !file.getName().equals("create.sql"));
 
             if (sqlFiles != null) {
                 for (File file: sqlFiles) {
