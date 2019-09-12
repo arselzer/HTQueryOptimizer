@@ -67,7 +67,6 @@ public class HypergraphVisualizer {
             int count = 0;
 
             for (Node2D node : edge.getNodes()) {
-                System.out.println(node);;
                 sumX += node.getX();
                 sumY += node.getY();
                 count++;
@@ -142,6 +141,14 @@ public class HypergraphVisualizer {
         }
     }
 
+    private static double crossProduct(double a_x, double a_y, double b_x, double b_y, double c_x, double c_y) {
+        double y1 = a_y - b_y;
+        double y2 = a_y - c_y;
+        double x1 = a_x - b_x;
+        double x2 = a_x - c_x;
+        return y2 * x1 - y1 * x2;
+    }
+
     private class Edge2D {
         private String name;
         private List<Node2D> nodes;
@@ -182,22 +189,28 @@ public class HypergraphVisualizer {
                     nextNode = nodes.get(1);
                 }
 
-                double angleToNext = Math.atan2(nextNode.getY() - currentNode.getY(), nextNode.getX() - currentNode.getX());
+                //double angleToNext = Math.atan2(nextNode.getY() - currentNode.getY(), nextNode.getX() - currentNode.getX());
 
                 for (Node2D otherNode : nodes) {
                     if (!otherNode.equals(currentNode)) {
-                        double angleToOther = Math.atan2(otherNode.getY() - currentNode.getY(), otherNode.getX() - currentNode.getX());
+                        //double angleToOther = Math.atan2(otherNode.getY() - currentNode.getY(), otherNode.getX() - currentNode.getX());
                         // If the angle from the current node to the picked node is larger than to the current next, pick it
                         // as the next node instead
                         //System.out.println(currentNode + " angle to node " + otherNode + ": " + angleToOther);
-                        double angleDifference = angleToOther - angleToNext;
-                        if (angleDifference > 0 && angleDifference < Math.PI) {
+                        double cp = crossProduct(currentNode.getX(), currentNode.getY(), nextNode.getX(), nextNode.getY(), otherNode.getX(), otherNode.getY());
+                        //double angleDifference = angleToOther - angleToNext;
+                        //if (angleDifference > 0 && angleDifference < Math.PI) {
+                        if (cp > 0) {
                             // Set next node and recompute angle to next node
                             nextNode = otherNode;
-                            angleToNext = Math.atan2(nextNode.getY() - currentNode.getY(), nextNode.getX() - currentNode.getX());
+                            //angleToNext = Math.atan2(nextNode.getY() - currentNode.getY(), nextNode.getX() - currentNode.getX());
                         }
                     }
                 }
+                System.out.println(nextNode);
+                System.out.println(convexHull.size());
+                System.out.println("fst " + convexHull.get(0));
+                System.out.println("lst " + convexHull.get(convexHull.size()-1));
 
                 convexHull.add(nextNode);
                 currentNode = nextNode;
@@ -286,24 +299,33 @@ public class HypergraphVisualizer {
             output += String.format("\\node (%s) at (%.2f,%.2f) {};\n", node.getName(), node.getX(), node.getY());
         }
 
-        output += "\\begin{scope}[fill opacity=0.8]\n";
+        output += "\\begin{scope}[fill opacity=0.7]\n";
 
         for (Edge2D edge : edges) {
             LinkedList<String> drawCoords = new LinkedList<>();
-            if (edge.getNodes().size() >= 2) {
-                List<Node2D> convexHull = edge.getConvexHull();
 
-                for (Node2D node : convexHull) {
-                    double diffX = node.getX() - edge.getCenterX();
-                    double diffY = node.getY() - edge.getCenterY();
-                    double euclidDistance = Math.sqrt(diffX * diffX + diffY * diffY);
-                    double normalDiffX = diffX / euclidDistance;
-                    double normalDiffY = diffY / euclidDistance;
+            List<Node2D> convexHull = edge.getConvexHull();
 
-                    drawCoords.add(String.format("(%.2f, %.2f)", node.getX() + normalDiffX, node.getY() + normalDiffY));
-                }
+            // Ignore the last element, which is the first element
+            for (int i = 0; i < convexHull.size() - 1; i++) {
+                Node2D node = convexHull.get(i);
+
+                double diffX = node.getX() - edge.getCenterX();
+                double diffY = node.getY() - edge.getCenterY();
+                double euclidDistance = Math.sqrt(diffX * diffX + diffY * diffY);
+                double factor = 0.5;
+                double normalDiffX = diffX / euclidDistance;
+                double normalDiffY = diffY / euclidDistance;
+
+                drawCoords.add(String.format("(%.2f, %.2f)", node.getX() + normalDiffX * factor, node.getY() + normalDiffY * factor));
             }
-            output += String.format("\\draw[fill=%s] plot [smooth] %s;\n", edge.getColor(), String.join(" -- ", drawCoords));
+            if (edge.getNodes().size() > 2) {
+                output += String.format("\\draw[fill=%s] plot [smooth cycle] coordinates {%s};\n", edge.getColor(), String.join(" ", drawCoords));
+            } else if (edge.getNodes().size() == 2) {
+                Node2D n1 = convexHull.get(0);
+                Node2D n2 = convexHull.get(1);
+                output += String.format("\\draw[fill=%s, line width=0.5mm] (%.2f,%.2f) -- (%.2f, %.2f);\n", edge.getColor(), n1.getX(), n1.getY(), n2.getX(), n2.getY());
+            }
         }
 
         output += "\\end{scope}\n";
@@ -311,6 +333,14 @@ public class HypergraphVisualizer {
         output += String.format("\\foreach \\v in {%s} {\n", String.join(",", nodeNames));
         output += "  \\fill (\\v) circle (0.1);\n";
         output += "}\n";
+
+        for (Node2D node : nodes) {
+            output += String.format("\\fill (%s) circle (0.1) node [below right] {$%s$};\n", node.getName(), node.getName());
+        }
+
+        for (Edge2D edge : edges) {
+            output += String.format("\\node at (%.2f, %.2f) {$%s$};\n", edge.getCenterX(), edge.getCenterY(), edge.getName());
+        }
 
         output += "\\end{tikzpicture}\n";
         output += "\\end{document}\n";
