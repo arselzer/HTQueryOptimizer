@@ -232,6 +232,10 @@ public class Hypergraph {
         return new Hypergraph(hgNodes, hgHyperedges);
     }
 
+    public String toLaTeX() {
+        return new HypergraphVisualizer(this).toLaTeX();
+    }
+
     public Set<Hyperedge> getEdges() {
         return edges;
     }

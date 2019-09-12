@@ -171,6 +171,8 @@ public class QueryExecutorTest {
         long totalTime = System.currentTimeMillis() - startTime;
         System.out.printf("Time elapsed: %d ms\n", totalTime);
 
+        System.out.println(qe.getHypergraph().toLaTeX());
+
         int i = 0;
         while (rs.next() && i < 100) {
             System.out.println(rs.getString(1));
