@@ -9,7 +9,7 @@ import java.util.*;
 public class HypergraphVisualizer {
     private Hypergraph hg;
 
-    private static int NUMBER_INSTANCES = 25;
+    private static int NUMBER_INSTANCES = 250;
 
     List<VisualizationInstance> candidates = new LinkedList<>();
 
@@ -27,14 +27,11 @@ public class HypergraphVisualizer {
         double bestScore = -Double.MAX_VALUE;
         for (VisualizationInstance instance : candidates) {
             double score = instance.rate();
-            System.out.println(score);
             if (score > bestScore) {
                 bestScore = score;
                 bestInstance = instance;
             }
         }
-
-        System.out.println(bestInstance);
     }
 
     public String toLaTeX() {

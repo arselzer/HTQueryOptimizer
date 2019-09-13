@@ -5,15 +5,16 @@ import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
 import queryexecutor.ViewQueryExecutor;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -148,11 +149,41 @@ public class Benchmark {
             Benchmark benchmark = new Benchmark(System.getProperty("user.dir") + "/data", conn);
             benchmark.run();
 
+            File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
+            resultsDirectory.mkdirs();
+
             for (BenchmarkResult res : benchmark.getResults()) {
+                BenchmarkConf conf = res.getConf();
+
+                File resultDir = new File(resultsDirectory.getAbsolutePath().toString() + "/" + conf.getDb() + "/" + conf.getQuery());
+                resultDir.mkdirs();
+
+                File hypergraphFile = new File(resultDir + "/hypergraph.dtl");
+
+                // Write hypergraph
+                PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
+                hypergraphWriter.write(res.getHypergraph().toDTL());
+                hypergraphWriter.close();
+
+                // Write graph rendering
+                res.getHypergraph().toPDF(Paths.get(resultDir + "/hypergraph.pdf"));
+
+                // Write out java data structure
+                File resultTxtFile = new File(resultDir + "/result.txt");
+                PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
+                resultStringWriter.write(res.toString());
+                resultStringWriter.close();
+
                 System.out.println(res);
             }
         } catch (SQLException e) {
             System.out.printf("Error connecting to db: %s\n", e.getMessage());
+        } catch (FileNotFoundException e) {
+            System.out.printf("File not found exception: %s\n", e.getMessage());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
 

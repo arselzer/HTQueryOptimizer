@@ -111,14 +111,23 @@ public class VisualizationInstance {
                     // Check if the node is on the left side
                     if (cp > 0) {
                         onTheRightOfAllNodes = false;
-                        // If it is on the left side of any node, stop
-                        break;
-                    }
-                    else {
-                        // The closer a point is, the worse
-                        double closenessFactor = - 500 / Math.pow(-(cp+0.1), 2);//- 200 / Math.pow(0.1+cp, 2);
-                        //System.out.println(cp + " " + closenessFactor);
-                        rating += closenessFactor;
+
+                        double centerX = (n1.getX() + n2.getX()) / 2;
+                        double centerY = (n1.getY() + n2.getY()) / 2;
+
+                        // Length of line segment
+                        double length = Math.sqrt(Math.pow(n2.getX() - n1.getX(), 2) + Math.pow(n2.getY() - n1.getY(), 2));
+                        // Distance from center of line segment to node
+                        double distance = Math.sqrt(Math.pow(centerX - nodeToCheck.getX(), 2) + Math.pow(centerY - nodeToCheck.getY(), 2));
+
+                        // Only consider points "close" (within length of line segment to center)
+                        if (distance < length) {
+                            // The closer a point is, the worse
+                            double closenessFactor = -500 / Math.pow((cp + 0.1), 2);//- 200 / Math.pow(0.1+cp, 2);
+                            System.out.println(closenessFactor + " " + cp);
+                            //System.out.println(cp + " " + closenessFactor);
+                            rating += closenessFactor;
+                        }
                     }
                 }
 
@@ -127,6 +136,36 @@ public class VisualizationInstance {
                     rating -= 1000000;
                 }
             }
+
+            double minX = Double.MAX_VALUE;
+            double maxX = -Double.MAX_VALUE;
+            double minY = Double.MAX_VALUE;
+            double maxY = -Double.MAX_VALUE;
+
+            for (Node2D node : edge.getNodes()) {
+                if (node.getX() < minX) {
+                    minX = node.getX();
+                }
+                if (node.getX() > maxX) {
+                    maxX = node.getX();
+                }
+                if (node.getY() < minY) {
+                    minY = node.getY();
+                }
+                if (node.getY() > maxY) {
+                    maxY = node.getY();
+                }
+            }
+
+            double width = maxX - minX;
+            double height = maxY - minY;
+
+            double min = Math.min(width, height);
+            double max = Math.max(width, height);
+            double ratio = max / min;
+
+            // Penalize thin edges
+            rating -= Math.pow(ratio - 1, 5);
         }
 
         return rating;
@@ -172,6 +211,31 @@ public class VisualizationInstance {
 
             // Ignore the last element, which is the first element
             for (int i = 0; i < convexHull.size() - 1; i++) {
+//                Node2D node = convexHull.get(i);
+//                Node2D prevNode;
+//                if (i == 0) {
+//                    prevNode = convexHull.get(convexHull.size()-2);
+//                }
+//                else {
+//                    prevNode = convexHull.get((i-1));
+//                }
+//
+//                Node2D nextNode = convexHull.get((i+1) % convexHull.size());
+//
+//                double x1 = node.getX() - prevNode.getX();
+//                double y1 = node.getY() - prevNode.getY();
+//                double x2 = -(nextNode.getX() - node.getX());
+//                double y2 = -(nextNode.getY() - node.getY());
+//                double middleVectorX = x1 + x2;
+//                double middleVectorY = y1 + y2;
+//                double middleVectorLength = Math.sqrt(Math.pow(middleVectorX, 2) + Math.pow(middleVectorY, 2));
+//                double middleVectorNormalX = middleVectorX / middleVectorLength;
+//                double middleVectorNormalY = middleVectorY / middleVectorLength;
+//
+//                double factor = 0.3;
+//
+//                drawCoords.add(String.format("(%.2f, %.2f)", node.getX() - middleVectorNormalX * factor, node.getY() - middleVectorNormalY * factor));
+
                 Node2D node = convexHull.get(i);
 
                 double diffX = node.getX() - edge.getCenterX();
