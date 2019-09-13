@@ -9,7 +9,7 @@ import java.util.*;
 public class HypergraphVisualizer {
     private Hypergraph hg;
 
-    private static int NUMBER_INSTANCES = 250;
+    private static int NUMBER_INSTANCES = 1000;
 
     List<VisualizationInstance> candidates = new LinkedList<>();
 

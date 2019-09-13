@@ -124,7 +124,6 @@ public class VisualizationInstance {
                         if (distance < length) {
                             // The closer a point is, the worse
                             double closenessFactor = -500 / Math.pow((cp + 0.1), 2);//- 200 / Math.pow(0.1+cp, 2);
-                            System.out.println(closenessFactor + " " + cp);
                             //System.out.println(cp + " " + closenessFactor);
                             rating += closenessFactor;
                         }
@@ -136,6 +135,26 @@ public class VisualizationInstance {
                     rating -= 1000000;
                 }
             }
+
+            double maxDistance = -Double.MAX_VALUE;
+            double minDistance = Double.MAX_VALUE;
+
+            for (int i = 0; i < convexHull.size()-2; i++) {
+                Node2D node = convexHull.get(i);
+                Node2D next = convexHull.get(i+1);
+
+                double distance = Math.sqrt(Math.pow(next.getX() - node.getX(), 2) + Math.pow(next.getY() - node.getY(), 2));
+
+                if (distance > maxDistance) {
+                    maxDistance = distance;
+                }
+                if (distance < minDistance) {
+                    minDistance = distance;
+                }
+            }
+
+            double distanceRatio = maxDistance / minDistance;
+            rating -= Math.pow(distanceRatio - 1, 3);
 
             double minX = Double.MAX_VALUE;
             double maxX = -Double.MAX_VALUE;
