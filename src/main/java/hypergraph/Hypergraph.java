@@ -1,5 +1,6 @@
 package hypergraph;
 
+import exceptions.JoinTreeGenerationException;
 import hypergraph.visualization.HypergraphVisualizer;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
@@ -79,7 +80,7 @@ public class Hypergraph {
         return root;
     }
 
-    public JoinTreeNode toJoinTree() {
+    public JoinTreeNode toJoinTree() throws JoinTreeGenerationException {
         // Try creating an acyclic join tree first
         int hypertreeWidth = 1;
 
@@ -93,27 +94,33 @@ public class Hypergraph {
         return tree;
     }
 
-    public JoinTreeNode toJoinTree(int hypertreeWidth) {
+    public JoinTreeNode toJoinTree(int hypertreeWidth) throws JoinTreeGenerationException {
         // Write hypergraph out to a file
         String fileContent = toDTL();
-        String fileNameBase = generateHGFileName();
-        String hgFileName = fileNameBase + ".dtl";
-        String htFileName = fileNameBase + ".gml";
+        File hgFile;
+        try {
+            hgFile= File.createTempFile("hypergraph", ".dtl");
+        } catch (IOException e) {
+            throw new JoinTreeGenerationException("Could not create temporary file: " + e.getMessage());
+        }
+
+        String htFileName = hgFile.getAbsolutePath().replace(".dtl", ".gml");
 
         try {
-            PrintWriter out = new PrintWriter(hgFileName);
+            PrintWriter out = new PrintWriter(hgFile);
 
             out.write(fileContent);
 
             out.close();
         } catch (FileNotFoundException e) {
-            System.err.println("Error writing hypergraph file: " + e.getMessage());
+            throw new JoinTreeGenerationException("Error writing hypergraph file: " + e.getMessage());
         }
 
         // Call detkdecomp
 
         try {
-            Process process = new ProcessBuilder("detkdecomp", hypertreeWidth + "", hgFileName).start();
+            Process process = new ProcessBuilder("detkdecomp", hypertreeWidth + "",
+                    hgFile.getAbsolutePath().toString()).start();
 
             BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
@@ -123,7 +130,7 @@ public class Hypergraph {
                 return null;
             }
         } catch (IOException e) {
-            System.err.println("Error executing detkdecomp");
+            throw new JoinTreeGenerationException("Error executing detkdecomp");
         }
 
         decompositionTree = new SimpleDirectedGraph<HypertreeNode, DefaultEdge>(DefaultEdge.class);
@@ -179,25 +186,17 @@ public class Hypergraph {
                 if (n.id.equals("1")) {
                     root = n;
                 }
-                //System.out.println(node);
-                //System.out.println("out:" + decompositionTree.outgoingEdgesOf(node));
-                //System.out.println("in:" + decompositionTree.incomingEdgesOf(node));
             }
+
+            hgFile.delete();
+            Files.delete(Paths.get(htFileName));
 
             return hypertreeToJoinTree(root);
         } catch (ImportException e) {
-            System.err.println("Error importing hypertree file " + e.getMessage());
-        }
-
-        try {
-            Files.delete(Paths.get(hgFileName));
-            Files.delete(Paths.get(htFileName));
+            throw new JoinTreeGenerationException("Error importing hypertree file: " + e.getMessage());
         } catch (IOException e) {
-            System.err.println("Error deleting temporary files " + e.getMessage());
+            throw new JoinTreeGenerationException("Error deleting temporary files: " + e.getMessage());
         }
-
-
-        return null;
     }
 
     public String toDTL() {

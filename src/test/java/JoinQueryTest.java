@@ -1,3 +1,4 @@
+import exceptions.JoinTreeGenerationException;
 import hypergraph.Hypergraph;
 import org.junit.jupiter.api.Test;
 import query.*;
@@ -88,7 +89,7 @@ class JoinQueryTest {
     }
 
     @Test
-    void generateJoinTree() {
+    void generateJoinTree() throws JoinTreeGenerationException {
         // The query:
         /**
          * SELECT *

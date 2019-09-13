@@ -5,6 +5,7 @@ import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
 import queryexecutor.ViewQueryExecutor;
 
+import java.io.IOException;
 import java.sql.*;
 import java.util.Properties;
 
@@ -162,7 +163,7 @@ public class QueryExecutorTest {
     }
 
     @Test
-    void multipleCyclesQuery2() throws SQLException, QueryConversionException {
+    void multipleCyclesQuery2() throws SQLException, QueryConversionException, IOException, InterruptedException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
@@ -171,7 +172,7 @@ public class QueryExecutorTest {
         long totalTime = System.currentTimeMillis() - startTime;
         System.out.printf("Time elapsed: %d ms\n", totalTime);
 
-        System.out.println(qe.getHypergraph().toLaTeX());
+        qe.getHypergraph().displayPDF();
 
         int i = 0;
         while (rs.next() && i < 100) {

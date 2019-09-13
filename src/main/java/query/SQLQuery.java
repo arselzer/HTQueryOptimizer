@@ -2,6 +2,7 @@ package query;
 
 import at.ac.tuwien.dbai.hgtools.hypergraph.Edge;
 import at.ac.tuwien.dbai.hgtools.sql2hg.*;
+import exceptions.JoinTreeGenerationException;
 import exceptions.QueryConversionException;
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;
@@ -64,7 +65,11 @@ public class SQLQuery {
     public String toFunction(String functionName) throws QueryConversionException {
         Hypergraph hg = toHypergraph();
         this.hypergraph = hg;
-        joinTree = hg.toJoinTree();
+        try {
+            joinTree = hg.toJoinTree();
+        } catch (JoinTreeGenerationException e) {
+            throw new QueryConversionException("Error generating join tree: " + e.getMessage());
+        }
 
         List<String> tempTables = new LinkedList<>();
         List<String> tempViews = new LinkedList<>();
