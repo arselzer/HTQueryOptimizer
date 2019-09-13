@@ -155,11 +155,16 @@ public class HypergraphVisualizer {
         output += "}\n";
 
         for (Node2D node : nodes) {
-            output += String.format("\\fill (%s) circle (0.1) node [below right] {$%s$};\n", node.getName(), node.getName());
+            output += String.format("\\fill[white] (%.2f, %.2f) circle (0.12);\n", node.getX(), node.getY());
+            output += String.format("\\fill (%s) circle (0.1);\n", node.getName(), node.getName());
+
+            //output += String.format("\\fill[white] (%.2f, %.2f) circle (0.25);\n", node.getX() + 0.3, node.getY() - 0.3);
+            output += String.format("\\node at (%.2f, %.2f) {$%s$};\n", node.getX() + 0.3, node.getY() - 0.3, node.getName());
         }
 
         for (Edge2D edge : edges) {
-            output += String.format("\\node at (%.2f, %.2f) {$%s$};\n", edge.getCenterX() + 0.4, edge.getCenterY() + 0.4, edge.getName());
+            output += String.format("\\draw[fill=%s] (%.2f, %.2f) circle (0.3);\n", edge.getColor(), edge.getCenterX(), edge.getCenterY());
+            output += String.format("\\node at (%.2f, %.2f) {$%s$};\n", edge.getCenterX(), edge.getCenterY(), edge.getName());
         }
 
         output += "\\end{tikzpicture}\n";
