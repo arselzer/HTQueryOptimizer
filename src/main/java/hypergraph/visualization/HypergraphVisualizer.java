@@ -1,4 +1,7 @@
-package hypergraph;
+package hypergraph.visualization;
+
+import hypergraph.Hyperedge;
+import hypergraph.Hypergraph;
 
 import java.io.File;
 import java.io.IOException;
@@ -85,200 +88,6 @@ public class HypergraphVisualizer {
         }
     }
 
-    private class Node2D {
-        private String name;
-        private double x;
-        private double y;
-
-        public Node2D(String name, double x, double y) {
-            this.name = name;
-            this.x = x;
-            this.y = y;
-        }
-
-        public double distanceTo(Node2D other) {
-            return Math.sqrt(Math.pow(this.x - other.getX(), 2) + Math.pow(this.y - other.getY(), 2));
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public double getX() {
-            return x;
-        }
-
-        public void setX(double x) {
-            this.x = x;
-        }
-
-        public double getY() {
-            return y;
-        }
-
-        public void setY(double y) {
-            this.y = y;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Node2D node2D = (Node2D) o;
-            return Double.compare(node2D.x, x) == 0 &&
-                    Double.compare(node2D.y, y) == 0 &&
-                    Objects.equals(name, node2D.name);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(name, x, y);
-        }
-
-        @Override
-        public String toString() {
-            return "Node2D{" +
-                    "name='" + name + '\'' +
-                    ", x=" + x +
-                    ", y=" + y +
-                    '}';
-        }
-    }
-
-    private static double crossProduct(double a_x, double a_y, double b_x, double b_y, double c_x, double c_y) {
-        double y1 = a_y - b_y;
-        double y2 = a_y - c_y;
-        double x1 = a_x - b_x;
-        double x2 = a_x - c_x;
-        return y2 * x1 - y1 * x2;
-    }
-
-    private class Edge2D {
-        private String name;
-        private List<Node2D> nodes;
-        private double centerX;
-        private double centerY;
-
-        private String color;
-
-        public List<Node2D> getConvexHull() {
-            if (nodes.size() == 1) {
-                return nodes;
-            }
-
-            if (nodes.size() == 2) {
-                return List.of(nodes.get(0), nodes.get(1), nodes.get(0));
-            }
-
-            LinkedList<Node2D> convexHull = new LinkedList<>();
-
-            Node2D leftmost = nodes.get(0);
-            double leftmostX = leftmost.getX();
-            for (Node2D node : nodes) {
-                if (node.getX() < leftmostX) {
-                    leftmostX = node.getX();
-                    leftmost = node;
-                }
-            }
-            // Determine the leftmost node as it has to be on the convex hull
-            convexHull.add(leftmost);
-
-            Node2D currentNode = convexHull.get(0);
-
-            // Check if the convex hull is greater than 1 in case the first node is the leftmost
-            while (convexHull.size() < 2 || !convexHull.get(0).equals(convexHull.get(convexHull.size()-1))) {
-                // Choose any *other* node as the next node (0 or 1 have to be different)
-                Node2D nextNode = nodes.get(0);
-                if (currentNode.equals(nextNode)) {
-                    nextNode = nodes.get(1);
-                }
-
-                //double angleToNext = Math.atan2(nextNode.getY() - currentNode.getY(), nextNode.getX() - currentNode.getX());
-
-                for (Node2D otherNode : nodes) {
-                    if (!otherNode.equals(currentNode)) {
-                        //double angleToOther = Math.atan2(otherNode.getY() - currentNode.getY(), otherNode.getX() - currentNode.getX());
-                        // If the angle from the current node to the picked node is larger than to the current next, pick it
-                        // as the next node instead
-                        //System.out.println(currentNode + " angle to node " + otherNode + ": " + angleToOther);
-                        double cp = crossProduct(currentNode.getX(), currentNode.getY(), nextNode.getX(), nextNode.getY(), otherNode.getX(), otherNode.getY());
-                        //double angleDifference = angleToOther - angleToNext;
-                        //if (angleDifference > 0 && angleDifference < Math.PI) {
-                        if (cp > 0) {
-                            // Set next node and recompute angle to next node
-                            nextNode = otherNode;
-                            //angleToNext = Math.atan2(nextNode.getY() - currentNode.getY(), nextNode.getX() - currentNode.getX());
-                        }
-                    }
-                }
-                System.out.println(nextNode);
-                System.out.println(convexHull.size());
-                System.out.println("fst " + convexHull.get(0));
-                System.out.println("lst " + convexHull.get(convexHull.size()-1));
-
-                convexHull.add(nextNode);
-                currentNode = nextNode;
-            }
-
-            return convexHull;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public List<Node2D> getNodes() {
-            return nodes;
-        }
-
-        public void setNodes(List<Node2D> nodes) {
-            this.nodes = nodes;
-        }
-
-        public double getCenterX() {
-            return centerX;
-        }
-
-        public void setCenterX(double centerX) {
-            this.centerX = centerX;
-        }
-
-        public double getCenterY() {
-            return centerY;
-        }
-
-        public void setCenterY(double centerY) {
-            this.centerY = centerY;
-        }
-
-        public String getColor() {
-            return color;
-        }
-
-        public void setColor(String color) {
-            this.color = color;
-        }
-
-        @Override
-        public String toString() {
-            return "Edge2D{" +
-                    "name='" + name + '\'' +
-                    ", nodes=" + nodes +
-                    ", centerX=" + centerX +
-                    ", centerY=" + centerY +
-                    ", color='" + color + '\'' +
-                    '}';
-        }
-    }
-
     public String toLaTeX() {
         String output = "\\documentclass{standalone}\n" +
                 "\\usepackage{tikz}\n" +
@@ -292,8 +101,11 @@ public class HypergraphVisualizer {
             rand.nextDouble();
 
             String colorName = "c" + colorIndex;
+            // Scale color components to range [.4,1] for lighter colors
             output += String.format("\\definecolor{%s}{rgb}{%.2f,%.2f,%.2f}\n", colorName,
-                    rand.nextDouble(), rand.nextDouble(), rand.nextDouble());
+                    0.4 + rand.nextDouble() * 0.6,
+                    0.4 + rand.nextDouble() * 0.6,
+                    0.4 + rand.nextDouble() * 0.6);
             colorIndex++;
 
             e.setColor(colorName);
@@ -381,7 +193,7 @@ public class HypergraphVisualizer {
 
     public void toPDF(Path outputFile) throws IOException, InterruptedException {
         Path src = toPDF();
-        Path dst = outputFile; //Paths.get(filename);
+        Path dst = outputFile;
 
         Files.copy(src, dst, StandardCopyOption.REPLACE_EXISTING);
     }

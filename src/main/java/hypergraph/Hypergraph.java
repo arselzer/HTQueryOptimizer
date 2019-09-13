@@ -1,5 +1,6 @@
 package hypergraph;
 
+import hypergraph.visualization.HypergraphVisualizer;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
