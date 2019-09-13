@@ -92,99 +92,101 @@ public class VisualizationInstance {
         double rating = 0.0;
 
         for (Edge2D edge : edges) {
-            List<Node2D> convexHull = edge.getConvexHull();
-            // Perform set difference to find out which points need to be checked
-            Set<Node2D> nodesNotContainedInEdge = new HashSet<>(nodes);
-            nodesNotContainedInEdge.removeAll(edge.getNodes());
+            if (edge.getNodes().size() >= 2) {
+                List<Node2D> convexHull = edge.getConvexHull();
+                // Perform set difference to find out which points need to be checked
+                Set<Node2D> nodesNotContainedInEdge = new HashSet<>(nodes);
+                nodesNotContainedInEdge.removeAll(edge.getNodes());
 
-            for (Node2D nodeToCheck: nodesNotContainedInEdge) {
+                for (Node2D nodeToCheck : nodesNotContainedInEdge) {
 
-                // Check for each point that is not supposed to be inside the convex hull whether it is inside
-                // If the point is on the right of all vectors of the hull it is contained
-                boolean onTheRightOfAllNodes = true;
-                for (int i = 0; i < convexHull.size() - 1; i++) {
-                    Node2D n1 = convexHull.get(i);
-                    Node2D n2 = convexHull.get(i + 1); // Wrap around one element (last-first)
+                    // Check for each point that is not supposed to be inside the convex hull whether it is inside
+                    // If the point is on the right of all vectors of the hull it is contained
+                    boolean onTheRightOfAllNodes = true;
+                    for (int i = 0; i < convexHull.size() - 1; i++) {
+                        Node2D n1 = convexHull.get(i);
+                        Node2D n2 = convexHull.get(i + 1); // Wrap around one element (last-first)
 
-                    double cp = Edge2D.crossProduct(n1.getX(), n1.getY(), n2.getX(), n2.getY(), nodeToCheck.getX(), nodeToCheck.getY());
+                        double cp = Edge2D.crossProduct(n1.getX(), n1.getY(), n2.getX(), n2.getY(), nodeToCheck.getX(), nodeToCheck.getY());
 
-                    // Check if the node is on the left side
-                    if (cp > 0) {
-                        onTheRightOfAllNodes = false;
+                        // Check if the node is on the left side
+                        if (cp > 0) {
+                            onTheRightOfAllNodes = false;
 
-                        double centerX = (n1.getX() + n2.getX()) / 2;
-                        double centerY = (n1.getY() + n2.getY()) / 2;
+                            double centerX = (n1.getX() + n2.getX()) / 2;
+                            double centerY = (n1.getY() + n2.getY()) / 2;
 
-                        // Length of line segment
-                        double length = Math.sqrt(Math.pow(n2.getX() - n1.getX(), 2) + Math.pow(n2.getY() - n1.getY(), 2));
-                        // Distance from center of line segment to node
-                        double distance = Math.sqrt(Math.pow(centerX - nodeToCheck.getX(), 2) + Math.pow(centerY - nodeToCheck.getY(), 2));
+                            // Length of line segment
+                            double length = Math.sqrt(Math.pow(n2.getX() - n1.getX(), 2) + Math.pow(n2.getY() - n1.getY(), 2));
+                            // Distance from center of line segment to node
+                            double distance = Math.sqrt(Math.pow(centerX - nodeToCheck.getX(), 2) + Math.pow(centerY - nodeToCheck.getY(), 2));
 
-                        // Only consider points "close" (within length of line segment to center)
-                        if (distance < length) {
-                            // The closer a point is, the worse
-                            double closenessFactor = -500 / Math.pow((cp + 0.1), 2);//- 200 / Math.pow(0.1+cp, 2);
-                            //System.out.println(cp + " " + closenessFactor);
-                            rating += closenessFactor;
+                            // Only consider points "close" (within length of line segment to center)
+                            if (distance < length) {
+                                // The closer a point is, the worse
+                                double closenessFactor = -500 / Math.pow((cp + 0.1), 2);//- 200 / Math.pow(0.1+cp, 2);
+                                //System.out.println(cp + " " + closenessFactor);
+                                rating += closenessFactor;
+                            }
                         }
+                    }
+
+                    if (onTheRightOfAllNodes) {
+                        // Discard the graph
+                        rating -= 1000000;
                     }
                 }
 
-                if (onTheRightOfAllNodes) {
-                    // Discard the graph
-                    rating -= 1000000;
+                double maxDistance = -Double.MAX_VALUE;
+                double minDistance = Double.MAX_VALUE;
+
+                for (int i = 0; i < convexHull.size() - 2; i++) {
+                    Node2D node = convexHull.get(i);
+                    Node2D next = convexHull.get(i + 1);
+
+                    double distance = Math.sqrt(Math.pow(next.getX() - node.getX(), 2) + Math.pow(next.getY() - node.getY(), 2));
+
+                    if (distance > maxDistance) {
+                        maxDistance = distance;
+                    }
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                    }
                 }
+
+                double distanceRatio = maxDistance / minDistance;
+                rating -= Math.pow(distanceRatio - 1, 3);
+
+                double minX = Double.MAX_VALUE;
+                double maxX = -Double.MAX_VALUE;
+                double minY = Double.MAX_VALUE;
+                double maxY = -Double.MAX_VALUE;
+
+                for (Node2D node : edge.getNodes()) {
+                    if (node.getX() < minX) {
+                        minX = node.getX();
+                    }
+                    if (node.getX() > maxX) {
+                        maxX = node.getX();
+                    }
+                    if (node.getY() < minY) {
+                        minY = node.getY();
+                    }
+                    if (node.getY() > maxY) {
+                        maxY = node.getY();
+                    }
+                }
+
+                double width = maxX - minX;
+                double height = maxY - minY;
+
+                double min = Math.min(width, height);
+                double max = Math.max(width, height);
+                double ratio = max / min;
+
+                // Penalize thin edges
+                rating -= Math.pow(ratio - 1, 5);
             }
-
-            double maxDistance = -Double.MAX_VALUE;
-            double minDistance = Double.MAX_VALUE;
-
-            for (int i = 0; i < convexHull.size()-2; i++) {
-                Node2D node = convexHull.get(i);
-                Node2D next = convexHull.get(i+1);
-
-                double distance = Math.sqrt(Math.pow(next.getX() - node.getX(), 2) + Math.pow(next.getY() - node.getY(), 2));
-
-                if (distance > maxDistance) {
-                    maxDistance = distance;
-                }
-                if (distance < minDistance) {
-                    minDistance = distance;
-                }
-            }
-
-            double distanceRatio = maxDistance / minDistance;
-            rating -= Math.pow(distanceRatio - 1, 3);
-
-            double minX = Double.MAX_VALUE;
-            double maxX = -Double.MAX_VALUE;
-            double minY = Double.MAX_VALUE;
-            double maxY = -Double.MAX_VALUE;
-
-            for (Node2D node : edge.getNodes()) {
-                if (node.getX() < minX) {
-                    minX = node.getX();
-                }
-                if (node.getX() > maxX) {
-                    maxX = node.getX();
-                }
-                if (node.getY() < minY) {
-                    minY = node.getY();
-                }
-                if (node.getY() > maxY) {
-                    maxY = node.getY();
-                }
-            }
-
-            double width = maxX - minX;
-            double height = maxY - minY;
-
-            double min = Math.min(width, height);
-            double max = Math.max(width, height);
-            double ratio = max / min;
-
-            // Penalize thin edges
-            rating -= Math.pow(ratio - 1, 5);
         }
 
         return rating;

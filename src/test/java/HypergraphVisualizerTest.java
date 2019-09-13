@@ -28,6 +28,7 @@ class HypergraphVisualizerTest {
         hg.setEdges(Set.of(new Hyperedge("e1", Set.of("a", "b", "c")),
                 new Hyperedge("e2", Set.of("c", "d", "e")),
                 new Hyperedge("e3", Set.of("f", "g")),
+                new Hyperedge("e5", Set.of("g")),
                 new Hyperedge("e4", Set.of("b", "g", "e", "a"))));
 
         Path output = hg.toPDF();
