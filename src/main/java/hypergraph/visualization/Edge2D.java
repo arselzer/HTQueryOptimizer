@@ -66,7 +66,7 @@ class Edge2D {
      * @return A number indicating whether point c is on the left side (> 0), right side (< 0) or exactly
      * on the line between a and b (= 0)
      */
-    private static double crossProduct(double a_x, double a_y, double b_x, double b_y, double c_x, double c_y) {
+    public static double crossProduct(double a_x, double a_y, double b_x, double b_y, double c_x, double c_y) {
         double y1 = a_y - b_y;
         double y2 = a_y - c_y;
         double x1 = a_x - b_x;

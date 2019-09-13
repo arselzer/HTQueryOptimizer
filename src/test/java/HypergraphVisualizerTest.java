@@ -20,7 +20,7 @@ class HypergraphVisualizerTest {
 
         System.out.println(hg.toLaTeX());
     }
-    
+
     @Test
     void toFile() throws IOException, InterruptedException {
         Hypergraph hg = new Hypergraph();
