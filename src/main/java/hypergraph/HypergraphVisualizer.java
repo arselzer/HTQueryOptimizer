@@ -1,6 +1,14 @@
 package hypergraph;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class HypergraphVisualizer {
     private Hypergraph hg;
@@ -272,7 +280,7 @@ public class HypergraphVisualizer {
     }
 
     public String toLaTeX() {
-        String output = "\\documentclass{article}\n" +
+        String output = "\\documentclass{standalone}\n" +
                 "\\usepackage{tikz}\n" +
                 "\\usepackage{xcolor}\n" +
                 "\\usetikzlibrary{topaths,calc}\n";
@@ -324,7 +332,7 @@ public class HypergraphVisualizer {
             } else if (edge.getNodes().size() == 2) {
                 Node2D n1 = convexHull.get(0);
                 Node2D n2 = convexHull.get(1);
-                output += String.format("\\draw[fill=%s, line width=0.5mm] (%.2f,%.2f) -- (%.2f, %.2f);\n", edge.getColor(), n1.getX(), n1.getY(), n2.getX(), n2.getY());
+                output += String.format("\\draw[%s, line width=0.5mm] (%.2f,%.2f) -- (%.2f, %.2f);\n", edge.getColor(), n1.getX(), n1.getY(), n2.getX(), n2.getY());
             }
         }
 
@@ -339,12 +347,48 @@ public class HypergraphVisualizer {
         }
 
         for (Edge2D edge : edges) {
-            output += String.format("\\node at (%.2f, %.2f) {$%s$};\n", edge.getCenterX(), edge.getCenterY(), edge.getName());
+            output += String.format("\\node at (%.2f, %.2f) {$%s$};\n", edge.getCenterX() + 0.4, edge.getCenterY() + 0.4, edge.getName());
         }
 
         output += "\\end{tikzpicture}\n";
         output += "\\end{document}\n";
 
         return output;
+    }
+
+    public Path toPDF() throws IOException, InterruptedException {
+        File latexSourceFile = File.createTempFile("hypergraph", ".tex");
+        latexSourceFile.deleteOnExit();
+        String latexContent = toLaTeX();
+
+        PrintWriter pw = new PrintWriter(latexSourceFile);
+        pw.write(latexContent);
+        pw.flush();
+
+        Path tempDir = Files.createTempDirectory("hypergraph-latex-output");
+
+        ProcessBuilder pb = new ProcessBuilder("pdflatex", "-output-format=pdf",
+                "-output-directory=" + tempDir.toAbsolutePath().toString(),
+                latexSourceFile.getAbsolutePath());
+        Process process = pb.start();
+        process.waitFor(2, TimeUnit.SECONDS);
+
+        Path src = Paths.get(tempDir.toAbsolutePath().toString() + "/" +
+                latexSourceFile.getName().toString().replace(".tex", ".pdf"));
+
+        return src;
+    }
+
+    public void toPDF(Path outputFile) throws IOException, InterruptedException {
+        Path src = toPDF();
+        Path dst = outputFile; //Paths.get(filename);
+
+        Files.copy(src, dst, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    public void displayPDF() throws IOException, InterruptedException {
+        Path output = toPDF();
+        ProcessBuilder pb = new ProcessBuilder("evince", output.toAbsolutePath().toString());
+        pb.start();
     }
 }

@@ -9,6 +9,7 @@ import query.JoinTreeNode;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -234,6 +235,18 @@ public class Hypergraph {
 
     public String toLaTeX() {
         return new HypergraphVisualizer(this).toLaTeX();
+    }
+
+    public Path toPDF() throws IOException, InterruptedException {
+        return new HypergraphVisualizer(this).toPDF();
+    }
+
+    public void toPDF(Path filePath) throws IOException, InterruptedException {
+        new HypergraphVisualizer(this).toPDF(filePath);
+    }
+
+    public void displayPDF() throws IOException, InterruptedException {
+        new HypergraphVisualizer(this).displayPDF();
     }
 
     public Set<Hyperedge> getEdges() {
