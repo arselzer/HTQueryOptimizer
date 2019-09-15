@@ -19,6 +19,10 @@ public class VisualizationInstance {
     private static double MAX_X = 10.0;
     private static double MAX_Y = 10.0;
 
+    private static double MIN_NODE_DISTANCE = 1.0;
+    private static double NEW_POINT_RADIUS = 6;
+    private static int MAX_POINT_TRIES = 100;;
+
     Set<String> nodeNames = new HashSet<>();
     Set<Node2D> nodes = new HashSet<>();
     HashMap<String, Node2D> nodesByName = new HashMap<>();
@@ -42,10 +46,23 @@ public class VisualizationInstance {
                     Node2D newNode = null;
 
                     int tries = 0;
-                    while (!conditionsMet) {
-                        newNode = new Node2D(nodeName, Math.random() * MAX_X, Math.random() * MAX_Y);
+                    while (!conditionsMet && tries < MAX_POINT_TRIES) {
+                        if (newEdgeNodes.isEmpty()) {
+                            newNode = new Node2D(nodeName, Math.random() * MAX_X, Math.random() * MAX_Y);
+                        }
+                        else {
+                            Node2D lastNode = newEdgeNodes.get(newEdgeNodes.size()-1);
+                            double minX = Math.max(0, lastNode.getX() - NEW_POINT_RADIUS);
+                            double maxX = Math.min(MAX_X, lastNode.getX() + NEW_POINT_RADIUS);
+                            double minY = Math.max(0, lastNode.getY() - NEW_POINT_RADIUS);
+                            double maxY = Math.min(MAX_Y, lastNode.getY() + NEW_POINT_RADIUS);
+                            newNode = new Node2D(nodeName, minX + Math.random() * (maxX - minX),
+                                    minY + Math.random() * (maxY - minY));
+                        }
 
                         double minNodeDistance = Double.MAX_VALUE;
+
+                        // Don't generate points really close by (readability)
 
                         for (Node2D node2D : nodes) {
                             if (newNode.distanceTo(node2D) < minNodeDistance) {
@@ -54,8 +71,38 @@ public class VisualizationInstance {
                         }
 
                         // Either the min distance should be fulfilled or the number of tries exhausted
-                        if (minNodeDistance > 1.0 || tries > 10) {
+                        if (minNodeDistance > MIN_NODE_DISTANCE) {
                             conditionsMet = true;
+
+                            // If the edge is a binary edge and the second point was not assigned yet
+                            if (he.getNodes().size() == 2 && newEdgeNodes.size() == 1) {
+                                //System.out.println("binary edges " + newEdge.getNodes().get(0) + " " + newNode);
+                                double Ax = newEdge.getNodes().get(0).getX();
+                                double Ay = newEdge.getNodes().get(0).getY();
+                                double Bx = newNode.getX();
+                                double By = newNode.getY();
+
+                                boolean intersection = false;
+
+                                for (Edge2D otherEdge : edges) {
+                                    // For each other other binary edge
+                                    if (otherEdge.getNodes().size() == 2 && !otherEdge.equals(newEdge)) {
+                                        double Cx = otherEdge.getNodes().get(0).getX();
+                                        double Cy = otherEdge.getNodes().get(0).getY();
+                                        double Dx = otherEdge.getNodes().get(1).getX();
+                                        double Dy = otherEdge.getNodes().get(1).getY();
+
+                                        if (linesIntersect(Ax, Ay, Bx, By, Cx, Cy, Dx, Dy)) {
+                                            intersection = true;
+                                        }
+                                    }
+                                }
+
+                                if (intersection) {
+                                    //System.out.println("intersection" + tries);;
+                                    conditionsMet = false;
+                                }
+                            }
                         }
 
                         tries++;
@@ -65,6 +112,8 @@ public class VisualizationInstance {
                     nodeNames.add(nodeName);
                     nodes.add(newNode);
                     nodesByName.put(newNode.getName(), newNode);
+
+
                 } else {
                     newEdgeNodes.add(nodesByName.get(nodeName));
                 }

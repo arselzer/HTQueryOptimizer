@@ -209,18 +209,17 @@ public class Hypergraph {
     }
 
     public static Hypergraph fromDTL(String dtlString) {
-
         Set<Hyperedge> hgHyperedges = new HashSet<>();
         Set<String> hgNodes = new HashSet<>();
 
-        String[] matches = Pattern.compile("(\\w+\\([,\\d\\s]*\\))")
+        String[] matches = Pattern.compile("(\\w+\\([,\\w\\s]*\\))")
                 .matcher(dtlString)
                 .results()
                 .map(MatchResult::group)
                 .toArray(String[]::new);
 
         for (String match : matches) {
-            Matcher matcher = Pattern.compile("(\\w+)\\(([,\\d\\s]*)\\)").matcher(match);
+            Matcher matcher = Pattern.compile("(\\w+)\\(([,\\w\\s]*)\\)").matcher(match);
 
             if (matcher.find()) {
                 String heName = matcher.group(1);

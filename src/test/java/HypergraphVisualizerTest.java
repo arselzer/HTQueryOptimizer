@@ -53,4 +53,30 @@ class HypergraphVisualizerTest {
 
         hg.displayPDF();
     }
+
+    @Test
+    void displayComplexBinaryGraph() throws IOException, InterruptedException {
+        Hypergraph hg = Hypergraph.fromDTL("t11(X23,X18),\n" +
+                "t14(X38,X39),\n" +
+                "t9(X23,X28),\n" +
+                "t18(X9,X3),\n" +
+                "t1(X14,X15),\n" +
+                "t8(X25,X28),\n" +
+                "t5(X1,X5),\n" +
+                "t19(X2,X3),\n" +
+                "t10(X23,X22),\n" +
+                "t6(X33,X5),\n" +
+                "t12(X9,X18),\n" +
+                "t20(X9,X3),\n" +
+                "t13(X9,X38),\n" +
+                "t3(X11,X14),\n" +
+                "t2(X14,X7),\n" +
+                "t15(X38,X26),\n" +
+                "t16(X9,X31),\n" +
+                "t17(X8,X9),\n" +
+                "t7(X14,X25),\n" +
+                "t4(X1,X14).");
+
+        hg.displayPDF();
+    }
 }
