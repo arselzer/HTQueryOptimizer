@@ -3,6 +3,7 @@ package benchmark;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import exceptions.QueryConversionException;
+import org.apache.commons.cli.*;
 import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
 import queryexecutor.ViewQueryExecutor;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 public class Benchmark {
     private String dbRootDir;
+    private String dbDir = null;
     private Connection conn;
 
     private List<BenchmarkResult> results = new LinkedList<>();
@@ -31,6 +33,12 @@ public class Benchmark {
     public Benchmark(String dbRootDir, Connection conn) {
         this.dbRootDir = dbRootDir;
         this.conn = conn;
+    }
+
+    public Benchmark(String dbRootDir, Connection conn, String db) {
+        this.dbRootDir = dbRootDir;
+        this.conn = conn;
+        this.dbDir = db;
     }
 
     private void benchmark(BenchmarkConf conf) throws SQLException, IOException, QueryConversionException {
@@ -76,6 +84,7 @@ public class Benchmark {
 
         result.setHypergraph(qe.getHypergraph());
         result.setJoinTree(qe.getJoinTree());
+        result.setGeneratedQuery(qe.getGeneratedFunction());
 
         conn.prepareStatement("vacuum analyze;").execute();
         long startTimeUnoptimized = System.currentTimeMillis();
@@ -107,11 +116,13 @@ public class Benchmark {
         for (File subdir : subdirs) {
             String dbName = subdir.getName();
 
-            File[] sqlFiles = subdir.listFiles(file -> file.getName().endsWith(".sql") && !file.getName().equals("create.sql"));
+            if (dbDir == null || dbName.equals(dbDir)) {
+                File[] sqlFiles = subdir.listFiles(file -> file.getName().endsWith(".sql") && !file.getName().equals("create.sql"));
 
-            if (sqlFiles != null) {
-                for (File file: sqlFiles) {
-                    confs.add(new BenchmarkConf(dbName, file.getName()));
+                if (sqlFiles != null) {
+                    for (File file : sqlFiles) {
+                        confs.add(new BenchmarkConf(dbName, file.getName()));
+                    }
                 }
             }
         }
@@ -136,6 +147,18 @@ public class Benchmark {
     }
 
     public static void main(String[] args) {
+        Options options = new Options();
+        Option setDb = new Option("d", "db", true, "test db");
+        options.addOption(setDb);
+        CommandLineParser parser = new DefaultParser();
+        CommandLine cmd = null;
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
         String url = "jdbc:postgresql://localhost/testdb";
         String user = "test";
         String password = "test";
@@ -150,7 +173,13 @@ public class Benchmark {
         try {
             Connection conn = DriverManager.getConnection(url, properties);
 
-            Benchmark benchmark = new Benchmark(System.getProperty("user.dir") + "/data", conn);
+            Benchmark benchmark;
+            if (cmd.hasOption("db")) {
+                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", conn, cmd.getOptionValue("db"));
+            }
+            else {
+                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", conn);
+            }
             benchmark.run();
 
             File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
@@ -183,6 +212,11 @@ public class Benchmark {
                 PrintWriter queryWriter = new PrintWriter(queryFile);
                 queryWriter.write(res.getQuery());
                 queryWriter.close();
+
+                File generatedQueryFile = new File(resultDir + "/generated.sql");
+                PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
+                generatedQueryWriter.write(res.getGeneratedQuery());
+                generatedQueryWriter.close();
 
                 File resultJsonFile = new File(resultDir + "/result.json");
                 PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);

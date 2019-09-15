@@ -19,6 +19,7 @@ public class ViewQueryExecutor implements QueryExecutor {
     private long queryRunningTime;
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
+    private String generatedFunction;
 
     public ViewQueryExecutor(Connection connection) throws SQLException {
         this.connection = connection;
@@ -44,6 +45,7 @@ public class ViewQueryExecutor implements QueryExecutor {
         // Save hypergraph and join tree for benchmarks and analysis
         this.hypergraph = sqlQuery.getHypergraph();
         this.joinTree = sqlQuery.getJoinTree();
+        this.generatedFunction = functionStr;
 
         //String functionStr = sqlQuery.toTableFunction(functionName);
         //System.out.println("equivalence mapping: " + sqlQuery.toHypergraph().getEquivalenceMapping());
@@ -88,6 +90,10 @@ public class ViewQueryExecutor implements QueryExecutor {
 
     public JoinTreeNode getJoinTree() {
         return joinTree;
+    }
+
+    public String getGeneratedFunction() {
+        return generatedFunction;
     }
 
     private void enableMergeJoin() throws SQLException {

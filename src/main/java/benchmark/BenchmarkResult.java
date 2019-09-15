@@ -16,6 +16,7 @@ public class BenchmarkResult {
     private JoinTreeNode joinTree;
 
     private String query;
+    private String generatedQuery;
 
     BenchmarkResult(BenchmarkConf conf) {
         this.conf = conf;
@@ -91,6 +92,14 @@ public class BenchmarkResult {
 
     public void setQuery(String query) {
         this.query = query;
+    }
+
+    public String getGeneratedQuery() {
+        return generatedQuery;
+    }
+
+    public void setGeneratedQuery(String generatedQuery) {
+        this.generatedQuery = generatedQuery;
     }
 
     @Override

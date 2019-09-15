@@ -56,8 +56,8 @@ public class VisualizationInstance {
                             double maxX = Math.min(MAX_X, lastNode.getX() + NEW_POINT_RADIUS);
                             double minY = Math.max(0, lastNode.getY() - NEW_POINT_RADIUS);
                             double maxY = Math.min(MAX_Y, lastNode.getY() + NEW_POINT_RADIUS);
-                            newNode = new Node2D(nodeName, minX + Math.random() * (maxX - minX),
-                                    minY + Math.random() * (maxY - minY));
+                            newNode = new Node2D(nodeName, minX + (Math.random()*0.75 + 0.25) * (maxX - minX),
+                                    minY + (Math.random() * 0.75 + 0.25) * (maxY - minY));
                         }
 
                         double minNodeDistance = Double.MAX_VALUE;
