@@ -15,6 +15,7 @@ public class BenchmarkResult {
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
 
+    private String query;
 
     BenchmarkResult(BenchmarkConf conf) {
         this.conf = conf;
@@ -82,6 +83,14 @@ public class BenchmarkResult {
 
     public void setOptimizedRows(int optimizedRows) {
         this.optimizedRows = optimizedRows;
+    }
+
+    public String getQuery() {
+        return query;
+    }
+
+    public void setQuery(String query) {
+        this.query = query;
     }
 
     @Override

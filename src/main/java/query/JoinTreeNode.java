@@ -6,7 +6,8 @@ import java.util.stream.Collectors;
 
 public class JoinTreeNode {
     private List<JoinTreeNode> successors = new LinkedList<>();
-    private JoinTreeNode predecessor = null;
+    // Predecessor is marked transient to prevent cycles when serializing
+    private transient JoinTreeNode predecessor = null;
     private List<String> tables = new LinkedList<>();
     private List<String> attributes = new LinkedList<>();
 

@@ -1,5 +1,7 @@
 package benchmark;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import exceptions.QueryConversionException;
 import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
@@ -41,9 +43,9 @@ public class Benchmark {
         File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
 
         String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
+        result.setQuery(query);
 
         ProcessBuilder pb = new ProcessBuilder();
-
 
         pb.command(createFile.getAbsolutePath());
         //pb.start();
@@ -143,6 +145,8 @@ public class Benchmark {
         properties.setProperty("password", password);
         //properties.setProperty("ssl", "true");
 
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
         try {
             Connection conn = DriverManager.getConnection(url, properties);
 
@@ -168,13 +172,24 @@ public class Benchmark {
                 // Write graph rendering
                 res.getHypergraph().toPDF(Paths.get(resultDir + "/hypergraph.pdf"));
 
-                // Write out java data structure
+                // Write out the java data structure
                 File resultTxtFile = new File(resultDir + "/result.txt");
                 PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
                 resultStringWriter.write(res.toString());
                 resultStringWriter.close();
 
-                System.out.println(res);
+                // Write out the original query
+                File queryFile = new File(resultDir + "/query.sql");
+                PrintWriter queryWriter = new PrintWriter(queryFile);
+                queryWriter.write(res.getQuery());
+                queryWriter.close();
+
+                File resultJsonFile = new File(resultDir + "/result.json");
+                PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
+                resultJsonWriter.write(gson.toJson(res));
+                resultJsonWriter.close();
+
+                //System.out.println(res);
             }
         } catch (SQLException e) {
             System.out.printf("Error connecting to db: %s\n", e.getMessage());

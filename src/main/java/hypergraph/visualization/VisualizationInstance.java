@@ -137,59 +137,99 @@ public class VisualizationInstance {
                     }
                 }
 
-                double maxDistance = -Double.MAX_VALUE;
-                double minDistance = Double.MAX_VALUE;
+                if (edge.getNodes().size() >= 3) {
+                    double maxDistance = -Double.MAX_VALUE;
+                    double minDistance = Double.MAX_VALUE;
+                    double minAngle = Math.PI;
 
-                for (int i = 0; i < convexHull.size() - 2; i++) {
-                    Node2D node = convexHull.get(i);
-                    Node2D next = convexHull.get(i + 1);
+                    for (int i = 0; i < convexHull.size() - 2; i++) {
+                        Node2D node = convexHull.get(i);
+                        Node2D next = convexHull.get(i + 1);
 
-                    double distance = Math.sqrt(Math.pow(next.getX() - node.getX(), 2) + Math.pow(next.getY() - node.getY(), 2));
+                        Node2D prevNode;
+                        if (i == 0) {
+                            prevNode = convexHull.get(convexHull.size() - 2);
+                        } else {
+                            prevNode = convexHull.get((i - 1));
+                        }
 
-                    if (distance > maxDistance) {
-                        maxDistance = distance;
+                        double distance = Math.sqrt(Math.pow(next.getX() - node.getX(), 2) + Math.pow(next.getY() - node.getY(), 2));
+
+                        if (distance > maxDistance) {
+                            maxDistance = distance;
+                        }
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                        }
+
+                        // Vector prevNode -> node
+                        double x1 = node.getX() - prevNode.getX();
+                        double y1 = node.getY() - prevNode.getY();
+                        // Vector nextNode -> node
+                        double x2 = node.getX() - next.getX(); //nextNode.getX() - node.getX();
+                        double y2 = node.getY() - next.getY(); //nextNode.getY() - node.getY();
+
+                        double length1 = Math.sqrt(Math.pow(x1, 2) + Math.pow(y1, 2));
+                        double length2 = Math.sqrt(Math.pow(x2, 2) + Math.pow(y2, 2));
+                        double dotProduct = x1 * x2 + y1 * y2;
+
+                        double angle = Math.acos(dotProduct / (length1 * length2));//Math.atan2(y2, x2) - Math.atan2(y1, x1);
+
+                        if (angle < minAngle) {
+                            minAngle = angle;
+                        }
                     }
-                    if (distance < minDistance) {
-                        minDistance = distance;
+
+                    double distanceRatio = maxDistance / minDistance;
+                    rating -= Math.pow(distanceRatio - 1, 3);
+
+                    rating -= 30 / Math.pow(minAngle + 0.01, 3);
+
+                    double minX = Double.MAX_VALUE;
+                    double maxX = -Double.MAX_VALUE;
+                    double minY = Double.MAX_VALUE;
+                    double maxY = -Double.MAX_VALUE;
+
+                    for (Node2D node : edge.getNodes()) {
+                        if (node.getX() < minX) {
+                            minX = node.getX();
+                        }
+                        if (node.getX() > maxX) {
+                            maxX = node.getX();
+                        }
+                        if (node.getY() < minY) {
+                            minY = node.getY();
+                        }
+                        if (node.getY() > maxY) {
+                            maxY = node.getY();
+                        }
                     }
+
+                    double width = maxX - minX;
+                    double height = maxY - minY;
+
+                    double min = Math.min(width, height);
+                    double max = Math.max(width, height);
+                    double ratio = max / min;
+
+                    // Penalize thin edges
+                    rating -= Math.pow(ratio - 1, 5);
                 }
-
-                double distanceRatio = maxDistance / minDistance;
-                rating -= Math.pow(distanceRatio - 1, 3);
-
-                double minX = Double.MAX_VALUE;
-                double maxX = -Double.MAX_VALUE;
-                double minY = Double.MAX_VALUE;
-                double maxY = -Double.MAX_VALUE;
-
-                for (Node2D node : edge.getNodes()) {
-                    if (node.getX() < minX) {
-                        minX = node.getX();
-                    }
-                    if (node.getX() > maxX) {
-                        maxX = node.getX();
-                    }
-                    if (node.getY() < minY) {
-                        minY = node.getY();
-                    }
-                    if (node.getY() > maxY) {
-                        maxY = node.getY();
-                    }
-                }
-
-                double width = maxX - minX;
-                double height = maxY - minY;
-
-                double min = Math.min(width, height);
-                double max = Math.max(width, height);
-                double ratio = max / min;
-
-                // Penalize thin edges
-                rating -= Math.pow(ratio - 1, 5);
             }
         }
 
         return rating;
+    }
+
+    // Taken from here: https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
+    private boolean ccw(double Ax, double Ay, double Bx, double By, double Cx, double Cy) {
+            return (Cy-Ay)*(Bx-Ax)>(By-Ay)*(Cx-Ax);
+    }
+
+    private boolean linesIntersect(double Ax, double Ay, double Bx, double By,
+                                   double Cx, double Cy, double Dx, double Dy) {
+        return (ccw(Ax, Ay, Cx, Cy, Dx, Dy) != ccw(Bx, By, Cx, Cy, Dx, Dy)) &&
+                (ccw(Ax, Ay, Bx, By, Cx, Cy) != ccw(Ax, Ay, Bx, By, Dx, Dy));
     }
 
     public String toLaTeX() {
@@ -232,41 +272,47 @@ public class VisualizationInstance {
 
             // Ignore the last element, which is the first element
             for (int i = 0; i < convexHull.size() - 1; i++) {
-//                Node2D node = convexHull.get(i);
-//                Node2D prevNode;
-//                if (i == 0) {
-//                    prevNode = convexHull.get(convexHull.size()-2);
-//                }
-//                else {
-//                    prevNode = convexHull.get((i-1));
-//                }
-//
-//                Node2D nextNode = convexHull.get((i+1) % convexHull.size());
-//
-//                double x1 = node.getX() - prevNode.getX();
-//                double y1 = node.getY() - prevNode.getY();
-//                double x2 = -(nextNode.getX() - node.getX());
-//                double y2 = -(nextNode.getY() - node.getY());
-//                double middleVectorX = x1 + x2;
-//                double middleVectorY = y1 + y2;
-//                double middleVectorLength = Math.sqrt(Math.pow(middleVectorX, 2) + Math.pow(middleVectorY, 2));
-//                double middleVectorNormalX = middleVectorX / middleVectorLength;
-//                double middleVectorNormalY = middleVectorY / middleVectorLength;
-//
-//                double factor = 0.3;
-//
-//                drawCoords.add(String.format("(%.2f, %.2f)", node.getX() - middleVectorNormalX * factor, node.getY() - middleVectorNormalY * factor));
-
                 Node2D node = convexHull.get(i);
+                Node2D prevNode;
+                if (i == 0) {
+                    prevNode = convexHull.get(convexHull.size()-2);
+                }
+                else {
+                    prevNode = convexHull.get((i-1));
+                }
 
-                double diffX = node.getX() - edge.getCenterX();
-                double diffY = node.getY() - edge.getCenterY();
-                double euclidDistance = Math.sqrt(diffX * diffX + diffY * diffY);
-                double factor = 0.3;
-                double normalDiffX = diffX / euclidDistance;
-                double normalDiffY = diffY / euclidDistance;
+                Node2D nextNode = convexHull.get((i+1) % convexHull.size());
 
-                drawCoords.add(String.format("(%.2f, %.2f)", node.getX() + normalDiffX * factor, node.getY() + normalDiffY * factor));
+                // Vector prevNode -> node
+                double x1 = node.getX() - prevNode.getX();
+                double y1 = node.getY() - prevNode.getY();
+                // Vector nextNode -> node
+                double x2 = node.getX() - nextNode.getX(); //nextNode.getX() - node.getX();
+                double y2 = node.getY() - nextNode.getY(); //nextNode.getY() - node.getY();
+
+                double length1 = Math.sqrt(Math.pow(x1, 2) + Math.pow(y1, 2));
+                double length2 = Math.sqrt(Math.pow(x2, 2) + Math.pow(y2, 2));
+                // Normalize vectors
+                double middleVectorX = (x1 / length1) + (x2 / length2);
+                double middleVectorY = (y1 / length1) + (y2 / length2);
+                double middleVectorLength = Math.sqrt(Math.pow(middleVectorX, 2) + Math.pow(middleVectorY, 2));
+                double middleVectorNormalX = middleVectorX / middleVectorLength;
+                double middleVectorNormalY = middleVectorY / middleVectorLength;
+
+                double factor = 0.35;
+
+                drawCoords.add(String.format("(%.2f, %.2f)", node.getX() + middleVectorNormalX * factor, node.getY() + middleVectorNormalY * factor));
+
+//                Node2D node = convexHull.get(i);
+//
+//                double diffX = node.getX() - edge.getCenterX();
+//                double diffY = node.getY() - edge.getCenterY();
+//                double euclidDistance = Math.sqrt(diffX * diffX + diffY * diffY);
+//                double factor = 0.3;
+//                double normalDiffX = diffX / euclidDistance;
+//                double normalDiffY = diffY / euclidDistance;
+//
+//                drawCoords.add(String.format("(%.2f, %.2f)", node.getX() + normalDiffX * factor, node.getY() + normalDiffY * factor));
             }
             if (edge.getNodes().size() > 2) {
                 output += String.format("\\draw[fill=%s] plot [smooth cycle] coordinates {%s};\n", edge.getColor(), String.join(" ", drawCoords));
@@ -309,7 +355,7 @@ public class VisualizationInstance {
 
         PrintWriter pw = new PrintWriter(latexSourceFile);
         pw.write(latexContent);
-        pw.flush();
+        pw.close();
 
         Path tempDir = Files.createTempDirectory("hypergraph-latex-output");
 
