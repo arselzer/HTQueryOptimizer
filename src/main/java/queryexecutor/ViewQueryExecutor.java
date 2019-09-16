@@ -62,28 +62,31 @@ public class ViewQueryExecutor implements QueryExecutor {
 
         long startTime = System.currentTimeMillis();
 
-        PreparedStatement psFunction = connection.prepareStatement(functionStr);
-        psFunction.execute();
+        try (PreparedStatement psFunction = connection.prepareStatement(functionStr)) {
+            psFunction.execute();
 
-        PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT %s();", functionName));
-        if (timeout != null) {
-            psSelect.setQueryTimeout(timeout);
+            PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT %s();", functionName));
+            if (timeout != null) {
+                psSelect.setQueryTimeout(timeout);
+            }
+            psSelect.closeOnCompletion();
+            ResultSet rs = psSelect.executeQuery();
+
+            queryRunningTime = System.currentTimeMillis() - startTime;
+
+            //PreparedStatement psSelectFromView = connection.prepareStatement(String.format("SELECT * FROM %s", finalTableName));
+            //ResultSet rs = psSelectFromView.executeQuery();
+
+            // TODO maybe keep the function over several calls for performance
+            PreparedStatement psDelete = connection.prepareStatement(String.format("DROP FUNCTION %s;", functionName));
+            psDelete.execute();
+            psDelete.close();
+
+            //enableMergeJoin();
+            // TODO disabling merge join alters global db state ? - maybe isolate it if possible
+
+            return rs;
         }
-        ResultSet rs = psSelect.executeQuery();
-
-        queryRunningTime = System.currentTimeMillis() - startTime;
-
-        //PreparedStatement psSelectFromView = connection.prepareStatement(String.format("SELECT * FROM %s", finalTableName));
-        //ResultSet rs = psSelectFromView.executeQuery();
-
-        // TODO maybe keep the function over several calls for performance
-        PreparedStatement psDelete = connection.prepareStatement(String.format("DROP FUNCTION %s;", functionName));
-        psDelete.execute();
-
-        //enableMergeJoin();
-        // TODO disabling merge join alters global db state ? - maybe isolate it if possible
-
-        return rs;
     }
 
     private DBSchema getSchema() {

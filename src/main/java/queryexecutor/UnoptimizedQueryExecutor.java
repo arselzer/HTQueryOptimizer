@@ -26,12 +26,14 @@ public class UnoptimizedQueryExecutor implements QueryExecutor {
         if (timeout != null) {
             preparedStatement.setQueryTimeout(timeout);
         }
+        preparedStatement.closeOnCompletion();
         return preparedStatement.executeQuery();
     }
 
     @Override
     public ResultSet execute(String query) throws SQLException, QueryConversionException {
         PreparedStatement ps = connection.prepareStatement(query);
+        ps.closeOnCompletion();
 
         if (timeout != null) {
             ps.setQueryTimeout(timeout);

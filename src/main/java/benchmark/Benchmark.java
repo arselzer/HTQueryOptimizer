@@ -26,20 +26,24 @@ import java.util.stream.Collectors;
 public class Benchmark {
     private String dbRootDir;
     private String dbDir = null;
-    private Connection conn;
+    private Properties connectionProperties;
+    private String dbURL;
+    //private Connection conn;
 
     private List<BenchmarkResult> results = new LinkedList<>();
 
     private static int DEFAULT_TIMEOUT = 10;
 
-    public Benchmark(String dbRootDir, Connection conn) {
+    public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
-        this.conn = conn;
+        this.connectionProperties = connectionProperties;
+        this.dbURL = dbURL;
     }
 
-    public Benchmark(String dbRootDir, Connection conn, String db) {
+    public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL, String db) {
         this.dbRootDir = dbRootDir;
-        this.conn = conn;
+        this.connectionProperties = connectionProperties;
+        this.dbURL = dbURL;
         this.dbDir = db;
     }
 
@@ -49,81 +53,89 @@ public class Benchmark {
         BenchmarkResult result = new BenchmarkResult(conf);
         System.out.printf("Benchmarking %s/%s", dbFileName, queryFileName);
 
-        File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
-        File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
+        // Try with resources to close each connection. Otherwise memory leaks might occur
+        try (Connection conn = DriverManager.getConnection(dbURL, connectionProperties)) {
 
-        String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
-        result.setQuery(query);
+            File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
+            File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
 
-        ProcessBuilder pb = new ProcessBuilder();
+            String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
+            result.setQuery(query);
 
-        pb.command(createFile.getAbsolutePath());
-        //pb.start();
-        BufferedReader reader = new BufferedReader(
-                new InputStreamReader(pb.start().getInputStream()));
+            ProcessBuilder pb = new ProcessBuilder();
 
-        String output = "";
-        String line;
-        while ((line = reader.readLine()) != null) {
-            output += line + "\n";
-        }
-        //System.out.println(output);
+            pb.command(createFile.getAbsolutePath());
+            //pb.start();
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(pb.start().getInputStream()));
 
-        QueryExecutor uoqe = null;
-        ViewQueryExecutor qe = null;
-        try {
-            uoqe = new UnoptimizedQueryExecutor(conn);
-            qe = new ViewQueryExecutor(conn);
-        } catch (SQLException e) {
-            throw e;
-            // Rethrow exceptions occuring during setup
-        }
-
-        // Set timeouts if specified
-        if (conf.getQueryTimeout() != null) {
-            uoqe.setTimeout(conf.getQueryTimeout());
-            qe.setTimeout(conf.getQueryTimeout());
-        }
-
-        try {
-            conn.prepareStatement("vacuum analyze;").execute();
-            long startTimeOptimized = System.currentTimeMillis();
-            ResultSet rs = qe.execute(query);
-            result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
-            result.setOptimizedQueryRuntime(qe.getQueryRunningTime());
-
-            int count1 = 0;
-            while (rs.next()) {
-                count1++;
+            String output = "";
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output += line + "\n";
             }
-            result.setOptimizedRows(count1);
+            //System.out.println(output);
 
-        } catch (SQLException e) {
-            System.err.println("Timeout: " + e.getMessage());
-            result.setOptimizedQueryTimeout(true);
-        }
-
-        result.setHypergraph(qe.getHypergraph());
-        result.setJoinTree(qe.getJoinTree());
-        result.setGeneratedQuery(qe.getGeneratedFunction());
-
-        try {
-            conn.prepareStatement("vacuum analyze;").execute();
-            long startTimeUnoptimized = System.currentTimeMillis();
-            ResultSet rs2 = uoqe.execute(query);
-            result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
-
-            int count2 = 0;
-            while (rs2.next()) {
-                count2++;
+            QueryExecutor uoqe = null;
+            ViewQueryExecutor qe = null;
+            try {
+                uoqe = new UnoptimizedQueryExecutor(conn);
+                qe = new ViewQueryExecutor(conn);
+            } catch (SQLException e) {
+                throw e;
+                // Rethrow exceptions occuring during setup
             }
-            result.setUnoptimizedRows(count2);
-        } catch (SQLException e) {
-            System.err.println("Timeout: " + e.getMessage());
-            result.setUnoptimizedQueryTimeout(true);
-        }
 
-        results.add(result);
+            // Set timeouts if specified
+            if (conf.getQueryTimeout() != null) {
+                uoqe.setTimeout(conf.getQueryTimeout());
+                qe.setTimeout(conf.getQueryTimeout());
+            }
+
+            ResultSet rs = null;
+            try {
+                conn.prepareStatement("vacuum analyze;").execute();
+                long startTimeOptimized = System.currentTimeMillis();
+                rs = qe.execute(query);
+                result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
+                result.setOptimizedQueryRuntime(qe.getQueryRunningTime());
+
+                int count1 = 0;
+                while (rs.next()) {
+                    count1++;
+                }
+                result.setOptimizedRows(count1);
+                rs.close();
+            } catch (SQLException e) {
+                System.err.println("Timeout: " + e.getMessage());
+                result.setOptimizedQueryTimeout(true);
+                // Close the resultSet to close the PreparedStatement such that no memory is leaked
+            }
+
+            result.setHypergraph(qe.getHypergraph());
+            result.setJoinTree(qe.getJoinTree());
+            result.setGeneratedQuery(qe.getGeneratedFunction());
+
+            ResultSet rs2 = null;
+            try {
+                conn.prepareStatement("vacuum analyze;").execute();
+                long startTimeUnoptimized = System.currentTimeMillis();
+                rs2 = uoqe.execute(query);
+                result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
+
+                int count2 = 0;
+                while (rs2.next()) {
+                    count2++;
+                }
+                result.setUnoptimizedRows(count2);
+                rs2.close();
+            } catch (SQLException e) {
+                System.err.println("Timeout: " + e.getMessage());
+                result.setUnoptimizedQueryTimeout(true);
+            }
+
+            results.add(result);
+        }
     }
 
     private List<BenchmarkConf> generateBenchmarkConfigs() {
@@ -155,6 +167,9 @@ public class Benchmark {
         for (BenchmarkConf conf : confs) {
             try {
                 benchmark(conf);
+
+                // Do garbage collection because otherwise the benchmark crashes due to OOM ...
+                System.gc();
             } catch (SQLException | IOException | QueryConversionException e) {
                 System.out.println("Error benchmarking: " + e.getMessage());
             }
@@ -190,14 +205,12 @@ public class Benchmark {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         try {
-            Connection conn = DriverManager.getConnection(url, properties);
-
             Benchmark benchmark;
             if (cmd.hasOption("db")) {
-                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", conn, cmd.getOptionValue("db"));
+                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url, cmd.getOptionValue("db"));
             }
             else {
-                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", conn);
+                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url);
             }
             benchmark.run();
 
@@ -244,8 +257,6 @@ public class Benchmark {
 
                 //System.out.println(res);
             }
-        } catch (SQLException e) {
-            System.out.printf("Error connecting to db: %s\n", e.getMessage());
         } catch (FileNotFoundException e) {
             System.out.printf("File not found exception: %s\n", e.getMessage());
         } catch (InterruptedException e) {
