@@ -3,10 +3,18 @@ package benchmark;
 public class BenchmarkConf {
     private String db;
     private String query;
+    // Timeout in seconds
+    private Integer queryTimeout = null;
 
     public BenchmarkConf(String db, String query) {
         this.db = db;
         this.query = query;
+    }
+
+    public BenchmarkConf(String db, String query, Integer timeout) {
+        this.db = db;
+        this.query = query;
+        this.queryTimeout = timeout;
     }
 
     public String getDb() {
@@ -23,6 +31,14 @@ public class BenchmarkConf {
 
     public void setQuery(String query) {
         this.query = query;
+    }
+
+    public Integer getQueryTimeout() {
+        return queryTimeout;
+    }
+
+    public void setQueryTimeout(Integer queryTimeout) {
+        this.queryTimeout = queryTimeout;
     }
 
     @Override

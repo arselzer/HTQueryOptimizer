@@ -21,24 +21,25 @@ for table in "${tables[@]}"; do
   rm "${path}/${table}.csv"
 done;
 
-for p in {1..8},{1..8},{1..8},{1..8},{1..8},{1..8};
-  do echo $p >> ${path}/t1.csv;
+for p in {1..5},{1..5},{1..5},{1..5},{1..5},{1..5};
+  do echo $p >> "${path}/t1.csv";
 done
-for p in {1..8},{1..8},{1..8},{1..8},{1..8};
-  do echo $p >> ${path}/t5.csv;
+for p in {1..6},{1..6},{1..6},{1..6},{1..6};
+  do echo $p >> "${path}/t5.csv";
 done
-for p in {1..8},{1..8},{1..8},{1..8};
-  do echo $p >> ${path}/t2.csv;
+for p in {1..6},{1..6},{1..6},{1..6};
+  do echo $p >> "${path}/t2.csv";
 done
-for p in {1..8},{1..8};
-  do echo $p >> ${path}/t3.csv;
+for p in {1..6},{1..6};
+  do echo $p >> "${path}/t3.csv";
 done
-for p in {1..8};
-  do echo $p >> ${path}/t4.csv;
-done
+#for p in {1..6};
+#  do echo $p >> "${path}/t4.csv";
+#done
+echo "6" >> "${path}/t4.csv"
 
-psql -U test -d testdb -c "\copy t1 from '${path}/t1.csv' with (format csv, header true, delimiter ',') ";
-psql -U test -d testdb -c "\copy t2 from '${path}/t2.csv' with (format csv, header true, delimiter ',') ";
-psql -U test -d testdb -c "\copy t3 from '${path}/t3.csv' with (format csv, header true, delimiter ',') ";
-psql -U test -d testdb -c "\copy t4 from '${path}/t4.csv' with (format csv, header true, delimiter ',') ";
-psql -U test -d testdb -c "\copy t5 from '${path}/t5.csv' with (format csv, header true, delimiter ',') ";
+psql -U test -d testdb -c "\copy t1 from '${path}/t1.csv' with (format csv, header false, delimiter ',') ";
+psql -U test -d testdb -c "\copy t2 from '${path}/t2.csv' with (format csv, header false, delimiter ',') ";
+psql -U test -d testdb -c "\copy t3 from '${path}/t3.csv' with (format csv, header false, delimiter ',') ";
+psql -U test -d testdb -c "\copy t4 from '${path}/t4.csv' with (format csv, header false, delimiter ',') ";
+psql -U test -d testdb -c "\copy t5 from '${path}/t5.csv' with (format csv, header false, delimiter ',') ";

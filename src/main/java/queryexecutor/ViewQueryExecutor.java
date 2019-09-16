@@ -21,10 +21,17 @@ public class ViewQueryExecutor implements QueryExecutor {
     private JoinTreeNode joinTree;
     private String generatedFunction;
 
+    private Integer timeout = null;
+
     public ViewQueryExecutor(Connection connection) throws SQLException {
         this.connection = connection;
 
         extractSchema();
+    }
+
+    @Override
+    public void setTimeout(int n) {
+        timeout = n;
     }
 
     @Override
@@ -59,6 +66,9 @@ public class ViewQueryExecutor implements QueryExecutor {
         psFunction.execute();
 
         PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT %s();", functionName));
+        if (timeout != null) {
+            psSelect.setQueryTimeout(timeout);
+        }
         ResultSet rs = psSelect.executeQuery();
 
         queryRunningTime = System.currentTimeMillis() - startTime;

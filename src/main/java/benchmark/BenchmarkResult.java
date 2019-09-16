@@ -9,6 +9,9 @@ public class BenchmarkResult {
     private long optimizedTotalRuntime;
     private long optimizedQueryRuntime;
 
+    private boolean optimizedQueryTimeout = false;
+    private boolean unoptimizedQueryTimeout = false;
+
     private int unoptimizedRows;
     private int optimizedRows;
 
@@ -92,6 +95,22 @@ public class BenchmarkResult {
 
     public void setQuery(String query) {
         this.query = query;
+    }
+
+    public boolean isOptimizedQueryTimeout() {
+        return optimizedQueryTimeout;
+    }
+
+    public void setOptimizedQueryTimeout(boolean optimizedQueryTimeout) {
+        this.optimizedQueryTimeout = optimizedQueryTimeout;
+    }
+
+    public boolean isUnoptimizedQueryTimeout() {
+        return unoptimizedQueryTimeout;
+    }
+
+    public void setUnoptimizedQueryTimeout(boolean unoptimizedQueryTimeout) {
+        this.unoptimizedQueryTimeout = unoptimizedQueryTimeout;
     }
 
     public String getGeneratedQuery() {

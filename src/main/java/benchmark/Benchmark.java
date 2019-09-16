@@ -30,6 +30,8 @@ public class Benchmark {
 
     private List<BenchmarkResult> results = new LinkedList<>();
 
+    private static int DEFAULT_TIMEOUT = 10;
+
     public Benchmark(String dbRootDir, Connection conn) {
         this.dbRootDir = dbRootDir;
         this.conn = conn;
@@ -41,7 +43,7 @@ public class Benchmark {
         this.dbDir = db;
     }
 
-    private void benchmark(BenchmarkConf conf) throws SQLException, IOException, QueryConversionException {
+    private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
         BenchmarkResult result = new BenchmarkResult(conf);
@@ -67,44 +69,61 @@ public class Benchmark {
         }
         //System.out.println(output);
 
-        QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
-        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
-
-        conn.prepareStatement("vacuum analyze;").execute();
-        long startTimeOptimized = System.currentTimeMillis();
-        ResultSet rs = qe.execute(query);
-        result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
-        result.setOptimizedQueryRuntime(qe.getQueryRunningTime());
-
-        int count1 = 0;
-        while (rs.next()) {
-            count1++;
+        QueryExecutor uoqe = null;
+        ViewQueryExecutor qe = null;
+        try {
+            uoqe = new UnoptimizedQueryExecutor(conn);
+            qe = new ViewQueryExecutor(conn);
+        } catch (SQLException e) {
+            throw e;
+            // Rethrow exceptions occuring during setup
         }
-        result.setOptimizedRows(count1);
+
+        // Set timeouts if specified
+        if (conf.getQueryTimeout() != null) {
+            uoqe.setTimeout(conf.getQueryTimeout());
+            qe.setTimeout(conf.getQueryTimeout());
+        }
+
+        try {
+            conn.prepareStatement("vacuum analyze;").execute();
+            long startTimeOptimized = System.currentTimeMillis();
+            ResultSet rs = qe.execute(query);
+            result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
+            result.setOptimizedQueryRuntime(qe.getQueryRunningTime());
+
+            int count1 = 0;
+            while (rs.next()) {
+                count1++;
+            }
+            result.setOptimizedRows(count1);
+
+        } catch (SQLException e) {
+            System.err.println("Timeout: " + e.getMessage());
+            result.setOptimizedQueryTimeout(true);
+        }
 
         result.setHypergraph(qe.getHypergraph());
         result.setJoinTree(qe.getJoinTree());
         result.setGeneratedQuery(qe.getGeneratedFunction());
 
-        conn.prepareStatement("vacuum analyze;").execute();
-        long startTimeUnoptimized = System.currentTimeMillis();
-        ResultSet rs2 = uoqe.execute(query);
-        result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
+        try {
+            conn.prepareStatement("vacuum analyze;").execute();
+            long startTimeUnoptimized = System.currentTimeMillis();
+            ResultSet rs2 = uoqe.execute(query);
+            result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
 
-        int count2 = 0;
-        while (rs2.next()) {
-            count2++;
+            int count2 = 0;
+            while (rs2.next()) {
+                count2++;
+            }
+            result.setUnoptimizedRows(count2);
+        } catch (SQLException e) {
+            System.err.println("Timeout: " + e.getMessage());
+            result.setUnoptimizedQueryTimeout(true);
         }
-        result.setUnoptimizedRows(count2);
 
         results.add(result);
-
-//        int i = 0;
-//        while (rs.next() && i < 100) {
-//            System.out.println(rs.getString(1));
-//            i++;
-//        }
-
     }
 
     private List<BenchmarkConf> generateBenchmarkConfigs() {
@@ -121,7 +140,7 @@ public class Benchmark {
 
                 if (sqlFiles != null) {
                     for (File file : sqlFiles) {
-                        confs.add(new BenchmarkConf(dbName, file.getName()));
+                        confs.add(new BenchmarkConf(dbName, file.getName(), DEFAULT_TIMEOUT));
                     }
                 }
             }

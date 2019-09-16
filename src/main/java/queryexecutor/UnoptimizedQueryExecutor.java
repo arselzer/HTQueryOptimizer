@@ -10,18 +10,33 @@ import java.sql.SQLException;
 
 public class UnoptimizedQueryExecutor implements QueryExecutor {
     private Connection connection;
+    private Integer timeout = null;
 
     public UnoptimizedQueryExecutor(Connection connection) throws SQLException {
         this.connection = connection;
     }
 
     @Override
+    public void setTimeout(int n) {
+        timeout = n;
+    }
+
+    @Override
     public ResultSet execute(PreparedStatement preparedStatement) throws SQLException, QueryConversionException {
+        if (timeout != null) {
+            preparedStatement.setQueryTimeout(timeout);
+        }
         return preparedStatement.executeQuery();
     }
 
     @Override
     public ResultSet execute(String query) throws SQLException, QueryConversionException {
-        return connection.prepareStatement(query).executeQuery();
+        PreparedStatement ps = connection.prepareStatement(query);
+
+        if (timeout != null) {
+            ps.setQueryTimeout(timeout);
+        }
+
+        return ps.executeQuery();
     }
 }
