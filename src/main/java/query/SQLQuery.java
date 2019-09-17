@@ -79,7 +79,7 @@ public class SQLQuery {
         String fnStr = "";
         fnStr += String.format("CREATE FUNCTION %s()\n", functionName);
 
-        List<Column> resultColumnStrings = new LinkedList<>();
+        List<Column> resultColumns = new LinkedList<>();
 
         if (projectColumns.size() == 1 && projectColumns.get(0).equals("*")) {
             // Go through all hypergraph vertices
@@ -94,19 +94,24 @@ public class SQLQuery {
 
                 Column realColumn = columnByNameMap.get(identifier);
 
-                resultColumnStrings.add(new Column(node, realColumn.getType()));
+                resultColumns.add(new Column(node, realColumn.getType()));
             }
         }
         else {
             for (String projectCol : projectColumns) {
                 Column realColumn = columnByNameMap.get(projectCol);
                 String hyperedge = hg.getEquivalenceMapping().get(projectCol);
-                resultColumnStrings.add(new Column(hyperedge, realColumn.getType()));
+                Column newColumn = new Column(hyperedge, realColumn.getType());
+                // Check if the same column isn't already part of the output.
+                // The same variable might have been specified in multiple columns
+                if (!resultColumns.contains(newColumn)) {
+                    resultColumns.add(newColumn);
+                }
                 // TODO support non-fully qualified columns
             }
         }
 
-        List<String> columnDefinitions = resultColumnStrings.stream()
+        List<String> columnDefinitions = resultColumns.stream()
                 .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
         fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
 
@@ -177,7 +182,7 @@ public class SQLQuery {
                     System.out.println("tables:" + node.getTables());
                     fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
                     tempTables.add(node.getIdentifier(1));
-                    fnStr += String.format("AS SELECT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
+                    fnStr += String.format("AS SELECT DISTINCT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
                     //fnStr += String.format("WHERE %s;\n", String.join(", ", whereConditions));
                 }
             }
@@ -293,9 +298,9 @@ public class SQLQuery {
             }
         }
 
-        // TODO support *
-        fnStr += String.format("RETURN QUERY SELECT %s\n", String.join(", ",
-                projectColumns.stream().map(col -> hypergraph.getEquivalenceMapping().get(col)).collect(Collectors.toList())));
+        fnStr += String.format("RETURN QUERY SELECT %s\n",
+                resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
+
         fnStr += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
 
 //        for (String view : tempViews) {

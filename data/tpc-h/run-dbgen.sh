@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-./dbgen -s 2
+path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+
+./dbgen -s 0.6
 
 tables=(nation region part supplier partsupp customer orders lineitem);
 
