@@ -32,7 +32,7 @@ public class Benchmark {
 
     private List<BenchmarkResult> results = new LinkedList<>();
 
-    private static int DEFAULT_TIMEOUT = 10;
+    private static int DEFAULT_TIMEOUT = 20;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
