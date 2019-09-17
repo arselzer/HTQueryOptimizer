@@ -109,7 +109,9 @@ public class SQLQuery {
         List<String> columnDefinitions = resultColumnStrings.stream()
                 .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
         fnStr += String.format("RETURNS TABLE (%s) AS $$\n", String.join(",", columnDefinitions));
-        //fnStr += "RETURNS VOID AS $$\n";
+
+        // There is a variable conflict between the output variable and column name
+        fnStr += "#variable_conflict use_column\n";
         fnStr += "BEGIN\n";
 
         List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
@@ -291,7 +293,9 @@ public class SQLQuery {
             }
         }
 
-        fnStr += String.format("RETURN QUERY SELECT %s\n", String.join(", ", projectColumns));
+        // TODO support *
+        fnStr += String.format("RETURN QUERY SELECT %s\n", String.join(", ",
+                projectColumns.stream().map(col -> hypergraph.getEquivalenceMapping().get(col)).collect(Collectors.toList())));
         fnStr += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
 
 //        for (String view : tempViews) {

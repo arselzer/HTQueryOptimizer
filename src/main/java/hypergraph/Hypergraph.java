@@ -27,6 +27,9 @@ public class Hypergraph {
     private Set<String> nodes = new HashSet<>();
     private Map<String, Hyperedge> edgesByName = new HashMap<>();
 
+    private Map<String, Set<String>> containedEdges = new HashMap<>();
+    private Set<String> containedEdgeWasAssigned = new HashSet<>();
+
     // Maps column -> variable
     private Map<String, String> equivalenceMapping = new HashMap<>();
     // Maps variable -> (table -> column)
@@ -56,6 +59,21 @@ public class Hypergraph {
         }
     }
 
+    private void populateContainedHyperedges() {
+        for (Hyperedge edge : edges) {
+            Set<String> contains = new HashSet<>();
+            for (Hyperedge otherEdge : edges) {
+                if (!edge.equals(otherEdge)
+                        && otherEdge.getNodes().size() < edge.getNodes().size()
+                        && edge.getNodes().containsAll(otherEdge.getNodes())) {
+                    contains.add(otherEdge.getName());
+                    //System.out.println(edge + " contains " + otherEdge);
+                }
+            }
+            containedEdges.put(edge.getName(), contains);
+        }
+    }
+
     public String generateHGFileName() {
         //return "hypergraph";
         return String.format("hypergraph-%s", new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date()));
@@ -65,9 +83,10 @@ public class Hypergraph {
         // Recursively convert the hypertree data structure of jgrapht
         // to the simpler JoinTree
         JoinTreeNode root = new JoinTreeNode();
-        root.setTables(htNode.getHyperedges());
+        List<String> tables = new LinkedList<>(htNode.getHyperedges());
+
+        root.setTables(tables);
         root.setAttributes(htNode.getAttributes());
-        System.out.println(htNode.getHyperedges());;
 
         for (DefaultEdge edge : decompositionTree.outgoingEdgesOf(htNode)) {
             HypertreeNode childHTNode = decompositionTree.getEdgeTarget(edge);
@@ -75,6 +94,27 @@ public class Hypergraph {
             JoinTreeNode childJTNode = hypertreeToJoinTree(childHTNode);
             childJTNode.setPredecessor(root);
             root.getSuccessors().add(childJTNode);
+        }
+
+        Queue<String> toConsider = new LinkedList<>(htNode.getHyperedges());
+        populateContainedHyperedges();
+        // Recursively add all contained edges
+        while (!toConsider.isEmpty()) {
+            String edge = toConsider.poll();
+            if (containedEdges.containsKey(edge)) {
+                for (String containedEdge : containedEdges.get(edge)) {
+                    System.out.println(containedEdge + " " + tables);
+                    if (!tables.contains(containedEdge) && root.getSuccessors().size() == 0) {
+                        JoinTreeNode newChildNode = new JoinTreeNode();
+                        // TODO add child node instead
+//                        newChildNode.setTables(List.of(containedEdge));
+//                        newChildNode.setAttributes();
+                        tables.add(containedEdge);
+                        toConsider.offer(containedEdge);
+                        //containedEdgeWasAssigned.add(containedEdge);
+                    }
+                }
+            }
         }
 
         return root;
@@ -255,6 +295,7 @@ public class Hypergraph {
     public void setEdges(Set<Hyperedge> edges) {
         this.edges = edges;
         populateEdgesByNameMap();
+        populateContainedHyperedges();
     }
 
     public void addEdge(Hyperedge edge) {
