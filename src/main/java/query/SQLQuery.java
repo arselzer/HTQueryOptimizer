@@ -220,8 +220,8 @@ public class SQLQuery {
                                 //Map<String, List<String>> equivalentCols = hg.getInverseEquivalenceMapping().get(variable);
                                 List<String> equivalentCols = hg.getInverseEquivalenceMapping().get(variable).get(tableName);
                                 for (int i = 0; i < equivalentCols.size() - 1; i++) {
-                                    String cur = equivalentCols.get(i);
-                                    String next = equivalentCols.get(i + 1);
+                                    String cur = tableName + "." + equivalentCols.get(i);
+                                    String next = tableName + "." + equivalentCols.get(i + 1);
 
                                     whereConditions.add(String.format("%s = %s", cur, next));
                                 }
