@@ -10,7 +10,6 @@ import queryexecutor.ViewQueryExecutor;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -24,15 +23,13 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 public class Benchmark {
+    private static int DEFAULT_TIMEOUT = 20;
     private String dbRootDir;
     private String dbDir = null;
     private Properties connectionProperties;
-    private String dbURL;
     //private Connection conn;
-
+    private String dbURL;
     private List<BenchmarkResult> results = new LinkedList<>();
-
-    private static int DEFAULT_TIMEOUT = 20;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -47,11 +44,98 @@ public class Benchmark {
         this.dbDir = db;
     }
 
+    public static void main(String[] args) {
+        Options options = new Options();
+        Option setDb = new Option("d", "db", true, "test db");
+        options.addOption(setDb);
+        CommandLineParser parser = new DefaultParser();
+        CommandLine cmd = null;
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        String url = "jdbc:postgresql://localhost/testdb";
+        String user = "test";
+        String password = "test";
+
+        Properties properties = new Properties();
+        properties.setProperty("user", user);
+        properties.setProperty("password", password);
+        //properties.setProperty("ssl", "true");
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+        try {
+            Benchmark benchmark;
+            if (cmd.hasOption("db")) {
+                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url, cmd.getOptionValue("db"));
+            } else {
+                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url);
+            }
+            benchmark.run();
+
+            File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
+            resultsDirectory.mkdirs();
+
+            for (BenchmarkResult res : benchmark.getResults()) {
+                BenchmarkConf conf = res.getConf();
+
+                File resultDir = new File(resultsDirectory.getAbsolutePath().toString() + "/" + conf.getDb() + "/" + conf.getQuery());
+                resultDir.mkdirs();
+
+                File hypergraphFile = new File(resultDir + "/hypergraph.dtl");
+
+                // Write hypergraph
+                PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
+                hypergraphWriter.write(res.getHypergraph().toDTL());
+                hypergraphWriter.close();
+
+                // Write graph rendering
+                res.getHypergraph().toPDF(Paths.get(resultDir + "/hypergraph.pdf"));
+
+                // Write out the java data structure
+                File resultTxtFile = new File(resultDir + "/result.txt");
+                PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
+                resultStringWriter.write(res.toString());
+                resultStringWriter.close();
+
+                // Write out the original query
+                File queryFile = new File(resultDir + "/query.sql");
+                PrintWriter queryWriter = new PrintWriter(queryFile);
+                queryWriter.write(res.getQuery());
+                queryWriter.close();
+
+                File generatedQueryFile = new File(resultDir + "/generated.sql");
+                PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
+                generatedQueryWriter.write(res.getGeneratedQuery());
+                generatedQueryWriter.close();
+
+                File resultJsonFile = new File(resultDir + "/result.json");
+                PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
+                resultJsonWriter.write(gson.toJson(res));
+                resultJsonWriter.close();
+
+                //System.out.println(res);
+            }
+        } catch (FileNotFoundException e) {
+            System.out.printf("File not found exception: %s\n", e.getMessage());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
     private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
         BenchmarkResult result = new BenchmarkResult(conf);
-        System.out.printf("Benchmarking %s/%s", dbFileName, queryFileName);
+        System.out.printf("Benchmarking %s/%s\n", dbFileName, queryFileName);
 
         // Try with resources to close each connection. Otherwise memory leaks might occur
         try (Connection conn = DriverManager.getConnection(dbURL, connectionProperties)) {
@@ -178,93 +262,5 @@ public class Benchmark {
 
     public List<BenchmarkResult> getResults() {
         return results;
-    }
-
-    public static void main(String[] args) {
-        Options options = new Options();
-        Option setDb = new Option("d", "db", true, "test db");
-        options.addOption(setDb);
-        CommandLineParser parser = new DefaultParser();
-        CommandLine cmd = null;
-        try {
-            cmd = parser.parse(options, args);
-        } catch (ParseException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-
-        String url = "jdbc:postgresql://localhost/testdb";
-        String user = "test";
-        String password = "test";
-
-        Properties properties = new Properties();
-        properties.setProperty("user", user);
-        properties.setProperty("password", password);
-        //properties.setProperty("ssl", "true");
-
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        try {
-            Benchmark benchmark;
-            if (cmd.hasOption("db")) {
-                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url, cmd.getOptionValue("db"));
-            }
-            else {
-                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url);
-            }
-            benchmark.run();
-
-            File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
-            resultsDirectory.mkdirs();
-
-            for (BenchmarkResult res : benchmark.getResults()) {
-                BenchmarkConf conf = res.getConf();
-
-                File resultDir = new File(resultsDirectory.getAbsolutePath().toString() + "/" + conf.getDb() + "/" + conf.getQuery());
-                resultDir.mkdirs();
-
-                File hypergraphFile = new File(resultDir + "/hypergraph.dtl");
-
-                // Write hypergraph
-                PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
-                hypergraphWriter.write(res.getHypergraph().toDTL());
-                hypergraphWriter.close();
-
-                // Write graph rendering
-                res.getHypergraph().toPDF(Paths.get(resultDir + "/hypergraph.pdf"));
-
-                // Write out the java data structure
-                File resultTxtFile = new File(resultDir + "/result.txt");
-                PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
-                resultStringWriter.write(res.toString());
-                resultStringWriter.close();
-
-                // Write out the original query
-                File queryFile = new File(resultDir + "/query.sql");
-                PrintWriter queryWriter = new PrintWriter(queryFile);
-                queryWriter.write(res.getQuery());
-                queryWriter.close();
-
-                File generatedQueryFile = new File(resultDir + "/generated.sql");
-                PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
-                generatedQueryWriter.write(res.getGeneratedQuery());
-                generatedQueryWriter.close();
-
-                File resultJsonFile = new File(resultDir + "/result.json");
-                PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
-                resultJsonWriter.write(gson.toJson(res));
-                resultJsonWriter.close();
-
-                //System.out.println(res);
-            }
-        } catch (FileNotFoundException e) {
-            System.out.printf("File not found exception: %s\n", e.getMessage());
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
     }
 }

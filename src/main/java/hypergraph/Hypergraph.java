@@ -49,6 +49,30 @@ public class Hypergraph {
         populateEdgesByNameMap();
     }
 
+    public static Hypergraph fromDTL(String dtlString) {
+        Set<Hyperedge> hgHyperedges = new HashSet<>();
+        Set<String> hgNodes = new HashSet<>();
+
+        String[] matches = Pattern.compile("(\\w+\\([,\\w\\s]*\\))")
+                .matcher(dtlString)
+                .results()
+                .map(MatchResult::group)
+                .toArray(String[]::new);
+
+        for (String match : matches) {
+            Matcher matcher = Pattern.compile("(\\w+)\\(([,\\w\\s]*)\\)").matcher(match);
+
+            if (matcher.find()) {
+                String heName = matcher.group(1);
+                Set<String> nodes = Set.of(matcher.group(2).split(","));
+                hgHyperedges.add(new Hyperedge(heName, nodes));
+                hgNodes.addAll(nodes);
+            }
+        }
+
+        return new Hypergraph(hgNodes, hgHyperedges);
+    }
+
     public boolean isAcyclic() {
         // Perform GYO reduction
         return false; // TODO implement
@@ -143,7 +167,7 @@ public class Hypergraph {
         String fileContent = toDTL();
         File hgFile;
         try {
-            hgFile= File.createTempFile("hypergraph", ".dtl");
+            hgFile = File.createTempFile("hypergraph", ".dtl");
         } catch (IOException e) {
             throw new JoinTreeGenerationException("Could not create temporary file: " + e.getMessage());
         }
@@ -252,30 +276,6 @@ public class Hypergraph {
         return String.join(",\n", edgeStrings) + ".";
     }
 
-    public static Hypergraph fromDTL(String dtlString) {
-        Set<Hyperedge> hgHyperedges = new HashSet<>();
-        Set<String> hgNodes = new HashSet<>();
-
-        String[] matches = Pattern.compile("(\\w+\\([,\\w\\s]*\\))")
-                .matcher(dtlString)
-                .results()
-                .map(MatchResult::group)
-                .toArray(String[]::new);
-
-        for (String match : matches) {
-            Matcher matcher = Pattern.compile("(\\w+)\\(([,\\w\\s]*)\\)").matcher(match);
-
-            if (matcher.find()) {
-                String heName = matcher.group(1);
-                Set<String> nodes = Set.of(matcher.group(2).split(","));
-                hgHyperedges.add(new Hyperedge(heName, nodes));
-                hgNodes.addAll(nodes);
-            }
-        }
-
-        return new Hypergraph(hgNodes, hgHyperedges);
-    }
-
     public String toLaTeX() {
         return new HypergraphVisualizer(this).toLaTeX();
     }
@@ -327,14 +327,6 @@ public class Hypergraph {
         return columnToVariableMapping;
     }
 
-    public Map<String, Map<String, List<String>>> getInverseEquivalenceMapping() {
-        return inverseEquivalenceMapping;
-    }
-
-    public Map<String, List<String>> getVariableToColumnMapping() {
-        return variableToColumnMapping;
-    }
-
     public void setColumnToVariableMapping(Map<String, String> columnToVariableMapping) {
         this.columnToVariableMapping = columnToVariableMapping;
 
@@ -357,6 +349,14 @@ public class Hypergraph {
             inverseEquivalenceMapping.get(variableName).get(tableName).add(columnName);
             variableToColumnMapping.get(variableName).add(columnIdentifier);
         }
+    }
+
+    public Map<String, Map<String, List<String>>> getInverseEquivalenceMapping() {
+        return inverseEquivalenceMapping;
+    }
+
+    public Map<String, List<String>> getVariableToColumnMapping() {
+        return variableToColumnMapping;
     }
 
     @Override

@@ -1,7 +1,6 @@
 package queryexecutor;
 
 import exceptions.QueryConversionException;
-import schema.DBSchema;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

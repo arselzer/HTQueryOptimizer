@@ -1,7 +1,6 @@
 package query;
 
 import java.util.*;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.stream.Collectors;
 
 public class JoinTreeNode {
@@ -13,6 +12,10 @@ public class JoinTreeNode {
 
     public JoinTreeNode() {
 
+    }
+
+    public JoinTreeNode(JoinTreeNode predecessor) {
+        this.predecessor = predecessor;
     }
 
     public String getIdentifier() {
@@ -93,10 +96,6 @@ public class JoinTreeNode {
         return max + 1;
     }
 
-    public JoinTreeNode(JoinTreeNode predecessor) {
-        this.predecessor = predecessor;
-    }
-
     public List<JoinTreeNode> getSuccessors() {
         return successors;
     }
@@ -145,7 +144,7 @@ public class JoinTreeNode {
             indentation += "  ";
         }
         String successorsString = successors
-                .stream().map(node -> node.toIndentedString(n+1)).collect(Collectors.joining("\n"));
+                .stream().map(node -> node.toIndentedString(n + 1)).collect(Collectors.joining("\n"));
         if (!successorsString.isEmpty()) {
             successorsString = "\n" + successorsString;
         }

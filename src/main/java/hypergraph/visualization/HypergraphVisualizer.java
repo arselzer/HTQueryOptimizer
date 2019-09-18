@@ -4,16 +4,14 @@ import hypergraph.Hypergraph;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
 
 public class HypergraphVisualizer {
-    private Hypergraph hg;
-
     private static int NUMBER_INSTANCES = 1000;
-
     List<VisualizationInstance> candidates = new LinkedList<>();
-
     VisualizationInstance bestInstance = null;
+    private Hypergraph hg;
 
     public HypergraphVisualizer(Hypergraph hg) {
         this.hg = hg;

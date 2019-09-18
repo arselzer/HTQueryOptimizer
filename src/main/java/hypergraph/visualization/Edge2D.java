@@ -11,6 +11,20 @@ class Edge2D {
 
     private String color;
 
+    /**
+     * Computes the cross product
+     *
+     * @return A number indicating whether point c is on the left side (> 0), right side (< 0) or exactly
+     * on the line between a and b (= 0)
+     */
+    public static double crossProduct(double a_x, double a_y, double b_x, double b_y, double c_x, double c_y) {
+        double y1 = a_y - b_y;
+        double y2 = a_y - c_y;
+        double x1 = a_x - b_x;
+        double x2 = a_x - c_x;
+        return y2 * x1 - y1 * x2;
+    }
+
     public List<Node2D> getConvexHull() {
         if (nodes.size() == 1) {
             return nodes;
@@ -36,7 +50,7 @@ class Edge2D {
         Node2D currentNode = convexHull.get(0);
 
         // Check if the convex hull is greater than 1 in case the first node is the leftmost
-        while (convexHull.size() < 2 || !convexHull.get(0).equals(convexHull.get(convexHull.size()-1))) {
+        while (convexHull.size() < 2 || !convexHull.get(0).equals(convexHull.get(convexHull.size() - 1))) {
             // Choose any *other* node as the next node (0 or 1 have to be different)
             Node2D nextNode = nodes.get(0);
             if (currentNode.equals(nextNode)) {
@@ -59,19 +73,6 @@ class Edge2D {
         }
 
         return convexHull;
-    }
-
-    /**
-     * Computes the cross product
-     * @return A number indicating whether point c is on the left side (> 0), right side (< 0) or exactly
-     * on the line between a and b (= 0)
-     */
-    public static double crossProduct(double a_x, double a_y, double b_x, double b_y, double c_x, double c_y) {
-        double y1 = a_y - b_y;
-        double y2 = a_y - c_y;
-        double x1 = a_x - b_x;
-        double x2 = a_x - c_x;
-        return y2 * x1 - y1 * x2;
     }
 
     public String getName() {

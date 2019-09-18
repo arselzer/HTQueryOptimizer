@@ -51,7 +51,7 @@ public class HypertreeNode {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-       HypertreeNode that = (HypertreeNode) o;
+        HypertreeNode that = (HypertreeNode) o;
         return id.equals(that.id);
     }
 

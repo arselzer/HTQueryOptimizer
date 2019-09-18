@@ -29,25 +29,18 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectItemVisitor, ExpressionVisitor {
-    private enum ParseState {
-            SEARCHING,
-            COLUMN_LIST
-    }
-
     private DBSchema schema;
-
     private ParseState state;
-
     private List<String> projectColumns = new LinkedList<>();
-
-    private void unsupported(String name) {
-        throw new UnsupportedOperationException("Operation is not supported: " + name);
-    }
 
     public SQLQueryParser(Statement stmt, DBSchema schema) {
         this.schema = schema;
         state = ParseState.SEARCHING;
         stmt.accept(this);
+    }
+
+    private void unsupported(String name) {
+        throw new UnsupportedOperationException("Operation is not supported: " + name);
     }
 
     public List<String> getProjectColumns() {
@@ -91,8 +84,7 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
         if (column.getTable() != null) {
             projectColumns.add(column.getFullyQualifiedName());
 
-        }
-        else {
+        } else {
             // The column name might still be ambiguous
             projectColumns.add(column.getColumnName());
         }
@@ -138,7 +130,6 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     public void visit(SubSelect subSelect) {
         // TODO support subselect
     }
-
 
     @Override
     public void visit(BitwiseRightShift bitwiseRightShift) {
@@ -294,8 +285,6 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     public void visit(NotEqualsTo notEqualsTo) {
 
     }
-
-
 
     @Override
     public void visit(CaseExpression caseExpression) {
@@ -555,5 +544,10 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     @Override
     public void visit(ShowStatement showStatement) {
         unsupported("SHOW");
+    }
+
+    private enum ParseState {
+        SEARCHING,
+        COLUMN_LIST
     }
 }

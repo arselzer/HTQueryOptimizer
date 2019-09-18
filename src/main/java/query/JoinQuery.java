@@ -54,7 +54,7 @@ public class JoinQuery {
         // Create all equivalence classes of the join conditions
         for (EquiJoinCondition c : joinConditions) {
             if (!equivalenceMapping.containsKey(c.getCol1()) &&
-              !equivalenceMapping.containsKey(c.getCol2())) {
+                    !equivalenceMapping.containsKey(c.getCol2())) {
                 String newEC = "v" + counter;
                 counter++;
                 equivalenceMapping.put(c.getCol1(), newEC);

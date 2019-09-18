@@ -1,7 +1,5 @@
 package schema;
 
-import schema.Column;
-
 import java.util.List;
 
 public class Table {

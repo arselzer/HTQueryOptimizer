@@ -14,19 +14,17 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class VisualizationInstance {
-    private Hypergraph hg;
-
     private static double MAX_X = 10.0;
     private static double MAX_Y = 10.0;
-
     private static double MIN_NODE_DISTANCE = 1.0;
     private static double NEW_POINT_RADIUS = 6;
-    private static int MAX_POINT_TRIES = 100;;
-
+    private static int MAX_POINT_TRIES = 100;
     Set<String> nodeNames = new HashSet<>();
+    ;
     Set<Node2D> nodes = new HashSet<>();
     HashMap<String, Node2D> nodesByName = new HashMap<>();
     List<Edge2D> edges = new LinkedList<>();
+    private Hypergraph hg;
 
     public VisualizationInstance(Hypergraph hg) {
         this.hg = hg;
@@ -49,14 +47,13 @@ public class VisualizationInstance {
                     while (!conditionsMet && tries < MAX_POINT_TRIES) {
                         if (newEdgeNodes.isEmpty()) {
                             newNode = new Node2D(nodeName, Math.random() * MAX_X, Math.random() * MAX_Y);
-                        }
-                        else {
-                            Node2D lastNode = newEdgeNodes.get(newEdgeNodes.size()-1);
+                        } else {
+                            Node2D lastNode = newEdgeNodes.get(newEdgeNodes.size() - 1);
                             double minX = Math.max(0, lastNode.getX() - NEW_POINT_RADIUS);
                             double maxX = Math.min(MAX_X, lastNode.getX() + NEW_POINT_RADIUS);
                             double minY = Math.max(0, lastNode.getY() - NEW_POINT_RADIUS);
                             double maxY = Math.min(MAX_Y, lastNode.getY() + NEW_POINT_RADIUS);
-                            newNode = new Node2D(nodeName, minX + (Math.random()*0.75 + 0.25) * (maxX - minX),
+                            newNode = new Node2D(nodeName, minX + (Math.random() * 0.75 + 0.25) * (maxX - minX),
                                     minY + (Math.random() * 0.75 + 0.25) * (maxY - minY));
                         }
 
@@ -272,7 +269,7 @@ public class VisualizationInstance {
 
     // Taken from here: https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
     private boolean ccw(double Ax, double Ay, double Bx, double By, double Cx, double Cy) {
-            return (Cy-Ay)*(Bx-Ax)>(By-Ay)*(Cx-Ax);
+        return (Cy - Ay) * (Bx - Ax) > (By - Ay) * (Cx - Ax);
     }
 
     private boolean linesIntersect(double Ax, double Ay, double Bx, double By,
@@ -288,7 +285,7 @@ public class VisualizationInstance {
                 "\\usetikzlibrary{topaths,calc}\n";
 
         int colorIndex = 0;
-        for (Edge2D e: edges) {
+        for (Edge2D e : edges) {
             // Seed rng to get the same colors
             Random rand = new Random(e.getName().hashCode());
             rand.nextDouble();
@@ -324,13 +321,12 @@ public class VisualizationInstance {
                 Node2D node = convexHull.get(i);
                 Node2D prevNode;
                 if (i == 0) {
-                    prevNode = convexHull.get(convexHull.size()-2);
-                }
-                else {
-                    prevNode = convexHull.get((i-1));
+                    prevNode = convexHull.get(convexHull.size() - 2);
+                } else {
+                    prevNode = convexHull.get((i - 1));
                 }
 
-                Node2D nextNode = convexHull.get((i+1) % convexHull.size());
+                Node2D nextNode = convexHull.get((i + 1) % convexHull.size());
 
                 // Vector prevNode -> node
                 double x1 = node.getX() - prevNode.getX();

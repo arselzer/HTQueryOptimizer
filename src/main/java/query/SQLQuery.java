@@ -12,7 +12,7 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.Statements;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
-import net.sf.jsqlparser.statement.select.*;
+import net.sf.jsqlparser.statement.select.Select;
 import schema.Column;
 import schema.DBSchema;
 import schema.Table;
@@ -41,6 +41,37 @@ public class SQLQuery {
         buildColumnLookup();
     }
 
+    public static String generateFunctionName() {
+        return "htqo_" + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    public static Schema readSchema(String schemaString) throws QueryConversionException {
+        Schema result = new Schema();
+
+        Statements schemaStmts = null;
+        try {
+            schemaStmts = CCJSqlParserUtil.parseStatements(schemaString);
+        } catch (JSQLParserException e) {
+            throw new QueryConversionException("Error parsing schema: " + e.getMessage());
+        }
+        for (Statement schemaStmt : schemaStmts.getStatements()) {
+            try {
+                CreateTable tbl = (CreateTable) schemaStmt;
+
+                String predicateName = tbl.getTable().getName();
+                LinkedList<String> attributes = new LinkedList<>();
+                for (ColumnDefinition cdef : tbl.getColumnDefinitions()) {
+                    attributes.add(cdef.getColumnName());
+                }
+                result.addPredicateDefinition(new PredicateDefinition(predicateName, attributes));
+            } catch (ClassCastException c) {
+                throw new QueryConversionException("\"" + schemaStmt + "\" is not a CREATE statement.");
+            }
+        }
+
+        return result;
+    }
+
     private void determineProjectColumns() throws QueryConversionException {
         try {
             stmt = CCJSqlParserUtil.parse(query);
@@ -60,7 +91,6 @@ public class SQLQuery {
             }
         }
     }
-
 
     public String toFunction(String functionName) throws QueryConversionException {
         Hypergraph hg = toHypergraph();
@@ -86,7 +116,7 @@ public class SQLQuery {
             for (String node : hg.getNodes()) {
                 // Look up the column name for the vertex name - get any actual column
                 // from any table associated - the type has to be equal anyway
-                Map<String,List<String>> nodeCols = hg.getInverseEquivalenceMapping().get(node);
+                Map<String, List<String>> nodeCols = hg.getInverseEquivalenceMapping().get(node);
                 // Get any table name
                 String table = (String) nodeCols.keySet().toArray()[0];
                 // Build the table.column identifier
@@ -96,8 +126,7 @@ public class SQLQuery {
 
                 resultColumns.add(new Column(node, realColumn.getType()));
             }
-        }
-        else {
+        } else {
             for (String projectCol : projectColumns) {
                 Column realColumn = columnByNameMap.get(projectCol);
                 String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
@@ -168,8 +197,7 @@ public class SQLQuery {
                             .collect(Collectors.joining(" NATURAL INNER JOIN ")));
                 }
             }
-        }
-        else {
+        } else {
             for (Set<JoinTreeNode> layer : joinLayers) {
                 for (JoinTreeNode node : layer) {
                     LinkedList<String> aliasedTables = new LinkedList<>();
@@ -201,17 +229,14 @@ public class SQLQuery {
 
                             aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s", String.join(", ", columnRewrites),
                                     tableName, String.join(" AND ", whereConditions), tableName));
-                        }
-                        else {
+                        } else {
                             aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableName));
                         }
                     }
 
-                    System.out.println("tables:" + node.getTables());
                     fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
                     tempTables.add(node.getIdentifier(1));
                     fnStr += String.format("AS SELECT DISTINCT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
-                    //fnStr += String.format("WHERE %s;\n", String.join(", ", whereConditions));
                 }
             }
         }
@@ -225,7 +250,7 @@ public class SQLQuery {
          */
         //fnStr += "-- STAGE 2\n";
 
-        for (int i = joinLayers.size()-2 ;i >= 0; i--) {
+        for (int i = joinLayers.size() - 2; i >= 0; i--) {
             Set<JoinTreeNode> layer = joinLayers.get(i);
             //fnStr += "-- layer " + i + "\n";
 
@@ -258,15 +283,14 @@ public class SQLQuery {
                 if (!semiJoins.isEmpty()) {
                     // There are nodes without any children
                     fnStr += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
-                }
-                else {
+                } else {
                     fnStr += ";\n";
                 }
             }
         }
 
         // Create views for the last layer (which are just an alias for the views from stage 1)
-        for (JoinTreeNode node : joinLayers.get(joinLayers.size()-1)) {
+        for (JoinTreeNode node : joinLayers.get(joinLayers.size() - 1)) {
             fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
             tempTables.add(node.getIdentifier(2));
             fnStr += String.format("AS SELECT * FROM %s;\n", node.getIdentifier(1));
@@ -302,8 +326,7 @@ public class SQLQuery {
                 if (!semiJoinConditions.isEmpty()) {
                     fnStr += String.format("WHERE EXISTS (SELECT * FROM %s WHERE %s);\n",
                             parent.getIdentifier(2), String.join(" AND ", semiJoinConditions));
-                }
-                else {
+                } else {
                     fnStr += ";";
                 }
             }
@@ -342,10 +365,6 @@ public class SQLQuery {
         fnStr += "$$ LANGUAGE plpgsql;\n";
 
         return fnStr;
-    }
-
-    public static String generateFunctionName() {
-        return "htqo_" + UUID.randomUUID().toString().replace("-", "");
     }
 
     public Hypergraph toHypergraph() throws QueryConversionException {
@@ -406,33 +425,6 @@ public class SQLQuery {
         }
 
         result.setColumnToVariableMapping(equivalenceMapping);
-
-        return result;
-    }
-
-    public static Schema readSchema(String schemaString) throws QueryConversionException {
-        Schema result = new Schema();
-
-        Statements schemaStmts = null;
-        try {
-            schemaStmts = CCJSqlParserUtil.parseStatements(schemaString);
-        } catch (JSQLParserException e) {
-            throw new QueryConversionException("Error parsing schema: " + e.getMessage());
-        }
-        for (Statement schemaStmt : schemaStmts.getStatements()) {
-            try {
-                CreateTable tbl = (CreateTable) schemaStmt;
-
-                String predicateName = tbl.getTable().getName();
-                LinkedList<String> attributes = new LinkedList<>();
-                for (ColumnDefinition cdef : tbl.getColumnDefinitions()) {
-                    attributes.add(cdef.getColumnName());
-                }
-                result.addPredicateDefinition(new PredicateDefinition(predicateName, attributes));
-            } catch (ClassCastException c) {
-                throw new QueryConversionException("\"" + schemaStmt + "\" is not a CREATE statement.");
-            }
-        }
 
         return result;
     }

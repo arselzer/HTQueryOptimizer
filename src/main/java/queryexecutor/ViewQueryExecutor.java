@@ -3,14 +3,14 @@ package queryexecutor;
 import exceptions.QueryConversionException;
 import hypergraph.Hypergraph;
 import query.JoinTreeNode;
+import query.SQLQuery;
 import schema.Column;
 import schema.DBSchema;
-import query.SQLQuery;
 import schema.Table;
 
-import java.util.List;
 import java.sql.*;
 import java.util.LinkedList;
+import java.util.List;
 
 public class ViewQueryExecutor implements QueryExecutor {
     private Connection connection;
