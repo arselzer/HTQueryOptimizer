@@ -27,7 +27,7 @@ public class Hypergraph {
     private Set<String> nodes = new HashSet<>();
     private Map<String, Hyperedge> edgesByName = new HashMap<>();
 
-    private Map<String, Set<String>> containedEdges = new HashMap<>();
+    private Map<String, Set<Hyperedge>> containedEdges = new HashMap<>();
     private Set<String> containedEdgeWasAssigned = new HashSet<>();
 
     // Maps column -> variable
@@ -61,12 +61,12 @@ public class Hypergraph {
 
     private void populateContainedHyperedges() {
         for (Hyperedge edge : edges) {
-            Set<String> contains = new HashSet<>();
+            Set<Hyperedge> contains = new HashSet<>();
             for (Hyperedge otherEdge : edges) {
                 if (!edge.equals(otherEdge)
                         && otherEdge.getNodes().size() < edge.getNodes().size()
                         && edge.getNodes().containsAll(otherEdge.getNodes())) {
-                    contains.add(otherEdge.getName());
+                    contains.add(otherEdge);
                     //System.out.println(edge + " contains " + otherEdge);
                 }
             }
@@ -102,15 +102,17 @@ public class Hypergraph {
         while (!toConsider.isEmpty()) {
             String edge = toConsider.poll();
             if (containedEdges.containsKey(edge)) {
-                for (String containedEdge : containedEdges.get(edge)) {
+                for (Hyperedge containedEdge : containedEdges.get(edge)) {
                     System.out.println(containedEdge + " " + tables);
-                    if (!tables.contains(containedEdge) && root.getSuccessors().size() == 0) {
+                    if (!tables.contains(containedEdge.getName()) && root.getSuccessors().size() == 0) {
                         JoinTreeNode newChildNode = new JoinTreeNode();
-                        // TODO add child node instead
-//                        newChildNode.setTables(List.of(containedEdge));
-//                        newChildNode.setAttributes();
-                        tables.add(containedEdge);
-                        toConsider.offer(containedEdge);
+                        newChildNode.setPredecessor(root);
+                        newChildNode.setTables(List.of(containedEdge.getName()));
+                        newChildNode.setAttributes(new LinkedList<>(containedEdge.getNodes()));
+                        root.getSuccessors().add(newChildNode);
+
+                        //tables.add(containedEdge.getName());
+                        toConsider.offer(containedEdge.getName());
                         //containedEdgeWasAssigned.add(containedEdge);
                     }
                 }
