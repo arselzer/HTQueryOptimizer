@@ -86,11 +86,11 @@ public class SQLQuery {
             for (String node : hg.getNodes()) {
                 // Look up the column name for the vertex name - get any actual column
                 // from any table associated - the type has to be equal anyway
-                Map<String,String> nodeCols = hg.getInverseEquivalenceMapping().get(node);
+                Map<String,List<String>> nodeCols = hg.getInverseEquivalenceMapping().get(node);
                 // Get any table name
                 String table = (String) nodeCols.keySet().toArray()[0];
                 // Build the table.column identifier
-                String identifier = table + "." + nodeCols.get(table);
+                String identifier = table + "." + nodeCols.get(table).get(0);
 
                 Column realColumn = columnByNameMap.get(identifier);
 
@@ -100,7 +100,7 @@ public class SQLQuery {
         else {
             for (String projectCol : projectColumns) {
                 Column realColumn = columnByNameMap.get(projectCol);
-                String hyperedge = hg.getEquivalenceMapping().get(projectCol);
+                String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
                 Column newColumn = new Column(hyperedge, realColumn.getType());
                 // Check if the same column isn't already part of the output.
                 // The same variable might have been specified in multiple columns
@@ -109,6 +109,12 @@ public class SQLQuery {
                 }
                 // TODO support non-fully qualified columns
             }
+        }
+
+        // Set up a lookup table of tables for quickly getting the variables of a hyperedge
+        Map<String, Table> tablesByName = new HashMap<>();
+        for (Table t : dbSchema.getTables()) {
+            tablesByName.put(t.getName(), t);
         }
 
         List<String> columnDefinitions = resultColumns.stream()
@@ -133,7 +139,7 @@ public class SQLQuery {
                 LinkedList<String> columnRewrites = new LinkedList<>();
                 String tableName = he.getName();
                 for (String variableName : he.getNodes()) {
-                    String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName);
+                    String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName).get(0);
                     columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
                 }
                 String tempViewName = "htqo_" + tableName + "_stage_0";
@@ -157,7 +163,7 @@ public class SQLQuery {
                 for (JoinTreeNode node : layer) {
                     fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
                     tempTables.add(node.getIdentifier(1));
-                    fnStr += String.format("AS SELECT * FROM %s;\n", node.getTables()
+                    fnStr += String.format("AS SELECT DISTINCT * FROM %s;\n", node.getTables()
                             .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
                             .collect(Collectors.joining(" NATURAL INNER JOIN ")));
                 }
@@ -172,11 +178,33 @@ public class SQLQuery {
                         LinkedList<String> columnRewrites = new LinkedList<>();
                         Hyperedge he = hg.getEdgeByName(tableName);
                         for (String variableName : he.getNodes()) {
-                            String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName);
+                            // Get only the first as any of the equivalent is sufficient
+                            String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName).get(0);
                             columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
                         }
 
-                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableName));
+                        // Check if there are more variables than columns -> Some columns are equivalent and
+                        // a filter checking this needs to be added
+                        //System.out.println(he.getNodes().size() + " " + tablesByName.get(tableName).getColumns().size());
+                        if (he.getNodes().size() < tablesByName.get(tableName).getColumns().size()) {
+                            List<String> whereConditions = new LinkedList<>();
+                            for (String variable : he.getNodes()) {
+                                //Map<String, List<String>> equivalentCols = hg.getInverseEquivalenceMapping().get(variable);
+                                List<String> equivalentCols = hg.getInverseEquivalenceMapping().get(variable).get(tableName);
+                                for (int i = 0; i < equivalentCols.size() - 1; i++) {
+                                    String cur = equivalentCols.get(i);
+                                    String next = equivalentCols.get(i + 1);
+
+                                    whereConditions.add(String.format("%s = %s", cur, next));
+                                }
+                            }
+
+                            aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s", String.join(", ", columnRewrites),
+                                    tableName, String.join(" AND ", whereConditions), tableName));
+                        }
+                        else {
+                            aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableName));
+                        }
                     }
 
                     System.out.println("tables:" + node.getTables());
@@ -377,7 +405,7 @@ public class SQLQuery {
             }
         }
 
-        result.setEquivalenceMapping(equivalenceMapping);
+        result.setColumnToVariableMapping(equivalenceMapping);
 
         return result;
     }

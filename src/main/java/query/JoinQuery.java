@@ -100,7 +100,7 @@ public class JoinQuery {
             hg.addEdge(tableHE);
         }
 
-        hg.setEquivalenceMapping(equivalenceMapping);
+        hg.setColumnToVariableMapping(equivalenceMapping);
 
         return hg;
     }

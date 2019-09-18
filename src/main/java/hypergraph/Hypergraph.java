@@ -31,9 +31,11 @@ public class Hypergraph {
     private Set<String> containedEdgeWasAssigned = new HashSet<>();
 
     // Maps column -> variable
-    private Map<String, String> equivalenceMapping = new HashMap<>();
-    // Maps variable -> (table -> column)
-    private Map<String, Map<String, String>> inverseEquivalenceMapping = new HashMap<>();
+    private Map<String, String> columnToVariableMapping = new HashMap<>();
+    // Maps variable -> (table -> [column])
+    private Map<String, Map<String, List<String>>> inverseEquivalenceMapping = new HashMap<>();
+    // Maps variable -> [column] (table.colname)
+    private Map<String, List<String>> variableToColumnMapping = new HashMap<>();
 
     private Graph<HypertreeNode, DefaultEdge> decompositionTree;
 
@@ -321,29 +323,39 @@ public class Hypergraph {
         this.nodes.add(node);
     }
 
-    public Map<String, String> getEquivalenceMapping() {
-        return equivalenceMapping;
+    public Map<String, String> getColumnToVariableMapping() {
+        return columnToVariableMapping;
     }
 
-    public Map<String, Map<String, String>> getInverseEquivalenceMapping() {
+    public Map<String, Map<String, List<String>>> getInverseEquivalenceMapping() {
         return inverseEquivalenceMapping;
     }
 
-    public void setEquivalenceMapping(Map<String, String> equivalenceMapping) {
-        this.equivalenceMapping = equivalenceMapping;
+    public Map<String, List<String>> getVariableToColumnMapping() {
+        return variableToColumnMapping;
+    }
+
+    public void setColumnToVariableMapping(Map<String, String> columnToVariableMapping) {
+        this.columnToVariableMapping = columnToVariableMapping;
 
         this.inverseEquivalenceMapping = new HashMap<>();
+        this.variableToColumnMapping = new HashMap<>();
 
-        HashSet<String> variablesSet = new HashSet<>(equivalenceMapping.values());
+        HashSet<String> variablesSet = new HashSet<>(columnToVariableMapping.values());
         for (String variable : variablesSet) {
-            inverseEquivalenceMapping.put(variable, new HashMap<String, String>());
+            inverseEquivalenceMapping.put(variable, new HashMap<String, List<String>>());
+            variableToColumnMapping.put(variable, new LinkedList<>());
         }
-        for (String columnIdentifier : equivalenceMapping.keySet()) {
+        for (String columnIdentifier : columnToVariableMapping.keySet()) {
             String[] splits = columnIdentifier.split("\\.");
             String columnName = splits[1];
             String tableName = splits[0];
-            String variableName = equivalenceMapping.get(columnIdentifier);
-            inverseEquivalenceMapping.get(variableName).put(tableName, columnName);
+            String variableName = columnToVariableMapping.get(columnIdentifier);
+            if (!inverseEquivalenceMapping.get(variableName).containsKey(tableName)) {
+                inverseEquivalenceMapping.get(variableName).put(tableName, new LinkedList<>());
+            }
+            inverseEquivalenceMapping.get(variableName).get(tableName).add(columnName);
+            variableToColumnMapping.get(variableName).add(columnIdentifier);
         }
     }
 

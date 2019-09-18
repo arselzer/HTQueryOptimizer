@@ -46,7 +46,7 @@ public class SQLQueryTest {
 
         System.out.println(hg);
         System.out.println(hg.toDTL());
-        System.out.println(hg.getEquivalenceMapping());
+        System.out.println(hg.getColumnToVariableMapping());
     }
 
     @Test
@@ -69,6 +69,6 @@ public class SQLQueryTest {
 
         System.out.println(hg);
         System.out.println(hg.toDTL());
-        System.out.println(hg.getEquivalenceMapping());
+        System.out.println(hg.getColumnToVariableMapping());
     }
 }
