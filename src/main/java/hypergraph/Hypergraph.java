@@ -84,10 +84,6 @@ public class Hypergraph {
         }
     }
 
-    private void populateContainedHyperedges() {
-
-    }
-
     public String generateHGFileName() {
         //return "hypergraph";
         return String.format("hypergraph-%s", new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date()));
@@ -121,11 +117,11 @@ public class Hypergraph {
                 containedEdges.add(edge);
             }
         }
-
+        
         // Add the contained edges
         for (Hyperedge containedEdge : containedEdges) {
             System.out.println(containedEdge + " " + tables);
-            if (!tables.contains(containedEdge.getName()) && root.getSuccessors().size() == 0 &&
+            if (!tables.contains(containedEdge.getName()) &&
                     !containedEdgeWasAssigned.contains(containedEdge.getName())) {
                 JoinTreeNode newChildNode = new JoinTreeNode();
                 newChildNode.setPredecessor(root);
@@ -292,7 +288,6 @@ public class Hypergraph {
     public void setEdges(Set<Hyperedge> edges) {
         this.edges = edges;
         populateEdgesByNameMap();
-        populateContainedHyperedges();
     }
 
     public void addEdge(Hyperedge edge) {
