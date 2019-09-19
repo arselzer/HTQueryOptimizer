@@ -260,7 +260,7 @@ public class SQLQuery {
                         dropStatements.dropTable(node.getIdentifier(1));
                     }
 
-                    fnStr += String.format("AS SELECT DISTINCT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
+                    fnStr += String.format("AS SELECT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
                 }
             }
         }
@@ -304,14 +304,14 @@ public class SQLQuery {
                 if (!semiJoins.isEmpty()) {
                     fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
                     dropStatements.dropTable(node.getIdentifier(2));
-                    fnStr += String.format("AS SELECT DISTINCT *\n");
+                    fnStr += String.format("AS SELECT *\n");
                     fnStr += String.format("FROM %s\n", node.getIdentifier(1));
                     fnStr += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
                 } else {
                     // If there are no semi joins, just create a view to avoid unnecessary copying
                     fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
                     dropStatements.dropView(node.getIdentifier(2));
-                    fnStr += String.format("AS SELECT DISTINCT *\n");
+                    fnStr += String.format("AS SELECT *\n");
                     fnStr += String.format("FROM %s;\n", node.getIdentifier(1));
                 }
             }
