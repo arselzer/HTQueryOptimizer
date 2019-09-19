@@ -27,7 +27,6 @@ public class Hypergraph {
     private Set<String> nodes = new HashSet<>();
     private Map<String, Hyperedge> edgesByName = new HashMap<>();
 
-    private Map<String, Set<Hyperedge>> containedEdges = new HashMap<>();
     private Set<String> containedEdgeWasAssigned = new HashSet<>();
 
     // Maps column -> variable
@@ -86,18 +85,7 @@ public class Hypergraph {
     }
 
     private void populateContainedHyperedges() {
-        for (Hyperedge edge : edges) {
-            Set<Hyperedge> contains = new HashSet<>();
-            for (Hyperedge otherEdge : edges) {
-                if (!edge.equals(otherEdge)
-                        && otherEdge.getNodes().size() < edge.getNodes().size()
-                        && edge.getNodes().containsAll(otherEdge.getNodes())) {
-                    contains.add(otherEdge);
-                    //System.out.println(edge + " contains " + otherEdge);
-                }
-            }
-            containedEdges.put(edge.getName(), contains);
-        }
+
     }
 
     public String generateHGFileName() {
@@ -110,6 +98,7 @@ public class Hypergraph {
         // to the simpler JoinTree
         JoinTreeNode root = new JoinTreeNode();
         List<String> tables = new LinkedList<>(htNode.getHyperedges());
+        Set<String> attributesSet = new HashSet<>(htNode.getAttributes());
 
         root.setTables(tables);
         root.setAttributes(htNode.getAttributes());
@@ -122,26 +111,30 @@ public class Hypergraph {
             root.getSuccessors().add(childJTNode);
         }
 
-        Queue<String> toConsider = new LinkedList<>(htNode.getHyperedges());
-        populateContainedHyperedges();
-        // Recursively add all contained edges
-        while (!toConsider.isEmpty()) {
-            String edge = toConsider.poll();
-            if (containedEdges.containsKey(edge)) {
-                for (Hyperedge containedEdge : containedEdges.get(edge)) {
-                    System.out.println(containedEdge + " " + tables);
-                    if (!tables.contains(containedEdge.getName()) && root.getSuccessors().size() == 0) {
-                        JoinTreeNode newChildNode = new JoinTreeNode();
-                        newChildNode.setPredecessor(root);
-                        newChildNode.setTables(List.of(containedEdge.getName()));
-                        newChildNode.setAttributes(new LinkedList<>(containedEdge.getNodes()));
-                        root.getSuccessors().add(newChildNode);
+        // Determine which edges are fully contained in the tree node
+        Set<Hyperedge> containedEdges = new HashSet<>();
 
-                        //tables.add(containedEdge.getName());
-                        toConsider.offer(containedEdge.getName());
-                        //containedEdgeWasAssigned.add(containedEdge);
-                    }
-                }
+        for (Hyperedge edge : edges) {
+            //System.out.println(tablesSet + " " + edge.getNodes());
+            if (!tables.contains(edge.getName())
+                    && attributesSet.containsAll(edge.getNodes())) {
+                containedEdges.add(edge);
+            }
+        }
+
+        // Add the contained edges
+        for (Hyperedge containedEdge : containedEdges) {
+            System.out.println(containedEdge + " " + tables);
+            if (!tables.contains(containedEdge.getName()) && root.getSuccessors().size() == 0 &&
+                    !containedEdgeWasAssigned.contains(containedEdge.getName())) {
+                JoinTreeNode newChildNode = new JoinTreeNode();
+                newChildNode.setPredecessor(root);
+                newChildNode.setTables(List.of(containedEdge.getName()));
+                newChildNode.setAttributes(new LinkedList<>(containedEdge.getNodes()));
+                root.getSuccessors().add(newChildNode);
+
+                //tables.add(containedEdge.getName());
+                containedEdgeWasAssigned.add(containedEdge.getName());
             }
         }
 

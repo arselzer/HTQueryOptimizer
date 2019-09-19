@@ -23,7 +23,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 public class Benchmark {
-    private static int DEFAULT_TIMEOUT = 20;
+    private static int DEFAULT_TIMEOUT = 10;
     private String dbRootDir;
     private String dbDir = null;
     private Properties connectionProperties;
@@ -254,6 +254,7 @@ public class Benchmark {
 
                 // Do garbage collection because otherwise the benchmark crashes due to OOM ...
                 System.gc();
+                System.runFinalization();
             } catch (SQLException | IOException | QueryConversionException e) {
                 System.out.println("Error benchmarking: " + e.getMessage());
             }

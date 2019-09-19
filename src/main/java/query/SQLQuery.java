@@ -257,7 +257,7 @@ public class SQLQuery {
             for (JoinTreeNode node : layer) {
                 fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
                 tempTables.add(node.getIdentifier(2));
-                fnStr += String.format("AS SELECT *\n");
+                fnStr += String.format("AS SELECT DISTINCT *\n");
                 fnStr += String.format("FROM %s\n", node.getIdentifier(1));
                 List<String> semiJoins = new LinkedList<>();
                 for (JoinTreeNode child : node.getSuccessors()) {
