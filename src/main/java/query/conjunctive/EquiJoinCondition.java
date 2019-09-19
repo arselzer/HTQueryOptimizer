@@ -1,4 +1,4 @@
-package query;
+package query.conjunctive;
 
 public class EquiJoinCondition {
     private String col1;

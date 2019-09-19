@@ -117,8 +117,9 @@ public class Hypergraph {
                 containedEdges.add(edge);
             }
         }
-        
+
         // Add the contained edges
+        // This is called from the bottom up so the deepest nodes are added first
         for (Hyperedge containedEdge : containedEdges) {
             System.out.println(containedEdge + " " + tables);
             if (!tables.contains(containedEdge.getName()) &&

@@ -1,4 +1,4 @@
-package query;
+package query.conjunctive;
 
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;

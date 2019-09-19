@@ -1,7 +1,8 @@
 import exceptions.JoinTreeGenerationException;
 import hypergraph.Hypergraph;
 import org.junit.jupiter.api.Test;
-import query.*;
+import query.conjunctive.EquiJoinCondition;
+import query.conjunctive.JoinQuery;
 import schema.Column;
 import schema.DBSchema;
 import schema.Table;

@@ -41,6 +41,24 @@ public class SQLQuery {
         buildColumnLookup();
     }
 
+    private class DropStatements {
+        private LinkedList<String> dropStrings = new LinkedList<>();
+        public DropStatements() {
+
+        }
+
+        public void dropTable(String name) {
+            dropStrings.addFirst(String.format("DROP TABLE %s;", name));
+        }
+        public void dropView(String name) {
+            dropStrings.addFirst(String.format("DROP VIEW %s;", name));
+        }
+
+        public String toString() {
+            return String.join("\n", dropStrings);
+        }
+    }
+
     public static String generateFunctionName() {
         return "htqo_" + UUID.randomUUID().toString().replace("-", "");
     }
@@ -101,8 +119,7 @@ public class SQLQuery {
             throw new QueryConversionException("Error generating join tree: " + e.getMessage());
         }
 
-        List<String> tempTables = new LinkedList<>();
-        List<String> tempViews = new LinkedList<>();
+        DropStatements dropStatements = new DropStatements();
 
         //System.out.println(joinTree);
 
@@ -173,7 +190,7 @@ public class SQLQuery {
                 }
                 String tempViewName = "htqo_" + tableName + "_stage_0";
                 fnStr += String.format("CREATE TEMP VIEW %s AS\n", tempViewName);
-                tempViews.add(tempViewName);
+                dropStatements.dropView(tempViewName);
                 fnStr += String.format("SELECT %s\n FROM %s;\n", String.join(", ", columnRewrites), tableName);
             }
         }
@@ -191,7 +208,7 @@ public class SQLQuery {
             for (Set<JoinTreeNode> layer : joinLayers) {
                 for (JoinTreeNode node : layer) {
                     fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
-                    tempTables.add(node.getIdentifier(1));
+                    dropStatements.dropTable(node.getIdentifier(1));
                     fnStr += String.format("AS SELECT DISTINCT * FROM %s;\n", node.getTables()
                             .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
                             .collect(Collectors.joining(" NATURAL INNER JOIN ")));
@@ -220,8 +237,8 @@ public class SQLQuery {
                                 //Map<String, List<String>> equivalentCols = hg.getInverseEquivalenceMapping().get(variable);
                                 List<String> equivalentCols = hg.getInverseEquivalenceMapping().get(variable).get(tableName);
                                 for (int i = 0; i < equivalentCols.size() - 1; i++) {
-                                    String cur = tableName + "." + equivalentCols.get(i);
-                                    String next = tableName + "." + equivalentCols.get(i + 1);
+                                    String cur = equivalentCols.get(i);
+                                    String next = equivalentCols.get(i + 1);
 
                                     whereConditions.add(String.format("%s = %s", cur, next));
                                 }
@@ -234,8 +251,15 @@ public class SQLQuery {
                         }
                     }
 
-                    fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
-                    tempTables.add(node.getIdentifier(1));
+                    if (aliasedTables.size() == 1) {
+                        fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
+                        dropStatements.dropView(node.getIdentifier(1));
+                    }
+                    else {
+                        fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
+                        dropStatements.dropTable(node.getIdentifier(1));
+                    }
+
                     fnStr += String.format("AS SELECT DISTINCT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
                 }
             }
@@ -255,10 +279,6 @@ public class SQLQuery {
             //fnStr += "-- layer " + i + "\n";
 
             for (JoinTreeNode node : layer) {
-                fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
-                tempTables.add(node.getIdentifier(2));
-                fnStr += String.format("AS SELECT DISTINCT *\n");
-                fnStr += String.format("FROM %s\n", node.getIdentifier(1));
                 List<String> semiJoins = new LinkedList<>();
                 for (JoinTreeNode child : node.getSuccessors()) {
                     String childName = child.getIdentifier(1);
@@ -280,19 +300,27 @@ public class SQLQuery {
                         semiJoins.add(String.format("(EXISTS (SELECT * FROM %s WHERE %s))", childName, String.join(" AND ", semiJoinConditions)));
                     }
                 }
+
                 if (!semiJoins.isEmpty()) {
-                    // There are nodes without any children
+                    fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
+                    dropStatements.dropTable(node.getIdentifier(2));
+                    fnStr += String.format("AS SELECT DISTINCT *\n");
+                    fnStr += String.format("FROM %s\n", node.getIdentifier(1));
                     fnStr += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
                 } else {
-                    fnStr += ";\n";
+                    // If there are no semi joins, just create a view to avoid unnecessary copying
+                    fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+                    dropStatements.dropView(node.getIdentifier(2));
+                    fnStr += String.format("AS SELECT DISTINCT *\n");
+                    fnStr += String.format("FROM %s;\n", node.getIdentifier(1));
                 }
             }
         }
 
         // Create views for the last layer (which are just an alias for the views from stage 1)
         for (JoinTreeNode node : joinLayers.get(joinLayers.size() - 1)) {
-            fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
-            tempTables.add(node.getIdentifier(2));
+            fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+            dropStatements.dropView(node.getIdentifier(2));
             fnStr += String.format("AS SELECT * FROM %s;\n", node.getIdentifier(1));
         }
 
@@ -319,8 +347,14 @@ public class SQLQuery {
                             parentName, columnName));
                 }
 
-                fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(3));
-                tempTables.add(node.getIdentifier(3));
+                if (!semiJoinConditions.isEmpty()) {
+                    fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(3));
+                    dropStatements.dropTable(node.getIdentifier(3));
+                }
+                else {
+                    fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
+                    dropStatements.dropView(node.getIdentifier(3));
+                }
                 fnStr += String.format("AS SELECT *\n");
                 fnStr += String.format("FROM %s\n", node.getIdentifier(2));
                 if (!semiJoinConditions.isEmpty()) {
@@ -333,8 +367,8 @@ public class SQLQuery {
         }
 
         // Create one view for the root node
-        fnStr += String.format("CREATE TEMP TABLE %s\n", joinTree.getIdentifier(3));
-        tempTables.add(joinTree.getIdentifier(3));
+        fnStr += String.format("CREATE TEMP VIEW %s\n", joinTree.getIdentifier(3));
+        dropStatements.dropView(joinTree.getIdentifier(3));
         fnStr += String.format("AS SELECT * FROM %s;\n", joinTree.getIdentifier(2));
 
 
@@ -354,12 +388,7 @@ public class SQLQuery {
 
         fnStr += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
 
-//        for (String view : tempViews) {
-//            fnStr += String.format("DROP VIEW %s;\n", view);
-//        }
-        for (String table : tempTables) {
-            fnStr += String.format("DROP TABLE %s;\n", table);
-        }
+        fnStr += dropStatements.toString();
 
         fnStr += "END;\n";
         fnStr += "$$ LANGUAGE plpgsql;\n";
