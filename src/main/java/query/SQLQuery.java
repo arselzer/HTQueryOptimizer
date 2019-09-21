@@ -191,6 +191,7 @@ public class SQLQuery {
 
                 for (String tableName : node.getTables()) {
                     LinkedList<String> columnRewrites = new LinkedList<>();
+
                     Hyperedge he = hg.getEdgeByName(tableName);
                     for (String variableName : he.getNodes()) {
                         // Get only the first as any of the equivalent is sufficient
@@ -229,7 +230,7 @@ public class SQLQuery {
                     dropStatements.dropTable(node.getIdentifier(1));
                 }
 
-                fnStr += String.format("AS SELECT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
+                fnStr += String.format("AS SELECT %s FROM %s;\n", String.join(", ", node.getAttributes()), String.join(" NATURAL INNER JOIN ", aliasedTables));
             }
         }
 
@@ -244,7 +245,6 @@ public class SQLQuery {
 
         for (int i = joinLayers.size() - 2; i >= 0; i--) {
             Set<JoinTreeNode> layer = joinLayers.get(i);
-            //fnStr += "-- layer " + i + "\n";
 
             for (JoinTreeNode node : layer) {
                 List<String> semiJoins = new LinkedList<>();
