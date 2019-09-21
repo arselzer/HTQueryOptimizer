@@ -157,6 +157,9 @@ public class SQLQuery {
             }
         }
 
+        // Transform project column names to hypergraph variable names
+        joinTree.projectAllColumns(projectColumns.stream().map(col -> hg.getColumnToVariableMapping().get(col)).collect(Collectors.toSet()));
+
         // Set up a lookup table of tables for quickly getting the variables of a hyperedge
         Map<String, Table> tablesByName = new HashMap<>();
         for (Table t : dbSchema.getTables()) {

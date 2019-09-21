@@ -1,5 +1,7 @@
 package query;
 
+import net.sf.jsqlparser.statement.select.Join;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,6 +30,35 @@ public class JoinTreeNode {
         return getIdentifier() + "_stage_" + stage;
     }
 
+    /**
+     * Removes all unnecessary intermediate columns such that the amount of data stored is reduced to
+     * the minimum needed
+     * @param projectColumns columns that are needed for the end result of the query
+     */
+    public void projectAllColumns(Collection<String> projectColumns) {
+        for (Set<JoinTreeNode> layer : getLayers()) {
+            for (JoinTreeNode node : layer) {
+                HashSet<String> remainingAttributes = new HashSet<>(node.getAttributes());
+
+                HashSet<String> toKeep = new HashSet<>(projectColumns);
+                if (node.getPredecessor() != null) {
+                    toKeep.addAll(node.getPredecessor().getAttributes());
+                }
+
+                for (JoinTreeNode successor : node.getSuccessors()) {
+                    toKeep.addAll(successor.getAttributes());
+                }
+
+                //System.out.println(remainingAttributes + " " + toKeep);
+                remainingAttributes.retainAll(toKeep);
+                node.setAttributes(new LinkedList<>(remainingAttributes));
+            }
+        }
+    }
+
+    /**
+     * @return the tree converted into layers of equal depth from 0 to depth
+     */
     public List<Set<JoinTreeNode>> getLayers() {
         LinkedList<Set<JoinTreeNode>> layers = new LinkedList<>();
         layers.add(Set.of(this));
@@ -54,9 +85,12 @@ public class JoinTreeNode {
         return layers;
     }
 
+    /**
+     * Quickly retrieves the leaf nodes of maximum depth (of the whole tree)
+     * @return Leaf nodes at max depth
+     */
     public Set<JoinTreeNode> getDeepestLeaves() {
         int height = getHeight();
-        System.out.println("height: " + height);
 
         Set<JoinTreeNode> deepestLeaves = new HashSet<>();
         HashMap<JoinTreeNode, Integer> depthMap = new HashMap<>();
