@@ -176,27 +176,6 @@ public class SQLQuery {
 
         List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
 
-        /**
-         * Stage 0 - Rename columns to match hypergraph variable
-         *
-         * Create a view for each table
-         */
-        //fnStr += "-- STAGE 0\n";
-
-        if (explicitStage0) {
-            for (Hyperedge he : hg.getEdges()) {
-                LinkedList<String> columnRewrites = new LinkedList<>();
-                String tableName = he.getName();
-                for (String variableName : he.getNodes()) {
-                    String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName).get(0);
-                    columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
-                }
-                String tempViewName = "htqo_" + tableName + "_stage_0";
-                fnStr += String.format("CREATE TEMP VIEW %s AS\n", tempViewName);
-                dropStatements.dropView(tempViewName);
-                fnStr += String.format("SELECT %s\n FROM %s;\n", String.join(", ", columnRewrites), tableName);
-            }
-        }
 
         /**
          * Stage 1 - join tables inside tree nodes
@@ -205,66 +184,52 @@ public class SQLQuery {
          * Join the tables in the node.
          * This step is redundant with hypertree width 1 and could be optimized away (if it has any significant overhead)
          */
-        //fnStr += "-- STAGE 1\n";
 
-        if (explicitStage0) {
-            for (Set<JoinTreeNode> layer : joinLayers) {
-                for (JoinTreeNode node : layer) {
+        for (Set<JoinTreeNode> layer : joinLayers) {
+            for (JoinTreeNode node : layer) {
+                LinkedList<String> aliasedTables = new LinkedList<>();
+
+                for (String tableName : node.getTables()) {
+                    LinkedList<String> columnRewrites = new LinkedList<>();
+                    Hyperedge he = hg.getEdgeByName(tableName);
+                    for (String variableName : he.getNodes()) {
+                        // Get only the first as any of the equivalent is sufficient
+                        String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName).get(0);
+                        columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
+                    }
+
+                    // Check if there are more variables than columns -> Some columns are equivalent and
+                    // a filter checking this needs to be added
+                    //System.out.println(he.getNodes().size() + " " + tablesByName.get(tableName).getColumns().size());
+                    if (he.getNodes().size() < tablesByName.get(tableName).getColumns().size()) {
+                        List<String> whereConditions = new LinkedList<>();
+                        for (String variable : he.getNodes()) {
+                            //Map<String, List<String>> equivalentCols = hg.getInverseEquivalenceMapping().get(variable);
+                            List<String> equivalentCols = hg.getInverseEquivalenceMapping().get(variable).get(tableName);
+                            for (int i = 0; i < equivalentCols.size() - 1; i++) {
+                                String cur = equivalentCols.get(i);
+                                String next = equivalentCols.get(i + 1);
+
+                                whereConditions.add(String.format("%s = %s", cur, next));
+                            }
+                        }
+
+                        aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s", String.join(", ", columnRewrites),
+                                tableName, String.join(" AND ", whereConditions), tableName));
+                    } else {
+                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableName));
+                    }
+                }
+
+                if (aliasedTables.size() == 1) {
+                    fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
+                    dropStatements.dropView(node.getIdentifier(1));
+                } else {
                     fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
                     dropStatements.dropTable(node.getIdentifier(1));
-                    fnStr += String.format("AS SELECT DISTINCT * FROM %s;\n", node.getTables()
-                            .stream().map(tblName -> "htqo_" + tblName + "_stage_0")
-                            .collect(Collectors.joining(" NATURAL INNER JOIN ")));
                 }
-            }
-        } else {
-            for (Set<JoinTreeNode> layer : joinLayers) {
-                for (JoinTreeNode node : layer) {
-                    LinkedList<String> aliasedTables = new LinkedList<>();
 
-                    for (String tableName : node.getTables()) {
-                        LinkedList<String> columnRewrites = new LinkedList<>();
-                        Hyperedge he = hg.getEdgeByName(tableName);
-                        for (String variableName : he.getNodes()) {
-                            // Get only the first as any of the equivalent is sufficient
-                            String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName).get(0);
-                            columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
-                        }
-
-                        // Check if there are more variables than columns -> Some columns are equivalent and
-                        // a filter checking this needs to be added
-                        //System.out.println(he.getNodes().size() + " " + tablesByName.get(tableName).getColumns().size());
-                        if (he.getNodes().size() < tablesByName.get(tableName).getColumns().size()) {
-                            List<String> whereConditions = new LinkedList<>();
-                            for (String variable : he.getNodes()) {
-                                //Map<String, List<String>> equivalentCols = hg.getInverseEquivalenceMapping().get(variable);
-                                List<String> equivalentCols = hg.getInverseEquivalenceMapping().get(variable).get(tableName);
-                                for (int i = 0; i < equivalentCols.size() - 1; i++) {
-                                    String cur = equivalentCols.get(i);
-                                    String next = equivalentCols.get(i + 1);
-
-                                    whereConditions.add(String.format("%s = %s", cur, next));
-                                }
-                            }
-
-                            aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s", String.join(", ", columnRewrites),
-                                    tableName, String.join(" AND ", whereConditions), tableName));
-                        } else {
-                            aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableName));
-                        }
-                    }
-
-                    if (aliasedTables.size() == 1) {
-                        fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
-                        dropStatements.dropView(node.getIdentifier(1));
-                    }
-                    else {
-                        fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
-                        dropStatements.dropTable(node.getIdentifier(1));
-                    }
-
-                    fnStr += String.format("AS SELECT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
-                }
+                fnStr += String.format("AS SELECT * FROM %s;\n", String.join(" NATURAL INNER JOIN ", aliasedTables));
             }
         }
 

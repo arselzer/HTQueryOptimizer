@@ -135,12 +135,6 @@ public class Hypergraph {
             }
         }
 
-        LinkedList<String> reducedAttributes = new LinkedList<>();
-
-        for (String attribute :htNode.getAttributes()) {
-
-        }
-
         return root;
     }
 
