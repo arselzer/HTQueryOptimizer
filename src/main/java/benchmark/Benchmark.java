@@ -23,7 +23,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 public class Benchmark {
-    private static int DEFAULT_TIMEOUT = 15;
+    private static int DEFAULT_TIMEOUT = 25;
     private String dbRootDir;
     private String dbDir = null;
     private Properties connectionProperties;
