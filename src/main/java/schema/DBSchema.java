@@ -3,16 +3,15 @@ package schema;
 import at.ac.tuwien.dbai.hgtools.sql2hg.PredicateDefinition;
 import at.ac.tuwien.dbai.hgtools.sql2hg.Schema;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 public class DBSchema {
-    private List<Table> tables;
-
-    public DBSchema() {
-        tables = new LinkedList<>();
-    }
+    private List<Table> tables = new LinkedList<>();
+    private transient Map<String, Table> tablesByName = new HashMap<>();
 
     public List<Table> getTables() {
         return tables;
@@ -20,6 +19,13 @@ public class DBSchema {
 
     public void setTables(List<Table> tables) {
         this.tables = tables;
+        for (Table t : tables) {
+            tablesByName.put(t.getName(), t);
+        }
+    }
+
+    public Table getTableByName(String name) {
+        return tablesByName.get(name);
     }
 
     public Schema toSchema() {

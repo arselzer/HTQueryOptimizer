@@ -47,7 +47,9 @@ public class Benchmark {
     public static void main(String[] args) {
         Options options = new Options();
         Option setDb = new Option("d", "db", true, "test db");
+        Option setTimeout = new Option("t", "timeout", true, "set query timeout");
         options.addOption(setDb);
+        options.addOption(setTimeout);
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
         try {

@@ -24,28 +24,34 @@ public class SQLQuery {
     private String query;
     private Schema schema;
     private DBSchema dbSchema;
+    // Hypertree node -> column name
     private Map<String, Column> columnByNameMap;
+    // List of columns to project in the end (or *)
     private List<String> projectColumns;
+    // A set of all involved tables
+    private Set<String> aliasTables;
+    // Table aliases
+    private Map<String, String> tableAliases;
+    // Column aliases
+    private Map<String, String> columnAliases;
     private Statement stmt;
 
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
 
-    private boolean explicitStage0 = false;
-
     public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException {
         this.query = query;
         this.schema = dbSchema.toSchema();
         this.dbSchema = dbSchema;
-        determineProjectColumns();
+        findProjectColumnsAndAliases();
         buildColumnLookup();
     }
 
+    /**
+     * Class to keep track of tables and views to drop (in the correct order)
+     */
     private class DropStatements {
         private LinkedList<String> dropStrings = new LinkedList<>();
-        public DropStatements() {
-
-        }
 
         public void dropTable(String name) {
             dropStrings.addFirst(String.format("DROP TABLE %s;", name));
@@ -59,10 +65,19 @@ public class SQLQuery {
         }
     }
 
+    /**
+     * @return a unique function name
+     */
     public static String generateFunctionName() {
         return "htqo_" + UUID.randomUUID().toString().replace("-", "");
     }
 
+    /**
+     * Can be used to alternatively read in schema creation statements
+     * @param schemaString
+     * @return
+     * @throws QueryConversionException
+     */
     public static Schema readSchema(String schemaString) throws QueryConversionException {
         Schema result = new Schema();
 
@@ -90,12 +105,24 @@ public class SQLQuery {
         return result;
     }
 
-    private void determineProjectColumns() throws QueryConversionException {
+    private void findProjectColumnsAndAliases() throws QueryConversionException {
         try {
             stmt = CCJSqlParserUtil.parse(query);
 
             SQLQueryParser queryParser = new SQLQueryParser(stmt, dbSchema);
             projectColumns = queryParser.getProjectColumns();
+            tableAliases = queryParser.getAliases();
+            aliasTables = queryParser.getTables();
+
+            // Fill all column aliases: e.g. renamed.a -> original.a
+            columnAliases = new HashMap<>();
+            for (String aliasTableName : aliasTables) {
+                String realTableName = tableAliases.get(aliasTableName);
+                Table realTable = dbSchema.getTableByName(realTableName);
+                for (Column c : realTable.getColumns()) {
+                    columnAliases.put(aliasTableName + "." + c.getName(), realTableName + "." + c.getName());
+                }
+            }
         } catch (JSQLParserException e) {
             throw new QueryConversionException("Error parsing SQL statement: " + e.getMessage());
         }
@@ -121,13 +148,12 @@ public class SQLQuery {
 
         DropStatements dropStatements = new DropStatements();
 
-        //System.out.println(joinTree);
-
         String fnStr = "";
         fnStr += String.format("CREATE FUNCTION %s()\n", functionName);
 
         List<Column> resultColumns = new LinkedList<>();
 
+        // Check if there is a select * or select [specific columns]
         if (projectColumns.size() == 1 && projectColumns.get(0).equals("*")) {
             // Go through all hypergraph vertices
             for (String node : hg.getNodes()) {
@@ -145,7 +171,7 @@ public class SQLQuery {
             }
         } else {
             for (String projectCol : projectColumns) {
-                Column realColumn = columnByNameMap.get(projectCol);
+                Column realColumn = columnByNameMap.get(columnAliases.get(projectCol));
                 String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
                 Column newColumn = new Column(hyperedge, realColumn.getType());
                 // Check if the same column isn't already part of the output.
@@ -189,13 +215,17 @@ public class SQLQuery {
             for (JoinTreeNode node : layer) {
                 LinkedList<String> aliasedTables = new LinkedList<>();
 
-                for (String tableName : node.getTables()) {
+                for (String tableAliasName : node.getTables()) {
+                    // Very important distinction: tableName is the DB table name, tableAliasName is the potentially
+                    // renamed table name. Multiple aliases may point to the same table.
+                    // The alias may also be equivalent to the table if no renaming has occurred
+                    String tableName = tableAliases.get(tableAliasName);
                     LinkedList<String> columnRewrites = new LinkedList<>();
 
-                    Hyperedge he = hg.getEdgeByName(tableName);
+                    Hyperedge he = hg.getEdgeByName(tableAliasName);
                     for (String variableName : he.getNodes()) {
                         // Get only the first as any of the equivalent is sufficient
-                        String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableName).get(0);
+                        String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableAliasName).get(0);
                         columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
                     }
 
@@ -215,10 +245,11 @@ public class SQLQuery {
                             }
                         }
 
+                        // Rename the table to the table alias
                         aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s", String.join(", ", columnRewrites),
-                                tableName, String.join(" AND ", whereConditions), tableName));
+                                tableName, String.join(" AND ", whereConditions), tableAliasName));
                     } else {
-                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableName));
+                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableAliasName));
                     }
                 }
 

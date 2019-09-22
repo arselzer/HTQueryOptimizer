@@ -5,6 +5,7 @@ import net.sf.jsqlparser.expression.operators.arithmetic.*;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
 import net.sf.jsqlparser.expression.operators.relational.*;
+import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
 import net.sf.jsqlparser.statement.comment.Comment;
@@ -25,13 +26,14 @@ import net.sf.jsqlparser.statement.upsert.Upsert;
 import net.sf.jsqlparser.statement.values.ValuesStatement;
 import schema.DBSchema;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
-public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectItemVisitor, ExpressionVisitor {
+public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectItemVisitor, ExpressionVisitor, FromItemVisitor {
     private DBSchema schema;
     private ParseState state;
     private List<String> projectColumns = new LinkedList<>();
+    private Map<String, String> aliases = new HashMap<>();
+    private Set<String> tables = new HashSet<>();
 
     public SQLQueryParser(Statement stmt, DBSchema schema) {
         this.schema = schema;
@@ -45,6 +47,14 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
 
     public List<String> getProjectColumns() {
         return projectColumns;
+    }
+
+    public Set<String> getTables() {
+        return tables;
+    }
+
+    public Map<String, String> getAliases() {
+        return aliases;
     }
 
     @Override
@@ -61,6 +71,8 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     @Override
     public void visit(PlainSelect plainSelect) {
         plainSelect.getSelectItems().forEach(selectItem -> selectItem.accept(this));
+        plainSelect.getFromItem().accept(this);
+        plainSelect.getJoins().forEach(join -> join.getRightItem().accept(this));
     }
 
     @Override
@@ -80,7 +92,6 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
 
     @Override
     public void visit(net.sf.jsqlparser.schema.Column column) {
-        String colName = column.getColumnName();
         if (column.getTable() != null) {
             projectColumns.add(column.getFullyQualifiedName());
 
@@ -127,8 +138,46 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(Table table) {
+        Alias alias = table.getAlias();
+        if (alias != null) {
+            tables.add(alias.getName());
+            aliases.put(alias.getName(), table.getName());
+        }
+        else {
+            tables.add(table.getName());
+            aliases.put(table.getName(), table.getName());
+        }
+    }
+
+    @Override
     public void visit(SubSelect subSelect) {
         // TODO support subselect
+    }
+
+    @Override
+    public void visit(SubJoin subJoin) {
+
+    }
+
+    @Override
+    public void visit(LateralSubSelect lateralSubSelect) {
+
+    }
+
+    @Override
+    public void visit(ValuesList valuesList) {
+
+    }
+
+    @Override
+    public void visit(TableFunction tableFunction) {
+
+    }
+
+    @Override
+    public void visit(ParenthesisFromItem parenthesisFromItem) {
+
     }
 
     @Override
