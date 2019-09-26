@@ -4,6 +4,7 @@ import at.ac.tuwien.dbai.hgtools.hypergraph.Edge;
 import at.ac.tuwien.dbai.hgtools.sql2hg.*;
 import exceptions.JoinTreeGenerationException;
 import exceptions.QueryConversionException;
+import hypergraph.DecompositionOptions;
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;
 import net.sf.jsqlparser.JSQLParserException;
@@ -24,6 +25,7 @@ public class SQLQuery {
     private String query;
     private Schema schema;
     private DBSchema dbSchema;
+    private DecompositionOptions decompositionOptions;
     // Hypertree node -> column name
     private Map<String, Column> columnByNameMap;
     // List of columns to project in the end (or *)
@@ -45,6 +47,12 @@ public class SQLQuery {
         this.dbSchema = dbSchema;
         findProjectColumnsAndAliases();
         buildColumnLookup();
+
+        decompositionOptions = new DecompositionOptions();
+    }
+
+    public void setDecompositionOptions(DecompositionOptions decompositionOptions) {
+        this.decompositionOptions = decompositionOptions;
     }
 
     /**
@@ -141,7 +149,7 @@ public class SQLQuery {
         Hypergraph hg = toHypergraph();
         this.hypergraph = hg;
         try {
-            joinTree = hg.toJoinTree();
+            joinTree = hg.toJoinTree(decompositionOptions);
         } catch (JoinTreeGenerationException e) {
             throw new QueryConversionException("Error generating join tree: " + e.getMessage());
         }

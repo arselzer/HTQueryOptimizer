@@ -1,6 +1,7 @@
 package queryexecutor;
 
 import exceptions.QueryConversionException;
+import hypergraph.DecompositionOptions;
 import hypergraph.Hypergraph;
 import query.JoinTreeNode;
 import query.SQLQuery;
@@ -15,6 +16,7 @@ import java.util.List;
 public class ViewQueryExecutor implements QueryExecutor {
     private Connection connection;
     private DBSchema schema;
+    private DecompositionOptions decompositionOptions;
 
     private long queryRunningTime;
     private Hypergraph hypergraph;
@@ -25,8 +27,13 @@ public class ViewQueryExecutor implements QueryExecutor {
 
     public ViewQueryExecutor(Connection connection) throws SQLException {
         this.connection = connection;
+        this.decompositionOptions = new DecompositionOptions();
 
         extractSchema();
+    }
+
+    public void setDecompositionOptions(DecompositionOptions decompositionOptions) {
+        this.decompositionOptions = decompositionOptions;
     }
 
     @Override
@@ -44,6 +51,7 @@ public class ViewQueryExecutor implements QueryExecutor {
     @Override
     public ResultSet execute(String queryStr) throws SQLException, QueryConversionException {
         SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
+        sqlQuery.setDecompositionOptions(decompositionOptions);
         //System.out.println(sqlQuery.toHypergraph());
 
         String functionName = SQLQuery.generateFunctionName();

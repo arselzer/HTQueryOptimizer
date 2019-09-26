@@ -1,19 +1,28 @@
 package benchmark;
 
+import hypergraph.DecompositionOptions;
+
 public class BenchmarkConf {
     private String db;
     private String query;
+    private String suffix;
+    private DecompositionOptions decompositionOptions;
     // Timeout in seconds
     private Integer queryTimeout = null;
 
-    public BenchmarkConf(String db, String query) {
+    public BenchmarkConf(String db, String query, String suffix, DecompositionOptions decompositionOptions) {
         this.db = db;
         this.query = query;
+        this.suffix = suffix;
+        this.decompositionOptions = decompositionOptions;
     }
 
-    public BenchmarkConf(String db, String query, Integer timeout) {
+    public BenchmarkConf(String db, String query, String suffix,
+                         DecompositionOptions decompositionOptions, Integer timeout) {
         this.db = db;
         this.query = query;
+        this.suffix = suffix;
+        this.decompositionOptions = decompositionOptions;
         this.queryTimeout = timeout;
     }
 
@@ -39,6 +48,22 @@ public class BenchmarkConf {
 
     public void setQueryTimeout(Integer queryTimeout) {
         this.queryTimeout = queryTimeout;
+    }
+
+    public String getSuffix() {
+        return suffix;
+    }
+
+    public void setSuffix(String suffix) {
+        this.suffix = suffix;
+    }
+
+    public DecompositionOptions getDecompositionOptions() {
+        return decompositionOptions;
+    }
+
+    public void setDecompositionOptions(DecompositionOptions decompositionOptions) {
+        this.decompositionOptions = decompositionOptions;
     }
 
     @Override

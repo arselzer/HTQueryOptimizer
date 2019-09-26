@@ -2,6 +2,7 @@ package hypergraph;
 
 import exceptions.JoinTreeGenerationException;
 import hypergraph.visualization.HypergraphVisualizer;
+import net.sf.jsqlparser.statement.select.Join;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
@@ -138,21 +139,30 @@ public class Hypergraph {
         return root;
     }
 
+    /**
+     * Generate a join tree with default options
+     * @return
+     * @throws JoinTreeGenerationException
+     */
     public JoinTreeNode toJoinTree() throws JoinTreeGenerationException {
+        return toJoinTree(new DecompositionOptions());
+    }
+
+    public JoinTreeNode toJoinTree(DecompositionOptions options) throws JoinTreeGenerationException {
         // Try creating an acyclic join tree first
         int hypertreeWidth = 1;
 
-        JoinTreeNode tree = toJoinTree(1);
+        JoinTreeNode tree = toJoinTree(1, options);
         while (tree == null) {
             //System.out.printf("Hypertree of width %d not found\n", hypertreeWidth);;
             hypertreeWidth++;
-            tree = toJoinTree(hypertreeWidth);
+            tree = toJoinTree(hypertreeWidth, options);
         }
 
         return tree;
     }
 
-    public JoinTreeNode toJoinTree(int hypertreeWidth) throws JoinTreeGenerationException {
+    public JoinTreeNode toJoinTree(int hypertreeWidth, DecompositionOptions options) throws JoinTreeGenerationException {
         // Write hypergraph out to a file
         String fileContent = toDTL();
         File hgFile;
@@ -174,27 +184,47 @@ public class Hypergraph {
             throw new JoinTreeGenerationException("Error writing hypergraph file: " + e.getMessage());
         }
 
-        // Call detkdecomp
+        // Call the decomposition process
 
-        try {
-            Process process = new ProcessBuilder("detkdecomp", hypertreeWidth + "",
-                    hgFile.getAbsolutePath().toString()).start();
+        if (options.getAlgorithm() == DecompositionOptions.DecompAlgorithm.DETKDECOMP) {
+            try {
+                Process process = new ProcessBuilder("detkdecomp", hypertreeWidth + "",
+                        hgFile.getAbsolutePath().toString()).start();
 
-            BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
-            String output = br.lines().collect(Collectors.joining());
+                String output = br.lines().collect(Collectors.joining());
 
-            if (Pattern.compile("Hypertree of width \\d+ not found").matcher(output).find()) {
-                return null;
+                if (Pattern.compile("Hypertree of width \\d+ not found").matcher(output).find()) {
+                    return null;
+                }
+            } catch (IOException e) {
+                throw new JoinTreeGenerationException("Error executing detkdecomp");
             }
-        } catch (IOException e) {
-            throw new JoinTreeGenerationException("Error executing detkdecomp");
+        }
+        else if (options.getAlgorithm() == DecompositionOptions.DecompAlgorithm.BALANCEDGO) {
+            try {
+                Process process = new ProcessBuilder("BalancedGo",
+                        "-width", hypertreeWidth + "", "-graph",
+                        hgFile.getAbsolutePath().toString(),
+                        "-choice", "5", "-gml", htFileName).start();
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+                String output = br.lines().collect(Collectors.joining());
+
+                if (Pattern.compile("Correct:  false").matcher(output).find()) {
+                    return null;
+                }
+            } catch (IOException e) {
+                throw new JoinTreeGenerationException("Error executing BalancedGo");
+            }
         }
 
         decompositionTree = new SimpleDirectedGraph<HypertreeNode, DefaultEdge>(DefaultEdge.class);
 
         VertexProvider<HypertreeNode> vp = new VertexProvider<>() {
-            private Pattern edgePattern = Pattern.compile("^\\s*\\{(.*)\\}\\s*\\{(.*)\\}");
+            private Pattern edgePattern = Pattern.compile("^\\s*\\{(.*)\\}\\s*[\\{\\(](.*)[\\}\\)]");
 
             @Override
             public HypertreeNode buildVertex(String id, Map<String, Attribute> map) {
@@ -241,7 +271,8 @@ public class Hypergraph {
 
             HypertreeNode root = null;
             for (HypertreeNode n : decompositionTree.vertexSet()) {
-                if (n.id.equals("1")) {
+                // In the case of detkdecomp n.id == 0 can also be checked
+                if (decompositionTree.inDegreeOf(n) == 0) {
                     root = n;
                 }
             }

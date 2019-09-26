@@ -3,6 +3,7 @@ package benchmark;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import exceptions.QueryConversionException;
+import hypergraph.DecompositionOptions;
 import org.apache.commons.cli.*;
 import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
@@ -85,7 +86,7 @@ public class Benchmark {
             for (BenchmarkResult res : benchmark.getResults()) {
                 BenchmarkConf conf = res.getConf();
 
-                File resultDir = new File(resultsDirectory.getAbsolutePath().toString() + "/" + conf.getDb() + "/" + conf.getQuery());
+                File resultDir = new File(resultsDirectory.getAbsolutePath().toString() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
                 resultDir.mkdirs();
 
                 File hypergraphFile = new File(resultDir + "/hypergraph.dtl");
@@ -178,6 +179,8 @@ public class Benchmark {
                 qe.setTimeout(conf.getQueryTimeout());
             }
 
+            qe.setDecompositionOptions(conf.getDecompositionOptions());
+
             ResultSet rs = null;
             try {
                 conn.prepareStatement("vacuum analyze;").execute();
@@ -227,6 +230,9 @@ public class Benchmark {
     private List<BenchmarkConf> generateBenchmarkConfigs() {
         LinkedList<BenchmarkConf> confs = new LinkedList<>();
 
+        DecompositionOptions detkdecompOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.DETKDECOMP);
+        DecompositionOptions balancedGoOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.BALANCEDGO);
+
         File dir = new File(dbRootDir);
         File[] subdirs = dir.listFiles(File::isDirectory);
 
@@ -238,7 +244,12 @@ public class Benchmark {
 
                 if (sqlFiles != null) {
                     for (File file : sqlFiles) {
-                        confs.add(new BenchmarkConf(dbName, file.getName(), DEFAULT_TIMEOUT));
+                        for (int i = 1; i <= 5; i++) {
+                            confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d", i),
+                                    detkdecompOptions, DEFAULT_TIMEOUT));
+                            confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d", i),
+                                    balancedGoOptions, DEFAULT_TIMEOUT));
+                        }
                     }
                 }
             }
