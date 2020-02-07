@@ -6,6 +6,7 @@ public class BenchmarkConf {
     private String db;
     private String query;
     private String suffix;
+    private Integer run;
     private DecompositionOptions decompositionOptions;
     // Timeout in seconds
     private Integer queryTimeout = null;
@@ -18,12 +19,13 @@ public class BenchmarkConf {
     }
 
     public BenchmarkConf(String db, String query, String suffix,
-                         DecompositionOptions decompositionOptions, Integer timeout) {
+                         DecompositionOptions decompositionOptions, Integer timeout, Integer run) {
         this.db = db;
         this.query = query;
         this.suffix = suffix;
         this.decompositionOptions = decompositionOptions;
         this.queryTimeout = timeout;
+        this.run = run;
     }
 
     public String getDb() {
@@ -56,6 +58,14 @@ public class BenchmarkConf {
 
     public void setSuffix(String suffix) {
         this.suffix = suffix;
+    }
+
+    public Integer getRun() {
+        return run;
+    }
+
+    public void setRun(Integer run) {
+        this.run = run;
     }
 
     public DecompositionOptions getDecompositionOptions() {

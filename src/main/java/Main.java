@@ -1,18 +1,26 @@
+import hypergraph.Hypergraph;
+
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.stream.Collectors;
 
 public class Main {
     public static void main(String[] args) {
 
-        if (args.length != 3) {
-            System.out.printf("Usage: java -jar %s {hypertree} {hypergraph} {query} {schema}", getJarName());
+        String dtlFileName = args[0];
+
+        String hypergraphFile = null;
+        try {
+            hypergraphFile = Files.lines(Path.of(args[0])).collect(Collectors.joining());
+            Hypergraph hg = Hypergraph.fromDTL(hypergraphFile);
+
+            hg.toPDF(Paths.get("hypergraph.pdf"));
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
         }
-
-        String gmlFileName = args[0];
-        String dtlFileName = args[1];
-        String sqlFileName = args[2];
-        String schemaFileName = args[3];
-
-
     }
 
     public static String getJarName() {

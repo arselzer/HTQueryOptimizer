@@ -17,10 +17,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Benchmark {
@@ -28,8 +25,12 @@ public class Benchmark {
     private String dbRootDir;
     private String dbDir = null;
     private Properties connectionProperties;
+    private int runs = 1;
     //private Connection conn;
     private String dbURL;
+    // Use detkdecomp per default
+    private Set<DecompositionOptions.DecompAlgorithm> decompAlgorithms
+            = new HashSet<>(List.of(DecompositionOptions.DecompAlgorithm.DETKDECOMP));
     private List<BenchmarkResult> results = new LinkedList<>();
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
@@ -45,12 +46,26 @@ public class Benchmark {
         this.dbDir = db;
     }
 
+    public void setDecompAlgorithms(List<DecompositionOptions.DecompAlgorithm> decompAlgos) {
+        decompAlgorithms = new HashSet<>(decompAlgos);
+    }
+
+    public void setRuns(int runs) {
+        this.runs = runs;
+    }
+
     public static void main(String[] args) {
         Options options = new Options();
         Option setDb = new Option("d", "db", true, "test db");
         Option setTimeout = new Option("t", "timeout", true, "set query timeout");
+        setTimeout.setType(Integer.class);
+        Option setRuns = new Option("r", "runs", true, "set runs");
+        Option setDecompositionAlgos = new Option("m", "methods", true, "set decomposition method");
+        setRuns.setType(Integer.class);
         options.addOption(setDb);
         options.addOption(setTimeout);
+        options.addOption(setRuns);
+        options.addOption(setDecompositionAlgos);
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
         try {
@@ -78,18 +93,31 @@ public class Benchmark {
             } else {
                 benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url);
             }
+            if (cmd.hasOption("runs")) {
+                benchmark.setRuns(Integer.parseInt(cmd.getOptionValue("runs")));
+            }
+            if (cmd.hasOption("methods")) {
+                String[] decompMethods = cmd.getOptionValue("methods").split(",");
+                benchmark.setDecompAlgorithms(Arrays.stream(decompMethods).
+                        map(DecompositionOptions.DecompAlgorithm::valueOf)
+                        .collect(Collectors.toList()));
+            }
             benchmark.run();
 
             File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
             resultsDirectory.mkdirs();
 
+            SummarizedResultsCSVGenerator csvGenerator = new SummarizedResultsCSVGenerator();
+
             for (BenchmarkResult res : benchmark.getResults()) {
+                csvGenerator.addResult(res);
+
                 BenchmarkConf conf = res.getConf();
 
-                File resultDir = new File(resultsDirectory.getAbsolutePath().toString() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
-                resultDir.mkdirs();
+                File subResultsDir = new File(resultsDirectory.getAbsolutePath().toString() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
+                subResultsDir.mkdirs();
 
-                File hypergraphFile = new File(resultDir + "/hypergraph.dtl");
+                File hypergraphFile = new File(subResultsDir + "/hypergraph.dtl");
 
                 // Write hypergraph
                 PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
@@ -97,41 +125,40 @@ public class Benchmark {
                 hypergraphWriter.close();
 
                 // Write graph rendering
-                res.getHypergraph().toPDF(Paths.get(resultDir + "/hypergraph.pdf"));
+                res.getHypergraph().toPDF(Paths.get(subResultsDir + "/hypergraph.pdf"));
 
                 // Write out the java data structure
-                File resultTxtFile = new File(resultDir + "/result.txt");
+                File resultTxtFile = new File(subResultsDir + "/result.txt");
                 PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
                 resultStringWriter.write(res.toString());
                 resultStringWriter.close();
 
                 // Write out the original query
-                File queryFile = new File(resultDir + "/query.sql");
+                File queryFile = new File(subResultsDir + "/query.sql");
                 PrintWriter queryWriter = new PrintWriter(queryFile);
                 queryWriter.write(res.getQuery());
                 queryWriter.close();
 
-                File generatedQueryFile = new File(resultDir + "/generated.sql");
+                // Write out the optimized generated query
+                File generatedQueryFile = new File(subResultsDir + "/generated.sql");
                 PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
                 generatedQueryWriter.write(res.getGeneratedQuery());
                 generatedQueryWriter.close();
 
-                File resultJsonFile = new File(resultDir + "/result.json");
+                // Write out the serialized results as json
+                File resultJsonFile = new File(subResultsDir + "/result.json");
                 PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
                 resultJsonWriter.write(gson.toJson(res));
                 resultJsonWriter.close();
-
-                //System.out.println(res);
             }
+
+            Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
+
         } catch (FileNotFoundException e) {
             System.out.printf("File not found exception: %s\n", e.getMessage());
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (InterruptedException | IOException e) {
             e.printStackTrace();
         }
-
-
     }
 
     private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
@@ -152,7 +179,6 @@ public class Benchmark {
             ProcessBuilder pb = new ProcessBuilder();
 
             pb.command(createFile.getAbsolutePath());
-            //pb.start();
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(pb.start().getInputStream()));
 
@@ -161,7 +187,6 @@ public class Benchmark {
             while ((line = reader.readLine()) != null) {
                 output += line + "\n";
             }
-            //System.out.println(output);
 
             QueryExecutor uoqe = null;
             ViewQueryExecutor qe = null;
@@ -244,11 +269,15 @@ public class Benchmark {
 
                 if (sqlFiles != null) {
                     for (File file : sqlFiles) {
-                        for (int i = 1; i <= 5; i++) {
-                            confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d", i),
-                                    detkdecompOptions, DEFAULT_TIMEOUT));
-                            confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d", i),
-                                    balancedGoOptions, DEFAULT_TIMEOUT));
+                        for (int i = 1; i <= runs; i++) {
+                            if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
+                                confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d", i),
+                                        detkdecompOptions, DEFAULT_TIMEOUT, i));
+                            }
+                            if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
+                                confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d", i),
+                                        balancedGoOptions, DEFAULT_TIMEOUT, i));
+                            }
                         }
                     }
                 }
