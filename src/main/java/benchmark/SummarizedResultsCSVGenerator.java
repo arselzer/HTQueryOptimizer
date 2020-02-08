@@ -11,8 +11,9 @@ public class SummarizedResultsCSVGenerator {
             "optimizedQueryRuntime",
             "optimizedTotalRuntime",
             "unoptimizedRows",
-            "optimizedRows"
-
+            "optimizedRows",
+            "unoptTimeout",
+            "optTimeout"
     };
 
     private String csv = "";
@@ -30,7 +31,9 @@ public class SummarizedResultsCSVGenerator {
                 result.getOptimizedQueryRuntime() + "," +
                 result.getOptimizedTotalRuntime() + "," +
                 result.getUnoptimizedRows() + "," +
-                result.getOptimizedRows() +
+                result.getOptimizedRows() + "," +
+                (result.isUnoptimizedQueryTimeout() ? 1 : 0) + "," +
+                (result.isOptimizedQueryTimeout() ? 1 : 0) + "," +
                 "\n";
 
     }

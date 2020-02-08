@@ -12,6 +12,9 @@ public class BenchmarkResult {
     private boolean optimizedQueryTimeout = false;
     private boolean unoptimizedQueryTimeout = false;
 
+    private int unoptimizedColumns;
+    private int optimizedColumns;
+
     private int unoptimizedRows;
     private int optimizedRows;
 
@@ -73,6 +76,22 @@ public class BenchmarkResult {
         this.joinTree = joinTree;
     }
 
+    public int getUnoptimizedColumns() {
+        return unoptimizedColumns;
+    }
+
+    public void setUnoptimizedColumns(int unoptimizedColumns) {
+        this.unoptimizedColumns = unoptimizedColumns;
+    }
+
+    public int getOptimizedColumns() {
+        return optimizedColumns;
+    }
+
+    public void setOptimizedColumns(int optimizedColumns) {
+        this.optimizedColumns = optimizedColumns;
+    }
+
     public int getUnoptimizedRows() {
         return unoptimizedRows;
     }
@@ -120,6 +139,8 @@ public class BenchmarkResult {
     public void setGeneratedQuery(String generatedQuery) {
         this.generatedQuery = generatedQuery;
     }
+
+
 
     @Override
     public String toString() {

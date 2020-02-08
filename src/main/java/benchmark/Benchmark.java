@@ -12,12 +12,10 @@ import queryexecutor.ViewQueryExecutor;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
 import java.util.stream.Collectors;
 
 public class Benchmark {
@@ -206,43 +204,49 @@ public class Benchmark {
 
             qe.setDecompositionOptions(conf.getDecompositionOptions());
 
-            ResultSet rs = null;
+            ResultSet unoptRS = null;
             try {
                 conn.prepareStatement("vacuum analyze;").execute();
                 long startTimeOptimized = System.currentTimeMillis();
-                rs = qe.execute(query);
+                unoptRS = qe.execute(query);
                 result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
                 result.setOptimizedQueryRuntime(qe.getQueryRunningTime());
 
                 int count1 = 0;
-                while (rs.next()) {
+                while (unoptRS.next()) {
                     count1++;
                 }
                 result.setOptimizedRows(count1);
-                rs.close();
+                ResultSetMetaData metaData = unoptRS.getMetaData();
+                result.setOptimizedColumns(metaData.getColumnCount());
+
+                // Close the resultSet to close the PreparedStatement such that no memory is leaked
+                unoptRS.close();
             } catch (SQLException e) {
                 System.err.println("Timeout: " + e.getMessage());
                 result.setOptimizedQueryTimeout(true);
-                // Close the resultSet to close the PreparedStatement such that no memory is leaked
             }
 
             result.setHypergraph(qe.getHypergraph());
             result.setJoinTree(qe.getJoinTree());
             result.setGeneratedQuery(qe.getGeneratedFunction());
 
-            ResultSet rs2 = null;
+            ResultSet optRS = null;
             try {
                 conn.prepareStatement("vacuum analyze;").execute();
                 long startTimeUnoptimized = System.currentTimeMillis();
-                rs2 = uoqe.execute(query);
+                optRS = uoqe.execute(query);
                 result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
 
                 int count2 = 0;
-                while (rs2.next()) {
+                while (optRS.next()) {
                     count2++;
                 }
                 result.setUnoptimizedRows(count2);
-                rs2.close();
+                ResultSetMetaData metaData = optRS.getMetaData();
+                result.setUnoptimizedColumns(metaData.getColumnCount());
+
+                optRS.close();
             } catch (SQLException e) {
                 System.err.println("Timeout: " + e.getMessage());
                 result.setUnoptimizedQueryTimeout(true);
@@ -258,8 +262,8 @@ public class Benchmark {
         DecompositionOptions detkdecompOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.DETKDECOMP);
         DecompositionOptions balancedGoOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.BALANCEDGO);
 
-        File dir = new File(dbRootDir);
-        File[] subdirs = dir.listFiles(File::isDirectory);
+        File dataRootDir = new File(dbRootDir);
+        File[] subdirs = dataRootDir.listFiles(File::isDirectory);
 
         for (File subdir : subdirs) {
             String dbName = subdir.getName();
