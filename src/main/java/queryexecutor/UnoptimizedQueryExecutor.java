@@ -31,7 +31,8 @@ public class UnoptimizedQueryExecutor implements QueryExecutor {
 
     @Override
     public ResultSet execute(String query) throws SQLException, QueryConversionException {
-        PreparedStatement ps = connection.prepareStatement(query);
+        PreparedStatement ps = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE,
+                ResultSet.CONCUR_READ_ONLY);
         ps.closeOnCompletion();
 
         if (timeout != null) {

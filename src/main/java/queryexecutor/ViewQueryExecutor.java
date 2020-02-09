@@ -1,6 +1,7 @@
 package queryexecutor;
 
 import exceptions.QueryConversionException;
+import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
 import hypergraph.Hypergraph;
 import query.JoinTreeNode;
@@ -42,14 +43,14 @@ public class ViewQueryExecutor implements QueryExecutor {
     }
 
     @Override
-    public ResultSet execute(PreparedStatement ps) throws SQLException, QueryConversionException {
+    public ResultSet execute(PreparedStatement ps) throws SQLException, QueryConversionException, TableNotFoundException {
         String query = ps.toString(); // Should work with postgres (and mysql) drivers
 
         return execute(query);
     }
 
     @Override
-    public ResultSet execute(String queryStr) throws SQLException, QueryConversionException {
+    public ResultSet execute(String queryStr) throws SQLException, QueryConversionException, TableNotFoundException {
         SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
         //System.out.println(sqlQuery.toHypergraph());
@@ -62,18 +63,13 @@ public class ViewQueryExecutor implements QueryExecutor {
         this.joinTree = sqlQuery.getJoinTree();
         this.generatedFunction = functionStr;
 
-        //String functionStr = sqlQuery.toTableFunction(functionName);
-        //System.out.println("equivalence mapping: " + sqlQuery.toHypergraph().getEquivalenceMapping());
-        //System.out.println(functionStr);
-
-        //disableMergeJoin();
-
         long startTime = System.currentTimeMillis();
 
         try (PreparedStatement psFunction = connection.prepareStatement(functionStr)) {
             psFunction.execute();
 
-            PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT %s();", functionName));
+            PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT * FROM %s();", functionName), ResultSet.TYPE_SCROLL_INSENSITIVE,
+                    ResultSet.CONCUR_READ_ONLY);
             if (timeout != null) {
                 psSelect.setQueryTimeout(timeout);
             }

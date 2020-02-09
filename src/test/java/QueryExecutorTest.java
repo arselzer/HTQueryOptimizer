@@ -1,4 +1,5 @@
 import exceptions.QueryConversionException;
+import exceptions.TableNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import queryexecutor.QueryExecutor;
@@ -102,7 +103,7 @@ public class QueryExecutorTest {
     }
 
     @Test
-    void connectAndQuery() throws SQLException, QueryConversionException {
+    void connectAndQuery() throws SQLException, QueryConversionException, TableNotFoundException {
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
         ResultSet rs = qe.execute(starQuery);
@@ -115,7 +116,7 @@ public class QueryExecutorTest {
     }
 
     @Test
-    void triangleQuery() throws SQLException, QueryConversionException {
+    void triangleQuery() throws SQLException, QueryConversionException, TableNotFoundException {
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
         ResultSet rs = qe.execute(triangleQuery);
@@ -128,7 +129,7 @@ public class QueryExecutorTest {
     }
 
     @Test
-    void triangleStarQuery() throws SQLException, QueryConversionException {
+    void triangleStarQuery() throws SQLException, QueryConversionException, TableNotFoundException {
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
         ResultSet rs = qe.execute(triangleStarQuery);
@@ -141,7 +142,7 @@ public class QueryExecutorTest {
     }
 
     @Test
-    void multipleCyclesQuery() throws SQLException, QueryConversionException {
+    void multipleCyclesQuery() throws SQLException, QueryConversionException, TableNotFoundException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
@@ -163,7 +164,7 @@ public class QueryExecutorTest {
     }
 
     @Test
-    void multipleCyclesQuery2() throws SQLException, QueryConversionException, IOException, InterruptedException {
+    void multipleCyclesQuery2() throws SQLException, QueryConversionException, IOException, InterruptedException, TableNotFoundException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
@@ -182,7 +183,7 @@ public class QueryExecutorTest {
     }
 
     @Test
-    void multipleCyclesQuery3() throws SQLException, QueryConversionException {
+    void multipleCyclesQuery3() throws SQLException, QueryConversionException, TableNotFoundException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 
@@ -199,7 +200,7 @@ public class QueryExecutorTest {
     }
 
     @Test
-    void chainQuery() throws SQLException, QueryConversionException {
+    void chainQuery() throws SQLException, QueryConversionException, TableNotFoundException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
         ViewQueryExecutor qe = new ViewQueryExecutor(conn);
 

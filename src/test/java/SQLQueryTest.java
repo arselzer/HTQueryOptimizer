@@ -1,4 +1,5 @@
 import exceptions.QueryConversionException;
+import exceptions.TableNotFoundException;
 import hypergraph.Hypergraph;
 import org.junit.jupiter.api.Test;
 import schema.Column;
@@ -26,7 +27,7 @@ public class SQLQueryTest {
             "WHERE f1.d=f2.s AND f2.d=f3.s AND f3.d=f1.s AND f1.s='SUF';\n";
 
     @Test
-    void parseQueryAndSchema() throws QueryConversionException {
+    void parseQueryAndSchema() throws QueryConversionException, TableNotFoundException {
 
         List<Table> tables = new LinkedList<>();
         Table flights = new Table();
@@ -50,7 +51,7 @@ public class SQLQueryTest {
     }
 
     @Test
-    void parseQueryAndSchema2() throws QueryConversionException {
+    void parseQueryAndSchema2() throws QueryConversionException, TableNotFoundException {
         List<Table> tables = new LinkedList<>();
         Table flights = new Table();
         List<Column> columns = new LinkedList<>();

@@ -4,6 +4,7 @@ import at.ac.tuwien.dbai.hgtools.hypergraph.Edge;
 import at.ac.tuwien.dbai.hgtools.sql2hg.*;
 import exceptions.JoinTreeGenerationException;
 import exceptions.QueryConversionException;
+import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;
@@ -41,7 +42,7 @@ public class SQLQuery {
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
 
-    public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException {
+    public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException, TableNotFoundException {
         this.query = query;
         this.schema = dbSchema.toSchema();
         this.dbSchema = dbSchema;
@@ -113,7 +114,7 @@ public class SQLQuery {
         return result;
     }
 
-    private void findProjectColumnsAndAliases() throws QueryConversionException {
+    private void findProjectColumnsAndAliases() throws QueryConversionException, TableNotFoundException {
         try {
             stmt = CCJSqlParserUtil.parse(query);
 
@@ -126,7 +127,11 @@ public class SQLQuery {
             columnAliases = new HashMap<>();
             for (String aliasTableName : aliasTables) {
                 String realTableName = tableAliases.get(aliasTableName);
+
                 Table realTable = dbSchema.getTableByName(realTableName);
+                if (realTable == null ) {
+                    throw new TableNotFoundException(String.format("Table %s not found in database", realTableName));
+                }
                 for (Column c : realTable.getColumns()) {
                     columnAliases.put(aliasTableName + "." + c.getName(), realTableName + "." + c.getName());
                 }

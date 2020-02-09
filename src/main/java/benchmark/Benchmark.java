@@ -3,6 +3,7 @@ package benchmark;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import exceptions.QueryConversionException;
+import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
 import org.apache.commons.cli.*;
 import queryexecutor.QueryExecutor;
@@ -174,23 +175,22 @@ public class Benchmark {
             String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
             result.setQuery(query);
 
+            // Run create.sh
             ProcessBuilder pb = new ProcessBuilder();
 
             pb.command(createFile.getAbsolutePath());
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(pb.start().getInputStream()));
 
-            String output = "";
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output += line + "\n";
-            }
+            // Wait for psql to finish otherwise tables might be missing
+            List<String> psqlOutput = reader.lines().collect(Collectors.toList());
 
-            QueryExecutor uoqe = null;
-            ViewQueryExecutor qe = null;
+            QueryExecutor originalQE = null;
+            ViewQueryExecutor optimizedQE = null;
+
             try {
-                uoqe = new UnoptimizedQueryExecutor(conn);
-                qe = new ViewQueryExecutor(conn);
+                originalQE = new UnoptimizedQueryExecutor(conn);
+                optimizedQE = new ViewQueryExecutor(conn);
             } catch (SQLException e) {
                 throw e;
                 // Rethrow exceptions occuring during setup
@@ -198,58 +198,83 @@ public class Benchmark {
 
             // Set timeouts if specified
             if (conf.getQueryTimeout() != null) {
-                uoqe.setTimeout(conf.getQueryTimeout());
-                qe.setTimeout(conf.getQueryTimeout());
+                originalQE.setTimeout(conf.getQueryTimeout());
+                optimizedQE.setTimeout(conf.getQueryTimeout());
             }
 
-            qe.setDecompositionOptions(conf.getDecompositionOptions());
+            optimizedQE.setDecompositionOptions(conf.getDecompositionOptions());
 
-            ResultSet unoptRS = null;
+            /** Execute optimized query **/
+
+            ResultSet optimizedRS = null;
             try {
                 conn.prepareStatement("vacuum analyze;").execute();
-                long startTimeOptimized = System.currentTimeMillis();
-                unoptRS = qe.execute(query);
-                result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
-                result.setOptimizedQueryRuntime(qe.getQueryRunningTime());
 
-                int count1 = 0;
-                while (unoptRS.next()) {
-                    count1++;
+                long startTimeOptimized = System.currentTimeMillis();
+                optimizedRS = optimizedQE.execute(query);
+                result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
+                result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
+
+                int optimizedCount = 0;
+                if (conf.getSkipRows()) {
+                    optimizedRS.last();
+                    optimizedCount = optimizedRS.getRow();
                 }
-                result.setOptimizedRows(count1);
-                ResultSetMetaData metaData = unoptRS.getMetaData();
+                else {
+                    while (optimizedRS.next()) {
+                        optimizedCount++;
+                    }
+                }
+
+                result.setOptimizedRows(optimizedCount);
+                ResultSetMetaData metaData = optimizedRS.getMetaData();
                 result.setOptimizedColumns(metaData.getColumnCount());
 
                 // Close the resultSet to close the PreparedStatement such that no memory is leaked
-                unoptRS.close();
+                optimizedRS.close();
             } catch (SQLException e) {
                 System.err.println("Timeout: " + e.getMessage());
                 result.setOptimizedQueryTimeout(true);
+            } catch (TableNotFoundException e) {
+                System.err.println("Table not found: " + e.getMessage());
             }
 
-            result.setHypergraph(qe.getHypergraph());
-            result.setJoinTree(qe.getJoinTree());
-            result.setGeneratedQuery(qe.getGeneratedFunction());
+            result.setHypergraph(optimizedQE.getHypergraph());
+            result.setJoinTree(optimizedQE.getJoinTree());
+            result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
 
-            ResultSet optRS = null;
+            /** Execute original query **/
+
+            ResultSet originalRS = null;
             try {
                 conn.prepareStatement("vacuum analyze;").execute();
                 long startTimeUnoptimized = System.currentTimeMillis();
-                optRS = uoqe.execute(query);
+                originalRS = originalQE.execute(query);
                 result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
 
-                int count2 = 0;
-                while (optRS.next()) {
-                    count2++;
+                int originalCount = 0;
+                if (conf.getSkipRows()) {
+                    originalRS.last();
+                    originalCount = originalRS.getRow();
                 }
-                result.setUnoptimizedRows(count2);
-                ResultSetMetaData metaData = optRS.getMetaData();
+                else {
+                    while (originalRS.next()) {
+                        originalCount++;
+                    }
+                }
+
+                result.setUnoptimizedRows(originalCount);
+
+
+                ResultSetMetaData metaData = originalRS.getMetaData();
                 result.setUnoptimizedColumns(metaData.getColumnCount());
 
-                optRS.close();
+                originalRS.close();
             } catch (SQLException e) {
                 System.err.println("Timeout: " + e.getMessage());
                 result.setUnoptimizedQueryTimeout(true);
+            } catch (TableNotFoundException e) {
+                System.err.println("Table not found: " + e.getMessage());
             }
 
             results.add(result);
