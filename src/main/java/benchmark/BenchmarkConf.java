@@ -10,6 +10,7 @@ public class BenchmarkConf {
     private DecompositionOptions decompositionOptions;
     // Timeout in seconds
     private Integer queryTimeout = null;
+    private Integer dbSize = 1;
 
     private Boolean skipRows = true;
 
@@ -21,13 +22,14 @@ public class BenchmarkConf {
     }
 
     public BenchmarkConf(String db, String query, String suffix,
-                         DecompositionOptions decompositionOptions, Integer timeout, Integer run) {
+                         DecompositionOptions decompositionOptions, Integer timeout, Integer run, Integer dbSize) {
         this.db = db;
         this.query = query;
         this.suffix = suffix;
         this.decompositionOptions = decompositionOptions;
         this.queryTimeout = timeout;
         this.run = run;
+        this.dbSize = dbSize;
     }
 
     public String getDb() {
@@ -68,6 +70,14 @@ public class BenchmarkConf {
 
     public void setRun(Integer run) {
         this.run = run;
+    }
+
+    public Integer getDbSize() {
+        return dbSize;
+    }
+
+    public void setDbSize(Integer dbSize) {
+        this.dbSize = dbSize;
     }
 
     public Boolean getSkipRows() {

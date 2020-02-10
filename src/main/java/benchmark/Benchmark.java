@@ -168,7 +168,6 @@ public class Benchmark {
 
         // Try with resources to close each connection. Otherwise memory leaks might occur
         try (Connection conn = DriverManager.getConnection(dbURL, connectionProperties)) {
-
             File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
             File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
 
@@ -178,7 +177,7 @@ public class Benchmark {
             // Run create.sh
             ProcessBuilder pb = new ProcessBuilder();
 
-            pb.command(createFile.getAbsolutePath());
+            pb.command(createFile.getAbsolutePath(), String.format("%d", conf.getDbSize()));
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(pb.start().getInputStream()));
 
@@ -281,7 +280,7 @@ public class Benchmark {
         }
     }
 
-    private List<BenchmarkConf> generateBenchmarkConfigs() {
+    private List<BenchmarkConf> generateBenchmarkConfigs() throws IOException {
         LinkedList<BenchmarkConf> confs = new LinkedList<>();
 
         DecompositionOptions detkdecompOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.DETKDECOMP);
@@ -293,19 +292,32 @@ public class Benchmark {
         for (File subdir : subdirs) {
             String dbName = subdir.getName();
 
+            int minDBSize = 1;
+            int maxDBSize = 1;
+            File confFile = new File(dbRootDir + "/" + dbName + "/config.json");
+            if (confFile.exists()) {
+                Gson gson = new Gson();
+                String confJSONString = Files.lines(confFile.toPath()).collect(Collectors.joining(""));
+                DBGenConfig dbGenConfig = gson.fromJson(confJSONString, DBGenConfig.class);
+                minDBSize = dbGenConfig.getDbSizeMin();
+                maxDBSize = dbGenConfig.getDbSizeMax();
+            }
+
             if (dbDir == null || dbName.equals(dbDir)) {
                 File[] sqlFiles = subdir.listFiles(file -> file.getName().endsWith(".sql") && !file.getName().equals("create.sql"));
 
                 if (sqlFiles != null) {
                     for (File file : sqlFiles) {
-                        for (int i = 1; i <= runs; i++) {
-                            if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
-                                confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d", i),
-                                        detkdecompOptions, DEFAULT_TIMEOUT, i));
-                            }
-                            if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
-                                confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d", i),
-                                        balancedGoOptions, DEFAULT_TIMEOUT, i));
+                        for (int size = minDBSize; size <= maxDBSize; size++) {
+                            for (int run = 1; run <= runs; run++) {
+                                if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
+                                    confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
+                                            detkdecompOptions, DEFAULT_TIMEOUT, run, size));
+                                }
+                                if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
+                                    confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
+                                            balancedGoOptions, DEFAULT_TIMEOUT, run, size));
+                                }
                             }
                         }
                     }
@@ -317,18 +329,18 @@ public class Benchmark {
     }
 
     public void run() {
+        try {
         List<BenchmarkConf> confs = generateBenchmarkConfigs();
 
         for (BenchmarkConf conf : confs) {
-            try {
                 benchmark(conf);
 
                 // Do garbage collection because otherwise the benchmark crashes due to OOM ...
                 System.gc();
                 System.runFinalization();
-            } catch (SQLException | IOException | QueryConversionException e) {
-                System.out.println("Error benchmarking: " + e.getMessage());
-            }
+        }
+        } catch (SQLException | IOException | QueryConversionException e) {
+            System.out.println("Error benchmarking: " + e.getMessage());
         }
     }
 
