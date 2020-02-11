@@ -1,4 +1,10 @@
 {
-  "dbSizeMin": 10,
-  "dbSizeMax": 15
+  "*": {
+    "dbSizeMin": 2,
+    "dbSizeMax": 5
+  },
+  "problematic.sql": {
+    "dbSizeMin": 10,
+    "dbSizeMax": 25
+  }
 }

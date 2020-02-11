@@ -2,6 +2,7 @@ package benchmark;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import exceptions.QueryConversionException;
 import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
@@ -11,6 +12,7 @@ import queryexecutor.UnoptimizedQueryExecutor;
 import queryexecutor.ViewQueryExecutor;
 
 import java.io.*;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
@@ -293,15 +295,24 @@ public class Benchmark {
         for (File subdir : subdirs) {
             String dbName = subdir.getName();
 
-            int minDBSize = 1;
-            int maxDBSize = 1;
+            int defaultMinDBSize = 1;
+            int defaultMaxDBSize = 1;
+            Map<String, DBGenConfig> dbGenSizeMap = new HashMap<>();
+
             File confFile = new File(dbRootDir + "/" + dbName + "/config.json");
             if (confFile.exists()) {
                 Gson gson = new Gson();
                 String confJSONString = Files.lines(confFile.toPath()).collect(Collectors.joining(""));
-                DBGenConfig dbGenConfig = gson.fromJson(confJSONString, DBGenConfig.class);
-                minDBSize = dbGenConfig.getDbSizeMin();
-                maxDBSize = dbGenConfig.getDbSizeMax();
+
+                Type dbGenMapType = (new TypeToken<Map<String, DBGenConfig>>() {}).getType();
+
+                dbGenSizeMap = gson.fromJson(confJSONString, dbGenMapType);
+
+                // Set the default size (if specified), otherwise it is 1
+                if (dbGenSizeMap.containsKey("*")) {
+                    defaultMinDBSize = dbGenSizeMap.get("*").getDbSizeMin();
+                    defaultMaxDBSize = dbGenSizeMap.get("*").getDbSizeMax();
+                }
             }
 
             if (dbDir == null || dbName.equals(dbDir)) {
@@ -309,6 +320,18 @@ public class Benchmark {
 
                 if (sqlFiles != null) {
                     for (File file : sqlFiles) {
+                        String fileName = file.getName();
+
+                        int minDBSize = defaultMinDBSize;
+                        int maxDBSize = defaultMaxDBSize;
+
+                        // Set the specific db size for the query if specified
+                        if (dbGenSizeMap.containsKey(fileName)) {
+                            DBGenConfig dbGenConfig = dbGenSizeMap.get(fileName);
+                            minDBSize = dbGenConfig.getDbSizeMin();
+                            maxDBSize = dbGenConfig.getDbSizeMax();
+                        }
+
                         for (int size = minDBSize; size <= maxDBSize; size++) {
                             for (int run = 1; run <= runs; run++) {
                                 if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {

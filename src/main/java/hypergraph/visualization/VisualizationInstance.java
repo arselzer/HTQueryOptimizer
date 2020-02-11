@@ -20,7 +20,6 @@ public class VisualizationInstance {
     private static double NEW_POINT_RADIUS = 6;
     private static int MAX_POINT_TRIES = 100;
     Set<String> nodeNames = new HashSet<>();
-    ;
     Set<Node2D> nodes = new HashSet<>();
     HashMap<String, Node2D> nodesByName = new HashMap<>();
     List<Edge2D> edges = new LinkedList<>();
