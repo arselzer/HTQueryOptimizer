@@ -32,6 +32,7 @@ public class Benchmark {
     // Use detkdecomp per default
     private Set<DecompositionOptions.DecompAlgorithm> decompAlgorithms
             = new HashSet<>(List.of(DecompositionOptions.DecompAlgorithm.DETKDECOMP));
+    private Set<String> queries = null;
     private List<BenchmarkResult> results = new LinkedList<>();
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
@@ -51,28 +52,37 @@ public class Benchmark {
         decompAlgorithms = new HashSet<>(decompAlgos);
     }
 
+    public void setQueries(Set<String> queries) {
+        this.queries = queries;
+    }
+
     public void setRuns(int runs) {
         this.runs = runs;
     }
 
     public static void main(String[] args) {
         Options options = new Options();
+
         Option setDb = new Option("d", "db", true, "test db");
         Option setTimeout = new Option("t", "timeout", true, "set query timeout");
         setTimeout.setType(Integer.class);
         Option setRuns = new Option("r", "runs", true, "set runs");
-        Option setDecompositionAlgos = new Option("m", "methods", true, "set decomposition method");
         setRuns.setType(Integer.class);
+        Option setDecompositionAlgos = new Option("m", "methods", true, "set decomposition method");
+        Option setQueries = new Option("q", "queries", true, "set queries");
+
         options.addOption(setDb);
         options.addOption(setTimeout);
         options.addOption(setRuns);
         options.addOption(setDecompositionAlgos);
+        options.addOption(setQueries);
+
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
         try {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
-            e.printStackTrace();
+            System.err.print("Error parsing arguments:" + e.getMessage());
             System.exit(1);
         }
 
@@ -103,6 +113,11 @@ public class Benchmark {
                         map(DecompositionOptions.DecompAlgorithm::valueOf)
                         .collect(Collectors.toList()));
             }
+            if (cmd.hasOption("queries")) {
+                String[] queries = cmd.getOptionValue("queries").split(",");
+                benchmark.setQueries(Set.of(queries));
+            }
+
             benchmark.run();
 
             File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
@@ -166,7 +181,8 @@ public class Benchmark {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
         BenchmarkResult result = new BenchmarkResult(conf);
-        System.out.printf("Benchmarking %s/%s\n", dbFileName, queryFileName);
+        System.out.printf("Benchmarking %s/%s (size %s, run %s)\n",
+                dbFileName, queryFileName, conf.getDbSize(), conf.getRun());
 
         // Try with resources to close each connection. Otherwise memory leaks might occur
         try (Connection conn = DriverManager.getConnection(dbURL, connectionProperties)) {
@@ -322,27 +338,31 @@ public class Benchmark {
                     for (File file : sqlFiles) {
                         String fileName = file.getName();
 
-                        int minDBSize = defaultMinDBSize;
-                        int maxDBSize = defaultMaxDBSize;
+                        if (queries == null || queries.contains(fileName)) {
 
-                        // Set the specific db size for the query if specified
-                        if (dbGenSizeMap.containsKey(fileName)) {
-                            DBGenConfig dbGenConfig = dbGenSizeMap.get(fileName);
-                            minDBSize = dbGenConfig.getDbSizeMin();
-                            maxDBSize = dbGenConfig.getDbSizeMax();
-                        }
+                            int minDBSize = defaultMinDBSize;
+                            int maxDBSize = defaultMaxDBSize;
 
-                        for (int size = minDBSize; size <= maxDBSize; size++) {
-                            for (int run = 1; run <= runs; run++) {
-                                if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
-                                    confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
-                                            detkdecompOptions, DEFAULT_TIMEOUT, run, size));
-                                }
-                                if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
-                                    confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
-                                            balancedGoOptions, DEFAULT_TIMEOUT, run, size));
+                            // Set the specific db size for the query if specified
+                            if (dbGenSizeMap.containsKey(fileName)) {
+                                DBGenConfig dbGenConfig = dbGenSizeMap.get(fileName);
+                                minDBSize = dbGenConfig.getDbSizeMin();
+                                maxDBSize = dbGenConfig.getDbSizeMax();
+                            }
+
+                            for (int size = minDBSize; size <= maxDBSize; size++) {
+                                for (int run = 1; run <= runs; run++) {
+                                    if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
+                                        confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
+                                                detkdecompOptions, DEFAULT_TIMEOUT, run, size));
+                                    }
+                                    if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
+                                        confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
+                                                balancedGoOptions, DEFAULT_TIMEOUT, run, size));
+                                    }
                                 }
                             }
+
                         }
                     }
                 }

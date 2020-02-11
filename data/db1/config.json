@@ -5,6 +5,10 @@
   },
   "problematic.sql": {
     "dbSizeMin": 10,
-    "dbSizeMax": 25
+    "dbSizeMax": 20
+  },
+  "triangle-star.sql":{
+    "dbSizeMin": 5,
+    "dbSizeMax": 20
   }
 }
