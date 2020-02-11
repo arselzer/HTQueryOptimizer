@@ -183,6 +183,7 @@ public class Benchmark {
 
             // Wait for psql to finish otherwise tables might be missing
             List<String> psqlOutput = reader.lines().collect(Collectors.toList());
+            System.out.println(String.join(" ",psqlOutput));
 
             QueryExecutor originalQE = null;
             ViewQueryExecutor optimizedQE = null;

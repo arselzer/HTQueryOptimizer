@@ -6,6 +6,7 @@ public class SummarizedResultsCSVGenerator {
             "db",
             "query",
             "algorithm",
+            "size",
             "run",
             "origRuntime",
             "optQueryRuntime",
@@ -28,6 +29,7 @@ public class SummarizedResultsCSVGenerator {
         csv += result.getConf().getDb() + "," +
                 result.getConf().getQuery() + "," +
                 result.getConf().getDecompositionOptions().getAlgorithm().name() + "," +
+                result.getConf().getDbSize() + "," +
                 result.getConf().getRun() + "," +
                 result.getUnoptimizedRuntime() + "," +
                 result.getOptimizedQueryRuntime() + "," +
