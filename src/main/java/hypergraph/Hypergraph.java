@@ -207,7 +207,7 @@ public class Hypergraph {
                 Process process = new ProcessBuilder("BalancedGo",
                         "-width", hypertreeWidth + "", "-graph",
                         hgFile.getAbsolutePath().toString(),
-                        "-choice", "5", "-gml", htFileName).start();
+                        "-balDet", "1", "-gml", htFileName).start();
 
                 BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
 

@@ -13,7 +13,7 @@ public class DecompositionOptions {
     }
 
     public DecompositionOptions() {
-        this.algorithm = DecompAlgorithm.DETKDECOMP;
+        this.algorithm = DecompAlgorithm.BALANCEDGO;
     }
 
     public DecompAlgorithm getAlgorithm() {
