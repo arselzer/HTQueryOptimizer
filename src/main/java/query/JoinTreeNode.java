@@ -130,6 +130,12 @@ public class JoinTreeNode {
         return max + 1;
     }
 
+    public int getNumberOfNodes() {
+        return 1 + successors.stream()
+                .map(JoinTreeNode::getNumberOfNodes)
+                .reduce(0, Integer::sum);
+    }
+
     public List<JoinTreeNode> getSuccessors() {
         return successors;
     }

@@ -15,6 +15,8 @@ public class SummarizedResultsCSVGenerator {
             "optRows",
             "origCols",
             "optCols",
+            "treeHeight",
+            "treeNodes",
             "origTimeout",
             "optTimeout",
     };
@@ -38,6 +40,8 @@ public class SummarizedResultsCSVGenerator {
                 result.getOptimizedRows() + "," +
                 result.getUnoptimizedColumns() + "," +
                 result.getOptimizedColumns() + "," +
+                result.getJoinTree().getHeight() + "," +
+                result.getJoinTree().getNumberOfNodes() + "," +
                 (result.isUnoptimizedQueryTimeout() ? 1 : 0) + "," +
                 (result.isOptimizedQueryTimeout() ? 1 : 0) + "," +
                 "\n";

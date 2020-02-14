@@ -8,7 +8,7 @@
     "dbSizeMax": 20
   },
   "triangle-star.sql":{
-    "dbSizeMin": 5,
-    "dbSizeMax": 20
+    "dbSizeMin": 20,
+    "dbSizeMax": 22
   }
 }
