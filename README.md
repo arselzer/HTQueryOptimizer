@@ -3,23 +3,23 @@
 ## Dependencies
 
 * Java 10+ and maven
-* Python 3
-* A postgresql database
+* Python 3 (benchmark)
+* A postgresql database (benchmark)
 
 ## Installation, build and setup
 
 1) Install BalancedGo (https://github.com/cem-okulmus/BalancedGo)
-* `git clone https://github.com/cem-okulmus/BalancedGo.git && cd BalancedGo &&make`
+* `git clone https://github.com/cem-okulmus/BalancedGo.git && cd BalancedGo && make`
 * Copy the files from bin/ into some location in $PATH
 2) Run `mvn package`
-3) Create a database `testdb` in postgresql as well as a user `test
+3) Create a database `testdb` in postgresql as well as a user `test`:
 ```sql
 create database testdb;
 create user test with password 'test';
 grant all privileges on database testdb to test;
 ```
 
-## Running
+## Running the benchmark
 
 To run the benchmark, use `java -Xmx22G -cp "target/HTQueryOptimizer-1.0-SNAPSHOT.jar" "benchmark.Benchmark" [args]`
 

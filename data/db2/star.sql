@@ -1,4 +1,4 @@
-select *
+select t1.a, t1.b, t3.b, t5.b, t6.b, t8.b
 from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11
 where t1.a = t2.a
 and t2.a = t3.a

@@ -11,5 +11,3 @@ create table t8 (a integer, b integer);
 create table t9 (a integer, b integer);
 create table t10 (a integer, b integer);
 create table t11 (a integer, b integer);
-
---copy t1 from 't1.csv' with (format csv);

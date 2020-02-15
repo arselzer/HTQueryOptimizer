@@ -1,4 +1,4 @@
-SELECT *
+SELECT t1.a, t2.b, t4.b, t5.b
 FROM t1, t2, t3, t4, t5, t6, t7, t8
 WHERE t1.a = t2.a
 AND t2.a = t3.a
