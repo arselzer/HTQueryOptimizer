@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 
 public class Benchmark {
     private static int DEFAULT_TIMEOUT = 25;
+    private int queryTimeout = DEFAULT_TIMEOUT;
     private String dbRootDir;
     private String dbDir = null;
     private Properties connectionProperties;
@@ -34,6 +35,7 @@ public class Benchmark {
             = new HashSet<>(List.of(DecompositionOptions.DecompAlgorithm.DETKDECOMP));
     private Set<String> queries = null;
     private List<BenchmarkResult> results = new LinkedList<>();
+    private boolean checkCorrectness = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -60,6 +62,14 @@ public class Benchmark {
         this.runs = runs;
     }
 
+    public void setQueryTimeout(int timeout) {
+        this.queryTimeout = timeout;
+    }
+
+    public void setCheckCorrectness(boolean checkCorrectness) {
+        this.checkCorrectness = checkCorrectness;
+    }
+
     public static void main(String[] args) {
         Options options = new Options();
 
@@ -70,12 +80,14 @@ public class Benchmark {
         setRuns.setType(Integer.class);
         Option setDecompositionAlgos = new Option("m", "methods", true, "set decomposition method");
         Option setQueries = new Option("q", "queries", true, "set queries");
+        Option setCheckCorrectness = new Option("c", "check", false, "check correctness of optimized query");
 
         options.addOption(setDb);
         options.addOption(setTimeout);
         options.addOption(setRuns);
         options.addOption(setDecompositionAlgos);
         options.addOption(setQueries);
+        options.addOption(setCheckCorrectness);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -93,7 +105,6 @@ public class Benchmark {
         Properties properties = new Properties();
         properties.setProperty("user", user);
         properties.setProperty("password", password);
-        //properties.setProperty("ssl", "true");
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
@@ -116,6 +127,12 @@ public class Benchmark {
             if (cmd.hasOption("queries")) {
                 String[] queries = cmd.getOptionValue("queries").split(",");
                 benchmark.setQueries(Set.of(queries));
+            }
+            if (cmd.hasOption("timeout")) {
+                benchmark.setQueryTimeout(Integer.parseInt(cmd.getOptionValue("timeout")));
+            }
+            if (cmd.hasOption("check")) {
+                benchmark.setCheckCorrectness(true);
             }
 
             benchmark.run();
@@ -224,6 +241,8 @@ public class Benchmark {
 
             /** Execute optimized query **/
 
+            HashMap<String, Integer> optimizedRowCount = new HashMap<>();
+
             ResultSet optimizedRS = null;
             try {
                 conn.prepareStatement("vacuum analyze;").execute();
@@ -233,20 +252,29 @@ public class Benchmark {
                 result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
                 result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
 
+                ResultSetMetaData metaData = optimizedRS.getMetaData();
+                int colCount = metaData.getColumnCount();
+                result.setOptimizedColumns(colCount);
+
                 int optimizedCount = 0;
-                if (conf.getSkipRows()) {
+                if (!checkCorrectness) {
                     optimizedRS.last();
                     optimizedCount = optimizedRS.getRow();
                 }
                 else {
                     while (optimizedRS.next()) {
+                        String row = "";
+                        for (int i = 1; i <= colCount; i++) {
+                            row += optimizedRS.getString(i) + ",";
+                        }
+                        optimizedRowCount.putIfAbsent(row, 1);
+                        optimizedRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
+
                         optimizedCount++;
                     }
                 }
 
                 result.setOptimizedRows(optimizedCount);
-                ResultSetMetaData metaData = optimizedRS.getMetaData();
-                result.setOptimizedColumns(metaData.getColumnCount());
 
                 // Close the resultSet to close the PreparedStatement such that no memory is leaked
                 optimizedRS.close();
@@ -257,12 +285,15 @@ public class Benchmark {
                 System.err.println("Table not found: " + e.getMessage());
             }
 
+            //System.out.println(optimizedRowCount.keySet());
+
             result.setHypergraph(optimizedQE.getHypergraph());
             result.setJoinTree(optimizedQE.getJoinTree());
             result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
 
             /** Execute original query **/
 
+            HashMap<String, Integer> originalRowCount = new HashMap<>();
             ResultSet originalRS = null;
             try {
                 conn.prepareStatement("vacuum analyze;").execute();
@@ -270,22 +301,29 @@ public class Benchmark {
                 originalRS = originalQE.execute(query);
                 result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
 
+                ResultSetMetaData metaData = originalRS.getMetaData();
+                int colCount = metaData.getColumnCount();
+                result.setUnoptimizedColumns(colCount);
+
                 int originalCount = 0;
-                if (conf.getSkipRows()) {
+                if (!checkCorrectness) {
                     originalRS.last();
                     originalCount = originalRS.getRow();
                 }
                 else {
                     while (originalRS.next()) {
+                        String row = "";
+                        for (int i = 1; i <= colCount; i++) {
+                            row += originalRS.getString(i) + ",";
+                        }
+                        originalRowCount.putIfAbsent(row, 1);
+                        originalRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
+
                         originalCount++;
                     }
                 }
 
                 result.setUnoptimizedRows(originalCount);
-
-
-                ResultSetMetaData metaData = originalRS.getMetaData();
-                result.setUnoptimizedColumns(metaData.getColumnCount());
 
                 originalRS.close();
             } catch (SQLException e) {
@@ -294,6 +332,20 @@ public class Benchmark {
             } catch (TableNotFoundException e) {
                 System.err.println("Table not found: " + e.getMessage());
             }
+
+            // Check if all rows occur the same number of times
+            boolean correctResult = true;
+
+            for (String key : optimizedRowCount.keySet()) {
+                int optCount = optimizedRowCount.get(key);
+                int origCount = originalRowCount.get(key);
+                if (optCount != origCount) {
+                    correctResult = false;
+                    System.err.printf("Row counts of row %s do not match: %s (orig) vs %s (opt)\n", key, origCount, optCount);
+                }
+            }
+
+            result.setOptimizedResultCorrect(correctResult);
 
             results.add(result);
         }
@@ -339,7 +391,6 @@ public class Benchmark {
                         String fileName = file.getName();
 
                         if (queries == null || queries.contains(fileName)) {
-
                             int minDBSize = defaultMinDBSize;
                             int maxDBSize = defaultMaxDBSize;
 
@@ -354,15 +405,14 @@ public class Benchmark {
                                 for (int run = 1; run <= runs; run++) {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
-                                                detkdecompOptions, DEFAULT_TIMEOUT, run, size));
+                                                detkdecompOptions, queryTimeout, run, size));
                                     }
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
-                                                balancedGoOptions, DEFAULT_TIMEOUT, run, size));
+                                                balancedGoOptions, queryTimeout, run, size));
                                     }
                                 }
                             }
-
                         }
                     }
                 }

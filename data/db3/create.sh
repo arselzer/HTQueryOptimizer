@@ -12,16 +12,6 @@ for table in "${tables[@]}"; do
   psql -U test -d testdb -c "create table $table (a integer, b integer);";
 done;
 
-#psql -U test -d testdb -f create.sql
 for table in "${tables[@]}"; do
   psql -U test -d testdb -c "\copy $table from '${path}/z.csv' with (format csv, header true, delimiter ',') ";
 done;
-
-#for table in t1 t2; do
-#  psql -U test -d testdb -c "\copy $table from 't2.csv' with (format csv, header true, delimiter ',') ";
-#done;
-#
-#for table in t7; do
-#  psql -U test -d testdb -c "\copy $table from 'verylarge.csv' with (format csv, header true, delimiter ',') ";
-#done;
-#

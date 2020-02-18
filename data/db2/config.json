@@ -1,6 +1,10 @@
 {
   "*": {
     "dbSizeMin": 1,
-    "dbSizeMax": 10
+    "dbSizeMax": 7
+  },
+  "chain.sql": {
+    "dbSizeMin": 2,
+    "dbSizeMax": 2
   }
 }

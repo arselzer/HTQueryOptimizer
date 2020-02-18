@@ -18,6 +18,7 @@ public class ViewQueryExecutor implements QueryExecutor {
     private Connection connection;
     private DBSchema schema;
     private DecompositionOptions decompositionOptions;
+    private SQLQuery sqlQuery;
 
     private long queryRunningTime;
     private Hypergraph hypergraph;
@@ -51,7 +52,7 @@ public class ViewQueryExecutor implements QueryExecutor {
 
     @Override
     public ResultSet execute(String queryStr) throws SQLException, QueryConversionException, TableNotFoundException {
-        SQLQuery sqlQuery = new SQLQuery(queryStr, schema);
+        sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
         //System.out.println(sqlQuery.toHypergraph());
 
@@ -107,6 +108,10 @@ public class ViewQueryExecutor implements QueryExecutor {
 
     public JoinTreeNode getJoinTree() {
         return joinTree;
+    }
+
+    public SQLQuery getQuery() {
+        return sqlQuery;
     }
 
     public String getGeneratedFunction() {

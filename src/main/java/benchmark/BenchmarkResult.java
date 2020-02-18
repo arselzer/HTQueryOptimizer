@@ -11,6 +11,7 @@ public class BenchmarkResult {
 
     private boolean optimizedQueryTimeout = false;
     private boolean unoptimizedQueryTimeout = false;
+    private boolean optimizedResultCorrect = true;
 
     private int unoptimizedColumns;
     private int optimizedColumns;
@@ -120,6 +121,14 @@ public class BenchmarkResult {
         return optimizedQueryTimeout;
     }
 
+    public boolean isOptimizedResultCorrect() {
+        return optimizedResultCorrect;
+    }
+
+    public void setOptimizedResultCorrect(boolean optimizedResultCorrect) {
+        this.optimizedResultCorrect = optimizedResultCorrect;
+    }
+
     public void setOptimizedQueryTimeout(boolean optimizedQueryTimeout) {
         this.optimizedQueryTimeout = optimizedQueryTimeout;
     }
@@ -141,7 +150,6 @@ public class BenchmarkResult {
     }
 
 
-
     @Override
     public String toString() {
         return "BenchmarkResult{" +
@@ -149,10 +157,17 @@ public class BenchmarkResult {
                 ", unoptimizedRuntime=" + unoptimizedRuntime +
                 ", optimizedTotalRuntime=" + optimizedTotalRuntime +
                 ", optimizedQueryRuntime=" + optimizedQueryRuntime +
+                ", optimizedQueryTimeout=" + optimizedQueryTimeout +
+                ", unoptimizedQueryTimeout=" + unoptimizedQueryTimeout +
+                ", optimizedResultCorrect=" + optimizedResultCorrect +
+                ", unoptimizedColumns=" + unoptimizedColumns +
+                ", optimizedColumns=" + optimizedColumns +
                 ", unoptimizedRows=" + unoptimizedRows +
                 ", optimizedRows=" + optimizedRows +
                 ", hypergraph=" + hypergraph +
                 ", joinTree=" + joinTree +
+                ", query='" + query + '\'' +
+                ", generatedQuery='" + generatedQuery + '\'' +
                 '}';
     }
 }

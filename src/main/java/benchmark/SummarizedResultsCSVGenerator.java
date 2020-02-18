@@ -19,6 +19,7 @@ public class SummarizedResultsCSVGenerator {
             "treeNodes",
             "origTimeout",
             "optTimeout",
+            "correct"
     };
 
     private String csv = "";
@@ -44,6 +45,7 @@ public class SummarizedResultsCSVGenerator {
                 result.getJoinTree().getNumberOfNodes() + "," +
                 (result.isUnoptimizedQueryTimeout() ? 1 : 0) + "," +
                 (result.isOptimizedQueryTimeout() ? 1 : 0) + "," +
+                (result.isOptimizedResultCorrect() ? 1 : 0) +
                 "\n";
 
     }

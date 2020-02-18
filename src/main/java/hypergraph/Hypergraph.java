@@ -154,12 +154,15 @@ public class Hypergraph {
 
         JoinTreeNode tree = toJoinTree(1, options);
         while (tree == null) {
-            //System.out.printf("Hypertree of width %d not found\n", hypertreeWidth);;
             hypertreeWidth++;
             tree = toJoinTree(hypertreeWidth, options);
         }
 
         return tree;
+    }
+
+    public List<JoinTreeNode> getRandomJoinTrees(int n) {
+        return new LinkedList<>();
     }
 
     public JoinTreeNode toJoinTree(int hypertreeWidth, DecompositionOptions options) throws JoinTreeGenerationException {
