@@ -8,9 +8,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public interface QueryExecutor {
-    public void setTimeout(int n);
+    void setTimeout(int n);
 
-    public ResultSet execute(PreparedStatement preparedStatement) throws SQLException, QueryConversionException, TableNotFoundException;
+    ResultSet execute(PreparedStatement preparedStatement) throws SQLException, QueryConversionException, TableNotFoundException;
 
-    public ResultSet execute(String query) throws SQLException, QueryConversionException, TableNotFoundException;
+    ResultSet execute(String query) throws SQLException, QueryConversionException, TableNotFoundException;
 }

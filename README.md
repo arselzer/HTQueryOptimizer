@@ -30,3 +30,4 @@ To run the benchmark, use `java -Xmx22G -cp "target/HTQueryOptimizer-1.0-SNAPSHO
 * **-d db** set the database(s), default: all
 * **-q query** set the queries, default: all
 * **-r runs** set how often to do the benchmark for more reliable data, default: 1
+* **-c** check if the rows are equivalent in the original and optimized query i.e. each row occurs the same number of times

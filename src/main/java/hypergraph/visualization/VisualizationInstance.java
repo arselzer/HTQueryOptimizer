@@ -410,7 +410,7 @@ public class VisualizationInstance {
         process.waitFor(2, TimeUnit.SECONDS);
 
         Path src = Paths.get(tempDir.toAbsolutePath().toString() + "/" +
-                latexSourceFile.getName().toString().replace(".tex", ".pdf"));
+                latexSourceFile.getName().replace(".tex", ".pdf"));
 
         return src;
     }

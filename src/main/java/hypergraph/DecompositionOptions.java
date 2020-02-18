@@ -1,11 +1,6 @@
 package hypergraph;
 
 public class DecompositionOptions {
-    public static enum DecompAlgorithm {
-        DETKDECOMP,
-        BALANCEDGO
-    }
-
     private DecompAlgorithm algorithm;
 
     public DecompositionOptions(DecompAlgorithm algorithm) {
@@ -22,5 +17,10 @@ public class DecompositionOptions {
 
     public void setAlgorithm(DecompAlgorithm algorithm) {
         this.algorithm = algorithm;
+    }
+
+    public enum DecompAlgorithm {
+        DETKDECOMP,
+        BALANCEDGO
     }
 }

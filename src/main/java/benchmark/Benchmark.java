@@ -17,8 +17,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
 import java.text.SimpleDateFormat;
-import java.util.*;
 import java.util.Date;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Benchmark {
@@ -48,26 +48,6 @@ public class Benchmark {
         this.connectionProperties = connectionProperties;
         this.dbURL = dbURL;
         this.dbDir = db;
-    }
-
-    public void setDecompAlgorithms(List<DecompositionOptions.DecompAlgorithm> decompAlgos) {
-        decompAlgorithms = new HashSet<>(decompAlgos);
-    }
-
-    public void setQueries(Set<String> queries) {
-        this.queries = queries;
-    }
-
-    public void setRuns(int runs) {
-        this.runs = runs;
-    }
-
-    public void setQueryTimeout(int timeout) {
-        this.queryTimeout = timeout;
-    }
-
-    public void setCheckCorrectness(boolean checkCorrectness) {
-        this.checkCorrectness = checkCorrectness;
     }
 
     public static void main(String[] args) {
@@ -147,7 +127,7 @@ public class Benchmark {
 
                 BenchmarkConf conf = res.getConf();
 
-                File subResultsDir = new File(resultsDirectory.getAbsolutePath().toString() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
+                File subResultsDir = new File(resultsDirectory.getAbsolutePath() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
                 subResultsDir.mkdirs();
 
                 File hypergraphFile = new File(subResultsDir + "/hypergraph.dtl");
@@ -194,6 +174,26 @@ public class Benchmark {
         }
     }
 
+    public void setDecompAlgorithms(List<DecompositionOptions.DecompAlgorithm> decompAlgos) {
+        decompAlgorithms = new HashSet<>(decompAlgos);
+    }
+
+    public void setQueries(Set<String> queries) {
+        this.queries = queries;
+    }
+
+    public void setRuns(int runs) {
+        this.runs = runs;
+    }
+
+    public void setQueryTimeout(int timeout) {
+        this.queryTimeout = timeout;
+    }
+
+    public void setCheckCorrectness(boolean checkCorrectness) {
+        this.checkCorrectness = checkCorrectness;
+    }
+
     private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
@@ -218,7 +218,7 @@ public class Benchmark {
 
             // Wait for psql to finish otherwise tables might be missing
             List<String> psqlOutput = reader.lines().collect(Collectors.toList());
-            System.out.println(String.join(" ",psqlOutput));
+            System.out.println(String.join(" ", psqlOutput));
 
             QueryExecutor originalQE = null;
             ViewQueryExecutor optimizedQE = null;
@@ -260,8 +260,7 @@ public class Benchmark {
                 if (!checkCorrectness) {
                     optimizedRS.last();
                     optimizedCount = optimizedRS.getRow();
-                }
-                else {
+                } else {
                     while (optimizedRS.next()) {
                         String row = "";
                         for (int i = 1; i <= colCount; i++) {
@@ -309,8 +308,7 @@ public class Benchmark {
                 if (!checkCorrectness) {
                     originalRS.last();
                     originalCount = originalRS.getRow();
-                }
-                else {
+                } else {
                     while (originalRS.next()) {
                         String row = "";
                         for (int i = 1; i <= colCount; i++) {
@@ -372,7 +370,8 @@ public class Benchmark {
                 Gson gson = new Gson();
                 String confJSONString = Files.lines(confFile.toPath()).collect(Collectors.joining(""));
 
-                Type dbGenMapType = (new TypeToken<Map<String, DBGenConfig>>() {}).getType();
+                Type dbGenMapType = (new TypeToken<Map<String, DBGenConfig>>() {
+                }).getType();
 
                 dbGenSizeMap = gson.fromJson(confJSONString, dbGenMapType);
 
@@ -424,15 +423,15 @@ public class Benchmark {
 
     public void run() {
         try {
-        List<BenchmarkConf> confs = generateBenchmarkConfigs();
+            List<BenchmarkConf> confs = generateBenchmarkConfigs();
 
-        for (BenchmarkConf conf : confs) {
+            for (BenchmarkConf conf : confs) {
                 benchmark(conf);
 
                 // Do garbage collection because otherwise the benchmark crashes due to OOM ...
                 System.gc();
                 System.runFinalization();
-        }
+            }
         } catch (SQLException | IOException | QueryConversionException e) {
             System.out.println("Error benchmarking: " + e.getMessage());
         }

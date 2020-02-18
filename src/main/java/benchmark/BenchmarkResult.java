@@ -121,16 +121,16 @@ public class BenchmarkResult {
         return optimizedQueryTimeout;
     }
 
+    public void setOptimizedQueryTimeout(boolean optimizedQueryTimeout) {
+        this.optimizedQueryTimeout = optimizedQueryTimeout;
+    }
+
     public boolean isOptimizedResultCorrect() {
         return optimizedResultCorrect;
     }
 
     public void setOptimizedResultCorrect(boolean optimizedResultCorrect) {
         this.optimizedResultCorrect = optimizedResultCorrect;
-    }
-
-    public void setOptimizedQueryTimeout(boolean optimizedQueryTimeout) {
-        this.optimizedQueryTimeout = optimizedQueryTimeout;
     }
 
     public boolean isUnoptimizedQueryTimeout() {

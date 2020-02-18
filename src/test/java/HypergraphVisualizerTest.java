@@ -1,12 +1,10 @@
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;
 import org.junit.jupiter.api.Test;
-import queryexecutor.ViewQueryExecutor;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 class HypergraphVisualizerTest {
     @Test

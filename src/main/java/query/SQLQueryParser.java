@@ -143,8 +143,7 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
         if (alias != null) {
             tables.add(alias.getName());
             aliases.put(alias.getName(), table.getName());
-        }
-        else {
+        } else {
             tables.add(table.getName());
             aliases.put(table.getName(), table.getName());
         }

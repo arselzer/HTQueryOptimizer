@@ -5,42 +5,42 @@ import java.util.List;
 
 public interface Predicate extends Iterable<String> {
 
-	PredicateDefinition getPredicateDefinition();
+    PredicateDefinition getPredicateDefinition();
 
-	String getPredicateName();
-	
-	int arity();
+    String getPredicateName();
 
-	void setAlias(String alias);
+    int arity();
 
-	String getAlias();
+    String getAlias();
 
-	void setAttributeAlias(String attr, String alias);
+    void setAlias(String alias);
 
-	String getAttributeAlias(String attr);
+    void setAttributeAlias(String attr, String alias);
 
-	String getOriginalAttribute(String alias);
+    String getAttributeAlias(String attr);
 
-	boolean existsAttribute(String attr);
+    String getOriginalAttribute(String alias);
 
-	// PredicateComponent
+    boolean existsAttribute(String attr);
 
-	void addDefiningPredicate(Predicate pred);
+    // PredicateComponent
 
-	Collection<Predicate> getDefiningPredicates();
+    void addDefiningPredicate(Predicate pred);
 
-	void defineAttribute(String viewAttr, String defPred, String defAttr);
+    Collection<Predicate> getDefiningPredicates();
 
-	String getDefiningAttribute(String viewAttr);
+    void defineAttribute(String viewAttr, String defPred, String defAttr);
 
-	void addJoin(String pred1, String attr1, String pred2, String attr2);
+    String getDefiningAttribute(String viewAttr);
 
-	List<Equality> getJoins();
+    void addJoin(String pred1, String attr1, String pred2, String attr2);
 
-	default void addDefiningPredicates(Predicate... preds) {
-		for (Predicate pred : preds) {
-			addDefiningPredicate(pred);
-		}
-	}
+    List<Equality> getJoins();
+
+    default void addDefiningPredicates(Predicate... preds) {
+        for (Predicate pred : preds) {
+            addDefiningPredicate(pred);
+        }
+    }
 
 }

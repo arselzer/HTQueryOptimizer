@@ -52,28 +52,6 @@ public class SQLQuery {
         decompositionOptions = new DecompositionOptions();
     }
 
-    public void setDecompositionOptions(DecompositionOptions decompositionOptions) {
-        this.decompositionOptions = decompositionOptions;
-    }
-
-    /**
-     * Class to keep track of tables and views to drop (in the correct order)
-     */
-    private class DropStatements {
-        private LinkedList<String> dropStrings = new LinkedList<>();
-
-        public void dropTable(String name) {
-            dropStrings.addFirst(String.format("DROP TABLE %s;", name));
-        }
-        public void dropView(String name) {
-            dropStrings.addFirst(String.format("DROP VIEW %s;", name));
-        }
-
-        public String toString() {
-            return String.join("\n", dropStrings);
-        }
-    }
-
     /**
      * @return a unique function name
      */
@@ -83,6 +61,7 @@ public class SQLQuery {
 
     /**
      * Can be used to alternatively read in schema creation statements
+     *
      * @param schemaString
      * @return
      * @throws QueryConversionException
@@ -114,6 +93,10 @@ public class SQLQuery {
         return result;
     }
 
+    public void setDecompositionOptions(DecompositionOptions decompositionOptions) {
+        this.decompositionOptions = decompositionOptions;
+    }
+
     private void findProjectColumnsAndAliases() throws QueryConversionException, TableNotFoundException {
         try {
             stmt = CCJSqlParserUtil.parse(query);
@@ -129,7 +112,7 @@ public class SQLQuery {
                 String realTableName = tableAliases.get(aliasTableName);
 
                 Table realTable = dbSchema.getTableByName(realTableName);
-                if (realTable == null ) {
+                if (realTable == null) {
                     throw new TableNotFoundException(String.format("Table %s not found in database", realTableName));
                 }
                 for (Column c : realTable.getColumns()) {
@@ -362,8 +345,7 @@ public class SQLQuery {
                 if (!semiJoinConditions.isEmpty()) {
                     fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(3));
                     dropStatements.dropTable(node.getIdentifier(3));
-                }
-                else {
+                } else {
                     fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
                     dropStatements.dropView(node.getIdentifier(3));
                 }
@@ -480,5 +462,24 @@ public class SQLQuery {
 
     public JoinTreeNode getJoinTree() {
         return joinTree;
+    }
+
+    /**
+     * Class to keep track of tables and views to drop (in the correct order)
+     */
+    private class DropStatements {
+        private LinkedList<String> dropStrings = new LinkedList<>();
+
+        public void dropTable(String name) {
+            dropStrings.addFirst(String.format("DROP TABLE %s;", name));
+        }
+
+        public void dropView(String name) {
+            dropStrings.addFirst(String.format("DROP VIEW %s;", name));
+        }
+
+        public String toString() {
+            return String.join("\n", dropStrings);
+        }
     }
 }

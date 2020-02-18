@@ -2,7 +2,7 @@ package benchmark;
 
 public class SummarizedResultsCSVGenerator {
 
-    private static String[] columns = new String[] {
+    private static String[] columns = new String[]{
             "db",
             "query",
             "algorithm",

@@ -1,7 +1,5 @@
 package query;
 
-import net.sf.jsqlparser.statement.select.Join;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,6 +31,7 @@ public class JoinTreeNode {
     /**
      * Removes all unnecessary intermediate columns such that the amount of data stored is reduced to
      * the minimum needed
+     *
      * @param projectColumns columns that are needed for the end result of the query
      */
     public void projectAllColumns(Collection<String> projectColumns) {
@@ -87,6 +86,7 @@ public class JoinTreeNode {
 
     /**
      * Quickly retrieves the leaf nodes of maximum depth (of the whole tree)
+     *
      * @return Leaf nodes at max depth
      */
     public Set<JoinTreeNode> getDeepestLeaves() {

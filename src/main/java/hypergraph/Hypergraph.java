@@ -2,7 +2,6 @@ package hypergraph;
 
 import exceptions.JoinTreeGenerationException;
 import hypergraph.visualization.HypergraphVisualizer;
-import net.sf.jsqlparser.statement.select.Join;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
@@ -141,6 +140,7 @@ public class Hypergraph {
 
     /**
      * Generate a join tree with default options
+     *
      * @return
      * @throws JoinTreeGenerationException
      */
@@ -192,7 +192,7 @@ public class Hypergraph {
         if (options.getAlgorithm() == DecompositionOptions.DecompAlgorithm.DETKDECOMP) {
             try {
                 Process process = new ProcessBuilder("detkdecomp", hypertreeWidth + "",
-                        hgFile.getAbsolutePath().toString()).start();
+                        hgFile.getAbsolutePath()).start();
 
                 BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
@@ -204,12 +204,11 @@ public class Hypergraph {
             } catch (IOException e) {
                 throw new JoinTreeGenerationException("Error executing detkdecomp");
             }
-        }
-        else if (options.getAlgorithm() == DecompositionOptions.DecompAlgorithm.BALANCEDGO) {
+        } else if (options.getAlgorithm() == DecompositionOptions.DecompAlgorithm.BALANCEDGO) {
             try {
                 Process process = new ProcessBuilder("BalancedGo",
                         "-width", hypertreeWidth + "", "-graph",
-                        hgFile.getAbsolutePath().toString(),
+                        hgFile.getAbsolutePath(),
                         "-balDet", "1", "-gml", htFileName).start();
 
                 BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
