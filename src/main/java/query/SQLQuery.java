@@ -180,7 +180,9 @@ public class SQLQuery {
         }
 
         // Transform project column names to hypergraph variable names
-        joinTree.projectAllColumns(projectColumns.stream().map(col -> hg.getColumnToVariableMapping().get(col)).collect(Collectors.toSet()));
+        joinTree.projectAllColumns(resultColumns.stream()
+                .map(col -> hg.getColumnToVariableMapping().get(col))
+                .collect(Collectors.toSet()));
 
         // Set up a lookup table of tables for quickly getting the variables of a hyperedge
         Map<String, Table> tablesByName = new HashMap<>();
@@ -227,11 +229,9 @@ public class SQLQuery {
 
                     // Check if there are more variables than columns -> Some columns are equivalent and
                     // a filter checking this needs to be added
-                    //System.out.println(he.getNodes().size() + " " + tablesByName.get(tableName).getColumns().size());
                     if (he.getNodes().size() < tablesByName.get(tableName).getColumns().size()) {
                         List<String> whereConditions = new LinkedList<>();
                         for (String variable : he.getNodes()) {
-                            //Map<String, List<String>> equivalentCols = hg.getInverseEquivalenceMapping().get(variable);
                             List<String> equivalentCols = hg.getInverseEquivalenceMapping().get(variable).get(tableName);
                             for (int i = 0; i < equivalentCols.size() - 1; i++) {
                                 String cur = equivalentCols.get(i);
@@ -242,8 +242,11 @@ public class SQLQuery {
                         }
 
                         // Rename the table to the table alias
-                        aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s", String.join(", ", columnRewrites),
-                                tableName, String.join(" AND ", whereConditions), tableAliasName));
+                        aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s",
+                                String.join(", ", columnRewrites),
+                                tableName,
+                                String.join(" AND ", whereConditions),
+                                tableAliasName));
                     } else {
                         aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableAliasName));
                     }
@@ -257,7 +260,9 @@ public class SQLQuery {
                     dropStatements.dropTable(node.getIdentifier(1));
                 }
 
-                fnStr += String.format("AS SELECT %s FROM %s;\n", String.join(", ", node.getAttributes()), String.join(" NATURAL INNER JOIN ", aliasedTables));
+                fnStr += String.format("AS SELECT %s FROM %s;\n",
+                        String.join(", ", node.getAttributes()),
+                        String.join(" NATURAL INNER JOIN ", aliasedTables));
             }
         }
 
