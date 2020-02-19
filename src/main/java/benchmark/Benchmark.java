@@ -337,7 +337,7 @@ public class Benchmark {
             for (String key : optimizedRowCount.keySet()) {
                 Integer optCount = optimizedRowCount.get(key);
                 Integer origCount = originalRowCount.get(key);
-                if (optCount != origCount) {
+                if (!optCount.equals(origCount)) {
                     correctResult = false;
                     System.err.printf("Row counts of row %s do not match: %s (orig) vs %s (opt)\n", key, origCount, optCount);
                 }

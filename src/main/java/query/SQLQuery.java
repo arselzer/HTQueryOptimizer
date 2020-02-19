@@ -136,6 +136,7 @@ public class SQLQuery {
     public String toFunction(String functionName) throws QueryConversionException {
         Hypergraph hg = toHypergraph();
         this.hypergraph = hg;
+
         try {
             joinTree = hg.toJoinTree(decompositionOptions);
         } catch (JoinTreeGenerationException e) {
@@ -179,9 +180,12 @@ public class SQLQuery {
             }
         }
 
+        //System.out.println("resultcols: " + resultColumns);
+        //System.out.println(hg.getColumnToVariableMapping());
+
         // Transform project column names to hypergraph variable names
         joinTree.projectAllColumns(resultColumns.stream()
-                .map(col -> hg.getColumnToVariableMapping().get(col))
+                .map(Column::getName)
                 .collect(Collectors.toSet()));
 
         // Set up a lookup table of tables for quickly getting the variables of a hyperedge

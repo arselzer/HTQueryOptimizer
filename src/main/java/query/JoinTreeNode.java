@@ -48,7 +48,6 @@ public class JoinTreeNode {
                     toKeep.addAll(successor.getAttributes());
                 }
 
-                //System.out.println(remainingAttributes + " " + toKeep);
                 remainingAttributes.retainAll(toKeep);
                 node.setAttributes(new LinkedList<>(remainingAttributes));
             }
