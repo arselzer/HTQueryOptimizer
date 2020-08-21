@@ -8,14 +8,18 @@ import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
+import net.sf.jsqlparser.statement.alter.sequence.AlterSequence;
 import net.sf.jsqlparser.statement.comment.Comment;
 import net.sf.jsqlparser.statement.create.index.CreateIndex;
+import net.sf.jsqlparser.statement.create.schema.CreateSchema;
+import net.sf.jsqlparser.statement.create.sequence.CreateSequence;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.create.view.AlterView;
 import net.sf.jsqlparser.statement.create.view.CreateView;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.drop.Drop;
 import net.sf.jsqlparser.statement.execute.Execute;
+import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
 import net.sf.jsqlparser.statement.replace.Replace;
@@ -265,6 +269,11 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(IntegerDivision integerDivision) {
+
+    }
+
+    @Override
     public void visit(Multiplication multiplication) {
 
     }
@@ -310,7 +319,17 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(FullTextSearch fullTextSearch) {
+
+    }
+
+    @Override
     public void visit(IsNullExpression isNullExpression) {
+
+    }
+
+    @Override
+    public void visit(IsBooleanExpression isBooleanExpression) {
 
     }
 
@@ -500,6 +519,11 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(ArrayExpression arrayExpression) {
+
+    }
+
+    @Override
     public void visit(Commit commit) {
         unsupported("Transactions");
     }
@@ -537,6 +561,11 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     @Override
     public void visit(CreateIndex createIndex) {
         unsupported("CREATE INDEX");
+    }
+
+    @Override
+    public void visit(CreateSchema createSchema) {
+
     }
 
     @Override
@@ -592,6 +621,31 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     @Override
     public void visit(ShowStatement showStatement) {
         unsupported("SHOW");
+    }
+
+    @Override
+    public void visit(DeclareStatement declareStatement) {
+
+    }
+
+    @Override
+    public void visit(Grant grant) {
+
+    }
+
+    @Override
+    public void visit(CreateSequence createSequence) {
+
+    }
+
+    @Override
+    public void visit(AlterSequence alterSequence) {
+
+    }
+
+    @Override
+    public void visit(CreateFunctionalStatement createFunctionalStatement) {
+
     }
 
     private enum ParseState {

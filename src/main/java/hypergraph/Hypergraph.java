@@ -361,7 +361,7 @@ public class Hypergraph {
             variableToColumnMapping.put(variable, new LinkedList<>());
         }
         for (String columnIdentifier : columnToVariableMapping.keySet()) {
-            String[] splits = columnIdentifier.split("\\.");
+            String[] splits = columnIdentifier.split("_");
             String columnName = splits[1];
             String tableName = splits[0];
             String variableName = columnToVariableMapping.get(columnIdentifier);
