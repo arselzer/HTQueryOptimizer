@@ -168,7 +168,13 @@ public class SQLQuery {
             }
         } else {
             for (String projectCol : projectColumns) {
+                System.out.println(hg.getColumnToVariableMapping().keySet());
+                //System.out.println(projectCol);
+                //System.out.println(columnAliases.keySet());
+                //System.out.println(columnAliases.get(projectCol));
+                //System.out.println(columnByNameMap.keySet());
                 Column realColumn = columnByNameMap.get(columnAliases.get(projectCol));
+                //System.out.println(realColumn);
                 String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
                 Column newColumn = new Column(hyperedge, realColumn.getType());
                 // Check if the same column isn't already part of the output.
@@ -180,7 +186,7 @@ public class SQLQuery {
             }
         }
 
-        //System.out.println("resultcols: " + resultColumns);
+        System.out.println("resultcols: " + resultColumns);
         //System.out.println(hg.getColumnToVariableMapping());
 
         // Transform project column names to hypergraph variable names
@@ -441,8 +447,8 @@ public class SQLQuery {
             newEdge.setName(e.getName());
             HashSet<String> edgeSet = new HashSet<>();
             for (String node : e.getVertices()) {
-                edgeSet.add(node);
-                result.addNode(node);
+                edgeSet.add(node.replace("_", "."));
+                result.addNode(node.replace("_", "."));
             }
             newEdge.setNodes(edgeSet);
 
@@ -452,7 +458,7 @@ public class SQLQuery {
         HashMap<String, String> equivalenceMapping = new HashMap<>();
         for (String key : hgBuilder.getVarToColMapping().keySet()) {
             for (String value : hgBuilder.getVarToColMapping().get(key)) {
-                equivalenceMapping.put(value, key);
+                equivalenceMapping.put(value.replace("_", "."), key.replace("_", "."));
             }
         }
 
