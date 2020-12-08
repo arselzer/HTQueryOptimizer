@@ -54,7 +54,6 @@ public class ViewQueryExecutor implements QueryExecutor {
     public ResultSet execute(String queryStr) throws SQLException, QueryConversionException, TableNotFoundException {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
-        //System.out.println(sqlQuery.toHypergraph());
 
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);

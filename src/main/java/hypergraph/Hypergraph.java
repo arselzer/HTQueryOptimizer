@@ -34,7 +34,7 @@ public class Hypergraph {
     // Maps variable -> [column] (table.colname)
     private Map<String, List<String>> variableToColumnMapping = new HashMap<>();
 
-    private Graph<HypertreeNode, DefaultEdge> decompositionTree;
+    protected Graph<HypertreeNode, DefaultEdge> decompositionTree;
 
     public Hypergraph() {
 

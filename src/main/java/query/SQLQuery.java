@@ -8,6 +8,7 @@ import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
 import hypergraph.Hyperedge;
 import hypergraph.Hypergraph;
+import hypergraph.WeightedHypergraph;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
@@ -18,10 +19,15 @@ import net.sf.jsqlparser.statement.select.Select;
 import schema.Column;
 import schema.DBSchema;
 import schema.Table;
+import schema.TableStatistics;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Represents an SQL query over a database schema. Per default, statistical information is not used.
+ * To consider statistics and compute a weighted decomposition, call setStatistics
+ */
 public class SQLQuery {
     private String query;
     private Schema schema;
@@ -38,6 +44,7 @@ public class SQLQuery {
     // Column aliases
     private Map<String, String> columnAliases;
     private Statement stmt;
+    private TableStatistics statistics;
 
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
@@ -50,6 +57,10 @@ public class SQLQuery {
         buildColumnLookup();
 
         decompositionOptions = new DecompositionOptions();
+    }
+
+    public void setStatistics(TableStatistics statistics) {
+        this.statistics = statistics;
     }
 
     /**
@@ -134,7 +145,13 @@ public class SQLQuery {
     }
 
     public String toFunction(String functionName) throws QueryConversionException {
-        Hypergraph hg = toHypergraph();
+        Hypergraph hg;
+        if (statistics == null) {
+            hg = toHypergraph();
+        }
+        else {
+            hg = toWeightedHypergraph();
+        }
         this.hypergraph = hg;
 
         try {
@@ -461,6 +478,12 @@ public class SQLQuery {
         result.setColumnToVariableMapping(equivalenceMapping);
 
         return result;
+    }
+
+    public WeightedHypergraph toWeightedHypergraph() throws QueryConversionException {
+        WeightedHypergraph weightedHypergraph = new WeightedHypergraph(toHypergraph(), statistics);
+
+        return weightedHypergraph;
     }
 
     public List<String> getProjectColumns() {
