@@ -21,8 +21,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class Hypergraph {
-    private static int HYPERTREE_WIDTH = 2;
-
     private Set<Hyperedge> edges = new HashSet<>();
     private Set<String> nodes = new HashSet<>();
     private Map<String, Hyperedge> edgesByName = new HashMap<>();

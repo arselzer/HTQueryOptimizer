@@ -1,0 +1,6 @@
+region(R)
+nation(R,N,A)
+supplier(N,S)
+customer(N,C)
+orders(O,C)
+lineitem(S,O,D,E)

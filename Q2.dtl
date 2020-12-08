@@ -1,0 +1,4 @@
+supplier(N,S)
+customer(N,C)
+orders(O,C)
+lineitem(S,O,D,E)
