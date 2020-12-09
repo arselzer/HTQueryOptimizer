@@ -1,5 +1,6 @@
 package hypergraph;
 
+import at.ac.tuwien.dbai.hgtools.util.CombinationIterator;
 import exceptions.JoinTreeGenerationException;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
@@ -7,6 +8,7 @@ import org.jgrapht.io.*;
 import org.jgrapht.traverse.BreadthFirstIterator;
 import query.JoinTreeNode;
 import schema.TableStatistics;
+import org.apache.commons.math3.util.Combinations;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -18,6 +20,9 @@ import java.util.stream.Collectors;
 
 public class WeightedHypergraph extends Hypergraph {
     private Set<BagWeight> weights;
+    private Map<String, TableStatistics> statistics;
+    // Keep an ordered list of hyperedges for index access when using the combinations iterator
+    List<Hyperedge> orderedEdges = new LinkedList<>(getEdges());
 
     public WeightedHypergraph() {
         super();
@@ -33,8 +38,9 @@ public class WeightedHypergraph extends Hypergraph {
         this.weights = weights;
     }
 
-    public WeightedHypergraph(Hypergraph hypergraph, TableStatistics statistics) {
+    public WeightedHypergraph(Hypergraph hypergraph, Map<String, TableStatistics> statistics) {
         super(hypergraph.getNodes(), hypergraph.getEdges());
+        this.statistics = statistics;
     }
 
     public Set<BagWeight> getWeights() {
@@ -43,7 +49,56 @@ public class WeightedHypergraph extends Hypergraph {
 
     public void setWeights(Set<BagWeight> weights) {
         this.weights = weights;
-        // TODO complete init
+    }
+
+    private void determineWeightsForBagSize(int bagSize) {
+        Iterator it = new Combinations(getEdges().size(), bagSize).iterator();
+        while (it.hasNext()) {
+            int[] combination = (int[]) it.next();
+            Set<Hyperedge> edges = new HashSet<>();
+            for (int i = 0; i < combination.length; i++) {
+                Hyperedge edge = orderedEdges.get(combination[i]);
+                edges.add(edge);
+            }
+            Set<String> commonAttributes = new HashSet<>(orderedEdges.get(0).getNodes());
+            for (int i = 1; i < orderedEdges.size(); i++) {
+                commonAttributes.retainAll(orderedEdges.get(i).getNodes());
+            }
+
+            Double weight = 1.0;
+            for (String attribute : commonAttributes) {
+                // The values with frequencies which occur in all joined attributes
+                Set<String> commonFrequentValues = new HashSet<>();
+                for (Hyperedge edge : edges) {
+                    String tableName = edge.getName();
+                    TableStatistics tableStats = statistics.get(tableName);
+                    // TODO for simplicity the case of multiple equal columns in the same table is not considered
+                    String columnName = getInverseEquivalenceMapping().get(attribute).get(tableName).get(0);
+                    Set<String> commonVals = tableStats.getMostCommonFrequencies().get(columnName).keySet();
+                    for (String val : commonVals) {
+                        commonFrequentValues.add(val);
+                    }
+                }
+
+                Double columnSelectivity = 0.0;
+                for (String value : commonFrequentValues) {
+                    Double productOfFrequencies = 1.0;
+                    for (Hyperedge edge : edges) {
+                        productOfFrequencies *= statistics.get(edge.getName()).getMostCommonFrequencies().get(attribute).get(value);
+                    }
+                    columnSelectivity += productOfFrequencies;
+                }
+
+                weight *= columnSelectivity;
+            }
+
+            // Multiply the join selectivity with the row count of the cross product
+            for (Hyperedge edge : getEdges()) {
+                weight *= statistics.get(edge.getName()).getRowCount();
+            }
+
+            weights.add(new BagWeight(edges, weight));
+        }
     }
 
     public String toWeightsFile() {
@@ -54,6 +109,27 @@ public class WeightedHypergraph extends Hypergraph {
                     .collect(Collectors.joining(",")) + "," + weight.getWeight();
         }
         return output;
+    }
+
+    @Override
+    public JoinTreeNode toJoinTree() throws JoinTreeGenerationException {
+        return toJoinTree(new DecompositionOptions());
+    }
+
+    @Override
+    public JoinTreeNode toJoinTree(DecompositionOptions options) throws JoinTreeGenerationException {
+        // Try creating an acyclic join tree first
+        int hypertreeWidth = 1;
+
+        determineWeightsForBagSize(1);
+        JoinTreeNode tree = toJoinTree(1, options);
+        while (tree == null) {
+            hypertreeWidth++;
+            determineWeightsForBagSize(hypertreeWidth);
+            tree = toJoinTree(hypertreeWidth, options);
+        }
+
+        return tree;
     }
 
     // TODO refactor copy paste

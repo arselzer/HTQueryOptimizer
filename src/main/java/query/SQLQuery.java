@@ -44,7 +44,7 @@ public class SQLQuery {
     // Column aliases
     private Map<String, String> columnAliases;
     private Statement stmt;
-    private TableStatistics statistics;
+    private Map<String, TableStatistics> statistics;
 
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
@@ -59,7 +59,7 @@ public class SQLQuery {
         decompositionOptions = new DecompositionOptions();
     }
 
-    public void setStatistics(TableStatistics statistics) {
+    public void setStatistics(Map<String, TableStatistics> statistics) {
         this.statistics = statistics;
     }
 

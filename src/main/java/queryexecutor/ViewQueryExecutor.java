@@ -9,10 +9,10 @@ import query.SQLQuery;
 import schema.Column;
 import schema.DBSchema;
 import schema.Table;
+import schema.TableStatistics;
 
 import java.sql.*;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class ViewQueryExecutor implements QueryExecutor {
     private Connection connection;
@@ -55,6 +55,10 @@ public class ViewQueryExecutor implements QueryExecutor {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
+        for (Table table: schema.getTables()) {
+            TableStatistics statistics = extractTableStatistics(table.getName());
+        }
+
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);
 
@@ -68,7 +72,9 @@ public class ViewQueryExecutor implements QueryExecutor {
         try (PreparedStatement psFunction = connection.prepareStatement(functionStr)) {
             psFunction.execute();
 
-            PreparedStatement psSelect = connection.prepareStatement(String.format("SELECT * FROM %s();", functionName), ResultSet.TYPE_SCROLL_INSENSITIVE,
+            PreparedStatement psSelect = connection.prepareStatement(
+                    String.format("SELECT * FROM %s();", functionName),
+                    ResultSet.TYPE_SCROLL_INSENSITIVE,
                     ResultSet.CONCUR_READ_ONLY);
             if (timeout != null) {
                 psSelect.setQueryTimeout(timeout);
@@ -125,13 +131,48 @@ public class ViewQueryExecutor implements QueryExecutor {
         connection.prepareStatement("SET enable_mergejoin = 1;").execute();
     }
 
+    private TableStatistics extractTableStatistics(String tableName) throws SQLException {
+        PreparedStatement getCountStmt = connection.prepareStatement(String.format("SELECT count(*) as n_rows FROM %s;", tableName));
+
+        ResultSet rsCount = getCountStmt.executeQuery();
+        rsCount.next();
+        int rowCount = rsCount.getInt("n_rows");
+        rsCount.close();
+        getCountStmt.close();
+
+        HashMap<String, Map<String, Double>> mostFrequentValues = new HashMap<>();
+
+        PreparedStatement getStatisticsStmt = connection.prepareStatement(String.format("SELECT * FROM pg_stats WHERE tablename=?"));
+        getStatisticsStmt.setString(1, tableName);
+
+        ResultSet rsStatistics = getStatisticsStmt.executeQuery();
+
+        while (rsStatistics.next()) {
+            HashMap<String, Double> mostFrequentValuesForColumn = new HashMap<>();
+
+            String columnName = rsStatistics.getString("attname");
+            String[] mostFrequentValsArray = (String[]) rsStatistics.getArray("most_common_vals").getArray();
+            Double[] mostFrequentValsFrequenciesArray = (Double[]) rsStatistics.getArray("most_common_freqs").getArray();
+            for (int i = 0; i < mostFrequentValsArray.length; i++) {
+                mostFrequentValuesForColumn.put(mostFrequentValsArray[i], mostFrequentValsFrequenciesArray[i]);
+            }
+            mostFrequentValues.put(columnName, mostFrequentValuesForColumn);
+
+            // TODO extract histogram
+        }
+
+        rsStatistics.close();
+        getStatisticsStmt.close();
+
+        return new TableStatistics(rowCount, mostFrequentValues);
+    }
+
     private void extractSchema() throws SQLException {
         schema = new DBSchema();
 
         DatabaseMetaData metaData = connection.getMetaData();
 
         ResultSet rs = metaData.getTables(connection.getCatalog(), "public", "%", new String[]{"TABLE"});
-        //ResultSet rs = metaData.getTables(null, null, "%", null);
 
         // https://docs.oracle.com/javase/7/docs/api/java/sql/DatabaseMetaData.html#getColumns(java.lang.String,%20java.lang.String,%20java.lang.String,%20java.lang.String)
         List<Table> schemaTables = new LinkedList<>();
