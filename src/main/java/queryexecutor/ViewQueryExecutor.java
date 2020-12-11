@@ -57,6 +57,7 @@ public class ViewQueryExecutor implements QueryExecutor {
 
         Map<String, TableStatistics> statisticsMap = new HashMap<>();
         for (Table table: schema.getTables()) {
+            System.out.println(table.getName());
             statisticsMap.put(table.getName(), extractTableStatistics(table.getName()));
         }
         sqlQuery.setStatistics(statisticsMap);
@@ -159,6 +160,7 @@ public class ViewQueryExecutor implements QueryExecutor {
             String columnName = rsStatistics.getString("attname");
             if (rsStatistics.getArray("most_common_vals") == null) {
                 // Ignore the c_comment column or any columns without histograms
+                mostFrequentValues.put(columnName, mostFrequentValuesForColumn);
                 continue;
             }
             String[] mostFrequentValsArray = (String[]) rsStatistics.getArray("most_common_vals").getArray();
@@ -168,6 +170,7 @@ public class ViewQueryExecutor implements QueryExecutor {
                 mostFrequentValuesForColumn.put(mostFrequentValsArray[i], (double) mostFrequentValsFrequenciesArray[i]);
             }
             mostFrequentValues.put(columnName, mostFrequentValuesForColumn);
+            System.out.println(tableName + "." + columnName + ": " + mostFrequentValuesForColumn.keySet());
 
             // TODO extract histogram
         }

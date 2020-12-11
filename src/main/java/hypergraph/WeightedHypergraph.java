@@ -43,6 +43,7 @@ public class WeightedHypergraph extends Hypergraph {
         this.setColumnToVariableMapping(hypergraph.getColumnToVariableMapping());
         this.weights = new HashSet<>();
         this.statistics = statistics;
+
     }
 
     public Set<BagWeight> getWeights() {
@@ -57,36 +58,54 @@ public class WeightedHypergraph extends Hypergraph {
         Iterator it = new Combinations(getEdges().size(), bagSize).iterator();
         while (it.hasNext()) {
             int[] combination = (int[]) it.next();
-            Set<Hyperedge> edges = new HashSet<>();
+            Set<Hyperedge> bag = new HashSet<>();
             for (int i = 0; i < combination.length; i++) {
                 Hyperedge edge = orderedEdges.get(combination[i]);
-                edges.add(edge);
+                bag.add(edge);
             }
-            Set<String> commonAttributes = new HashSet<>(orderedEdges.get(0).getNodes());
-            for (int i = 1; i < orderedEdges.size(); i++) {
-                commonAttributes.retainAll(orderedEdges.get(i).getNodes());
+            System.out.println("bag: "+ bag);
+            // Keep only the attributes occurring in all relations
+            Set<String> commonAttributes = new HashSet<>();
+            commonAttributes.addAll(bag.iterator().next().getNodes());
+            for (Hyperedge edge : bag) {
+                commonAttributes.retainAll(edge.getNodes());
             }
+            System.out.println("common attributes: " + commonAttributes);
 
             Double weight = 1.0;
             for (String attribute : commonAttributes) {
                 // The values with frequencies which occur in all joined attributes
                 Set<String> commonFrequentValues = new HashSet<>();
-                for (Hyperedge edge : edges) {
+                for (Hyperedge edge : bag) {
                     String tableName = edge.getName();
                     TableStatistics tableStats = statistics.get(tableName);
                     // TODO for simplicity the case of multiple equal columns in the same table is not considered
                     String columnName = getInverseEquivalenceMapping().get(attribute).get(tableName).get(0);
-                    Set<String> commonVals = tableStats.getMostCommonFrequencies().get(columnName).keySet();
-                    for (String val : commonVals) {
-                        commonFrequentValues.add(val);
+                    // Sometimes, if very few values exist in a table, no statistics are calculated and no values are set of the column
+                    Map<String, Double> mostCommonFrequencies = tableStats.getMostCommonFrequencies().get(columnName);
+                    if (mostCommonFrequencies != null) {
+                        Set<String> commonVals = mostCommonFrequencies.keySet();
+                        for (String val : commonVals) {
+                            commonFrequentValues.add(val);
+                        }
                     }
                 }
+
+                System.out.println("common attribute: " + attribute);
+                System.out.println(commonFrequentValues);
 
                 Double columnSelectivity = 0.0;
                 for (String value : commonFrequentValues) {
                     Double productOfFrequencies = 1.0;
-                    for (Hyperedge edge : edges) {
-                        productOfFrequencies *= statistics.get(edge.getName()).getMostCommonFrequencies().get(attribute).get(value);
+                    for (Hyperedge edge : bag) {
+                        Map<String, Double> valueToFrequencyMap = statistics.get(edge.getName()).getMostCommonFrequencies().get(attribute);
+                        if (valueToFrequencyMap != null) {
+                            Double frequency = valueToFrequencyMap.get(value);
+                            if (frequency != null) {
+                                productOfFrequencies *= frequency;
+                                //System.out.println(edge.getName() + " " + statistics.get(edge.getName()).getMostCommonFrequencies());
+                            }
+                        }
                     }
                     columnSelectivity += productOfFrequencies;
                 }
@@ -99,7 +118,7 @@ public class WeightedHypergraph extends Hypergraph {
                 weight *= statistics.get(edge.getName()).getRowCount();
             }
 
-            weights.add(new BagWeight(edges, weight));
+            weights.add(new BagWeight(bag, weight));
         }
     }
 
@@ -110,7 +129,6 @@ public class WeightedHypergraph extends Hypergraph {
                     .map(Hyperedge::getName)
                     .collect(Collectors.joining(",")) + "," + weight.getWeight() + "\n";
         }
-        System.out.println("weights: " + output);
         return output;
     }
 
@@ -124,11 +142,10 @@ public class WeightedHypergraph extends Hypergraph {
         // Try creating an acyclic join tree first
         int hypertreeWidth = 1;
 
-        determineWeightsForBagSize(1);
+
         JoinTreeNode tree = toJoinTree(1, options);
         while (tree == null) {
             hypertreeWidth++;
-            determineWeightsForBagSize(hypertreeWidth);
             tree = toJoinTree(hypertreeWidth, options);
         }
 
@@ -138,6 +155,10 @@ public class WeightedHypergraph extends Hypergraph {
     // TODO refactor copy paste
     @Override
     public JoinTreeNode toJoinTree(int hypertreeWidth, DecompositionOptions options) throws JoinTreeGenerationException {
+        System.out.println("Attempting to create hypertree of width " + hypertreeWidth);
+
+        determineWeightsForBagSize(hypertreeWidth);
+
         // Write hypergraph out to a file
         String fileContent = toDTL();
         String weightFileContent = toWeightsFile();
