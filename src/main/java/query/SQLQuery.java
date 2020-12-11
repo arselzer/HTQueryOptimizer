@@ -145,6 +145,7 @@ public class SQLQuery {
     }
 
     public String toFunction(String functionName) throws QueryConversionException {
+        System.out.println("toFunction called");
         Hypergraph hg;
         if (statistics == null) {
             hg = toHypergraph();
@@ -171,9 +172,12 @@ public class SQLQuery {
         if (projectColumns.size() == 1 && projectColumns.get(0).equals("*")) {
             // Go through all hypergraph vertices
             for (String node : hg.getNodes()) {
+                //System.out.println(node);
                 // Look up the column name for the vertex name - get any actual column
                 // from any table associated - the type has to be equal anyway
                 Map<String, List<String>> nodeCols = hg.getInverseEquivalenceMapping().get(node);
+                //System.out.println(hg.getInverseEquivalenceMapping());
+                //System.out.println(nodeCols);
                 // Get any table name
                 String table = (String) nodeCols.keySet().toArray()[0];
                 // Build the table.column identifier
@@ -185,7 +189,7 @@ public class SQLQuery {
             }
         } else {
             for (String projectCol : projectColumns) {
-                System.out.println(hg.getColumnToVariableMapping().keySet());
+                //System.out.println(hg.getColumnToVariableMapping().keySet());
                 //System.out.println(projectCol);
                 //System.out.println(columnAliases.keySet());
                 //System.out.println(columnAliases.get(projectCol));
@@ -203,7 +207,7 @@ public class SQLQuery {
             }
         }
 
-        System.out.println("resultcols: " + resultColumns);
+        System.out.println("Result columns: " + resultColumns);
         //System.out.println(hg.getColumnToVariableMapping());
 
         // Transform project column names to hypergraph variable names
@@ -437,17 +441,20 @@ public class SQLQuery {
         HypergraphBuilder hgBuilder = new HypergraphBuilder();
         for (Predicate table : hgFinder.getTables()) {
             hgBuilder.buildEdge(table);
+            System.out.println(table.getPredicateName());
         }
         for (Predicate table : hgFinder.getTables()) {
             if (table instanceof ViewPredicate) {
                 ViewPredicate view = (ViewPredicate) table;
                 for (Equality join : view.getJoins()) {
                     hgBuilder.buildViewJoin(view.getAlias(), join);
+                    System.out.println("1:" + join.getPredicate1() + "." + join.getAttribute1() + ", " + join.getPredicate2() + "." + join.getAttribute2());
                 }
             }
         }
         for (Equality join : hgFinder.getJoins()) {
             hgBuilder.buildJoin(join);
+            System.out.println("2:" + join.getPredicate1() + "." + join.getAttribute1() + ", " + join.getPredicate2() + "." + join.getAttribute2());
         }
 
         // Convert the hgtools Hypergraph type to the local hypergraph type

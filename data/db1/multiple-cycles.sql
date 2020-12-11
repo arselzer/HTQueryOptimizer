@@ -1,5 +1,5 @@
 SELECT t1.a,t5.b,t10.b,t7.a,t2.b
-FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10
+FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11
 WHERE t1.a = t2.a
 AND t2.b = t3.a
 AND t3.b = t1.b

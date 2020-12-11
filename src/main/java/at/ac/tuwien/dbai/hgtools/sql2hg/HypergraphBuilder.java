@@ -76,7 +76,9 @@ public class HypergraphBuilder {
 		for (Edge e : h.getEdges()) {
 			for (String v : e.getVertices()) {
 				String newName = vars.find(v);
+				//System.out.println(newName + ", " + v + ", edge= " + e.getName());
 				if (!v.equals(newName) && !e.renameVertex(v, newName)) {
+					//System.out.println(newName + ", " + v + ", edge= " + e.getName());
 					throw new RuntimeException("Vertex " + newName + " already exists.");
 				}
 			}

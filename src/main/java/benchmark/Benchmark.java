@@ -30,9 +30,9 @@ public class Benchmark {
     private int runs = 1;
     //private Connection conn;
     private String dbURL;
-    // Use detkdecomp per default
+    // Use balancedgo per default
     private Set<DecompositionOptions.DecompAlgorithm> decompAlgorithms
-            = new HashSet<>(List.of(DecompositionOptions.DecompAlgorithm.DETKDECOMP));
+            = new HashSet<>(List.of(DecompositionOptions.DecompAlgorithm.BALANCEDGO));
     private Set<String> queries = null;
     private List<BenchmarkResult> results = new LinkedList<>();
     private boolean checkCorrectness = false;

@@ -26,4 +26,12 @@ public class BagWeight {
     public void setWeight(Double weight) {
         this.weight = weight;
     }
+
+    @Override
+    public String toString() {
+        return "BagWeight{" +
+                "bag=" + bag +
+                ", weight=" + weight +
+                '}';
+    }
 }

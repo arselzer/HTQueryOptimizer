@@ -55,15 +55,18 @@ public class ViewQueryExecutor implements QueryExecutor {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
+        Map<String, TableStatistics> statisticsMap = new HashMap<>();
         for (Table table: schema.getTables()) {
-            TableStatistics statistics = extractTableStatistics(table.getName());
+            statisticsMap.put(table.getName(), extractTableStatistics(table.getName()));
         }
+        sqlQuery.setStatistics(statisticsMap);
 
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);
 
         // Save hypergraph and join tree for benchmarks and analysis
         this.hypergraph = sqlQuery.getHypergraph();
+        System.out.println(this.hypergraph);
         this.joinTree = sqlQuery.getJoinTree();
         this.generatedFunction = functionStr;
 
@@ -142,7 +145,10 @@ public class ViewQueryExecutor implements QueryExecutor {
 
         HashMap<String, Map<String, Double>> mostFrequentValues = new HashMap<>();
 
-        PreparedStatement getStatisticsStmt = connection.prepareStatement(String.format("SELECT * FROM pg_stats WHERE tablename=?"));
+        // most_common_vals needs to be converted to a string array since the jdbc driver cannot work with its type
+        // See https://stackoverflow.com/questions/52189147/loading-a-non-materialised-array-from-postgres-in-java
+        PreparedStatement getStatisticsStmt = connection.prepareStatement("SELECT tablename, attname, most_common_vals::text::text[] as most_common_vals, most_common_freqs" +
+                        " FROM pg_stats WHERE tablename = ?;");
         getStatisticsStmt.setString(1, tableName);
 
         ResultSet rsStatistics = getStatisticsStmt.executeQuery();
@@ -151,10 +157,15 @@ public class ViewQueryExecutor implements QueryExecutor {
             HashMap<String, Double> mostFrequentValuesForColumn = new HashMap<>();
 
             String columnName = rsStatistics.getString("attname");
+            if (rsStatistics.getArray("most_common_vals") == null) {
+                // Ignore the c_comment column or any columns without histograms
+                continue;
+            }
             String[] mostFrequentValsArray = (String[]) rsStatistics.getArray("most_common_vals").getArray();
-            Double[] mostFrequentValsFrequenciesArray = (Double[]) rsStatistics.getArray("most_common_freqs").getArray();
+            Float[] mostFrequentValsFrequenciesArray = (Float[]) rsStatistics.getArray("most_common_freqs").getArray();
+            //System.out.println(columnName + " " + Arrays.toString(mostFrequentValsArray) + " " + Arrays.toString(mostFrequentValsFrequenciesArray));
             for (int i = 0; i < mostFrequentValsArray.length; i++) {
-                mostFrequentValuesForColumn.put(mostFrequentValsArray[i], mostFrequentValsFrequenciesArray[i]);
+                mostFrequentValuesForColumn.put(mostFrequentValsArray[i], (double) mostFrequentValsFrequenciesArray[i]);
             }
             mostFrequentValues.put(columnName, mostFrequentValuesForColumn);
 

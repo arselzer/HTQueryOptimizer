@@ -40,6 +40,8 @@ public class WeightedHypergraph extends Hypergraph {
 
     public WeightedHypergraph(Hypergraph hypergraph, Map<String, TableStatistics> statistics) {
         super(hypergraph.getNodes(), hypergraph.getEdges());
+        this.setColumnToVariableMapping(hypergraph.getColumnToVariableMapping());
+        this.weights = new HashSet<>();
         this.statistics = statistics;
     }
 
@@ -106,8 +108,9 @@ public class WeightedHypergraph extends Hypergraph {
         for (BagWeight weight : weights) {
             output += weight.getBag().stream()
                     .map(Hyperedge::getName)
-                    .collect(Collectors.joining(",")) + "," + weight.getWeight();
+                    .collect(Collectors.joining(",")) + "," + weight.getWeight() + "\n";
         }
+        System.out.println("weights: " + output);
         return output;
     }
 
@@ -246,5 +249,15 @@ public class WeightedHypergraph extends Hypergraph {
         } catch (IOException e) {
             throw new JoinTreeGenerationException("Error deleting temporary files: " + e.getMessage());
         }
+    }
+
+    @Override
+    public String toString() {
+        return "WeightedHypergraph{" +
+                "vertices=" + getNodes() +
+                ", edges=" + getEdges() +
+                ", weights=" + weights +
+                ", statistics=" + statistics +
+                '}';
     }
 }
