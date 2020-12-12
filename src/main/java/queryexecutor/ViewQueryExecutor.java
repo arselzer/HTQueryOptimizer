@@ -67,7 +67,6 @@ public class ViewQueryExecutor implements QueryExecutor {
 
         // Save hypergraph and join tree for benchmarks and analysis
         this.hypergraph = sqlQuery.getHypergraph();
-        System.out.println(this.hypergraph);
         this.joinTree = sqlQuery.getJoinTree();
         this.generatedFunction = functionStr;
 

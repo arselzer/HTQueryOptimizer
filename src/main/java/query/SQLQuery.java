@@ -151,7 +151,13 @@ public class SQLQuery {
             hg = toHypergraph();
         }
         else {
-            hg = toWeightedHypergraph();
+            try {
+                // Fails when columns are "joined" inside the table
+                hg = toWeightedHypergraph();
+            }
+            catch (IllegalArgumentException e) {
+                throw new QueryConversionException(e.getMessage(), e);
+            }
         }
         this.hypergraph = hg;
 
@@ -194,8 +200,12 @@ public class SQLQuery {
                 //System.out.println(columnAliases.keySet());
                 //System.out.println(columnAliases.get(projectCol));
                 //System.out.println(columnByNameMap.keySet());
+                //System.out.println("project col: " + projectCol);
+                //System.out.println("map: " + columnByNameMap);
+                //System.out.println("aliases: " + columnAliases);
                 Column realColumn = columnByNameMap.get(columnAliases.get(projectCol));
-                //System.out.println(realColumn);
+                //System.out.println("real col: " + realColumn);
+                //System.out.println("col to var map: " + hg.getColumnToVariableMapping());
                 String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
                 Column newColumn = new Column(hyperedge, realColumn.getType());
                 // Check if the same column isn't already part of the output.
@@ -467,8 +477,8 @@ public class SQLQuery {
             newEdge.setName(e.getName());
             HashSet<String> edgeSet = new HashSet<>();
             for (String node : e.getVertices()) {
-                edgeSet.add(node.replace("_", "."));
-                result.addNode(node.replace("_", "."));
+                edgeSet.add(node);
+                result.addNode(node);
             }
             newEdge.setNodes(edgeSet);
 
@@ -478,7 +488,7 @@ public class SQLQuery {
         HashMap<String, String> equivalenceMapping = new HashMap<>();
         for (String key : hgBuilder.getVarToColMapping().keySet()) {
             for (String value : hgBuilder.getVarToColMapping().get(key)) {
-                equivalenceMapping.put(value.replace("_", "."), key.replace("_", "."));
+                equivalenceMapping.put(value, key);
             }
         }
 

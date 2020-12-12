@@ -12,6 +12,7 @@ import org.apache.commons.math3.util.Combinations;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -91,9 +92,6 @@ public class WeightedHypergraph extends Hypergraph {
                     }
                 }
 
-                System.out.println("common attribute: " + attribute);
-                System.out.println(commonFrequentValues);
-
                 Double columnSelectivity = 0.0;
                 for (String value : commonFrequentValues) {
                     Double productOfFrequencies = 1.0;
@@ -127,7 +125,7 @@ public class WeightedHypergraph extends Hypergraph {
         for (BagWeight weight : weights) {
             output += weight.getBag().stream()
                     .map(Hyperedge::getName)
-                    .collect(Collectors.joining(",")) + "," + weight.getWeight() + "\n";
+                    .collect(Collectors.joining(",")) + "," + String.format("%.3f", weight.getWeight()) + "\n";
         }
         return output;
     }
@@ -264,6 +262,7 @@ public class WeightedHypergraph extends Hypergraph {
             hgFile.delete();
             Files.delete(Paths.get(htFileName));
 
+            System.out.println("join tree from gml " + hypertreeToJoinTree(root));
             return hypertreeToJoinTree(root);
         } catch (ImportException e) {
             throw new JoinTreeGenerationException("Error importing hypertree file: " + e.getMessage());

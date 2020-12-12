@@ -10,5 +10,4 @@ AND t7.a = t8.a
 AND t8.b = t9.a
 AND t9.b = t10.a
 AND t10.b = t7.b
-AND t1.a = t10.a
 AND t6.a = t9.a;

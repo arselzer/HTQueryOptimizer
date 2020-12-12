@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import exceptions.QueryConversionException;
 import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
+import hypergraph.WeightedHypergraph;
 import org.apache.commons.cli.*;
 import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
@@ -163,6 +164,13 @@ public class Benchmark {
                 PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
                 resultJsonWriter.write(gson.toJson(res));
                 resultJsonWriter.close();
+
+                if (res.getHypergraph() instanceof WeightedHypergraph) {
+                    File hgWeightsFile = new File(subResultsDir + "/hg-weights.csv");
+                    PrintWriter weightsWriter = new PrintWriter(hgWeightsFile);
+                    weightsWriter.write(((WeightedHypergraph) res.getHypergraph()).toWeightsFile());
+                    weightsWriter.close();
+                }
             }
 
             Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
@@ -434,6 +442,7 @@ public class Benchmark {
             }
         } catch (SQLException | IOException | QueryConversionException e) {
             System.out.println("Error benchmarking: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

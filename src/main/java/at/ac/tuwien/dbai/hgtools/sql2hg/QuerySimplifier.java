@@ -40,7 +40,7 @@ import net.sf.jsqlparser.statement.select.WithItem;
 public abstract class QuerySimplifier extends QueryVisitorNoExpressionAdapter {
 
 	private static String makeName(String prefix, String name) {
-		return prefix.equals("") ? name : prefix + "_" + name;
+		return prefix.equals("") ? name : prefix + "." + name;
 	}
 
 	private Schema schema;

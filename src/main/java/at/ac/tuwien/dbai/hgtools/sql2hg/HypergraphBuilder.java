@@ -12,7 +12,7 @@ import at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph;
 
 public class HypergraphBuilder {
 
-	public final static String SEP = "_";
+	public final static String SEP = ".";
 
 	private static String getFullName(String table, String col) {
 		return table.equals("") ? col : table + SEP + col;
@@ -78,7 +78,7 @@ public class HypergraphBuilder {
 				String newName = vars.find(v);
 				//System.out.println(newName + ", " + v + ", edge= " + e.getName());
 				if (!v.equals(newName) && !e.renameVertex(v, newName)) {
-					//System.out.println(newName + ", " + v + ", edge= " + e.getName());
+					//System.out.println("new = " + newName + ", old=" + v + ", edge= " + e.getName());
 					throw new RuntimeException("Vertex " + newName + " already exists.");
 				}
 			}
