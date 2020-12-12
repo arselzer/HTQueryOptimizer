@@ -64,19 +64,17 @@ public class WeightedHypergraph extends Hypergraph {
                 Hyperedge edge = orderedEdges.get(combination[i]);
                 bag.add(edge);
             }
-            System.out.println("bag: "+ bag);
             // Keep only the attributes occurring in all relations
             Set<String> commonAttributes = new HashSet<>();
             commonAttributes.addAll(bag.iterator().next().getNodes());
             for (Hyperedge edge : bag) {
                 commonAttributes.retainAll(edge.getNodes());
             }
-            System.out.println("common attributes: " + commonAttributes);
 
             Double weight = 1.0;
             for (String attribute : commonAttributes) {
                 // The values with frequencies which occur in all joined attributes
-                Set<String> commonFrequentValues = new HashSet<>();
+                Set<String> sharedFrequentValues = new HashSet<>();
                 for (Hyperedge edge : bag) {
                     String tableName = edge.getName();
                     TableStatistics tableStats = statistics.get(tableName);
@@ -87,13 +85,13 @@ public class WeightedHypergraph extends Hypergraph {
                     if (mostCommonFrequencies != null) {
                         Set<String> commonVals = mostCommonFrequencies.keySet();
                         for (String val : commonVals) {
-                            commonFrequentValues.add(val);
+                            sharedFrequentValues.add(val);
                         }
                     }
                 }
 
                 Double columnSelectivity = 0.0;
-                for (String value : commonFrequentValues) {
+                for (String value : sharedFrequentValues) {
                     Double productOfFrequencies = 1.0;
                     for (Hyperedge edge : bag) {
                         Map<String, Double> valueToFrequencyMap = statistics.get(edge.getName()).getMostCommonFrequencies().get(attribute);
@@ -106,6 +104,10 @@ public class WeightedHypergraph extends Hypergraph {
                         }
                     }
                     columnSelectivity += productOfFrequencies;
+                }
+                if (sharedFrequentValues.size() == 0) {
+                    // Cross product
+                    columnSelectivity = 1.0;
                 }
 
                 weight *= columnSelectivity;

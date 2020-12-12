@@ -178,34 +178,20 @@ public class SQLQuery {
         if (projectColumns.size() == 1 && projectColumns.get(0).equals("*")) {
             // Go through all hypergraph vertices
             for (String node : hg.getNodes()) {
-                //System.out.println(node);
                 // Look up the column name for the vertex name - get any actual column
                 // from any table associated - the type has to be equal anyway
                 Map<String, List<String>> nodeCols = hg.getInverseEquivalenceMapping().get(node);
-                //System.out.println(hg.getInverseEquivalenceMapping());
-                //System.out.println(nodeCols);
                 // Get any table name
                 String table = (String) nodeCols.keySet().toArray()[0];
                 // Build the table.column identifier
                 String identifier = table + "." + nodeCols.get(table).get(0);
 
                 Column realColumn = columnByNameMap.get(identifier);
-
                 resultColumns.add(new Column(node, realColumn.getType()));
             }
         } else {
             for (String projectCol : projectColumns) {
-                //System.out.println(hg.getColumnToVariableMapping().keySet());
-                //System.out.println(projectCol);
-                //System.out.println(columnAliases.keySet());
-                //System.out.println(columnAliases.get(projectCol));
-                //System.out.println(columnByNameMap.keySet());
-                //System.out.println("project col: " + projectCol);
-                //System.out.println("map: " + columnByNameMap);
-                //System.out.println("aliases: " + columnAliases);
                 Column realColumn = columnByNameMap.get(columnAliases.get(projectCol));
-                //System.out.println("real col: " + realColumn);
-                //System.out.println("col to var map: " + hg.getColumnToVariableMapping());
                 String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
                 Column newColumn = new Column(hyperedge, realColumn.getType());
                 // Check if the same column isn't already part of the output.
@@ -217,8 +203,7 @@ public class SQLQuery {
             }
         }
 
-        System.out.println("Result columns: " + resultColumns);
-        //System.out.println(hg.getColumnToVariableMapping());
+        System.out.println("Output columns: " + resultColumns);
 
         // Transform project column names to hypergraph variable names
         joinTree.projectAllColumns(resultColumns.stream()
@@ -451,20 +436,17 @@ public class SQLQuery {
         HypergraphBuilder hgBuilder = new HypergraphBuilder();
         for (Predicate table : hgFinder.getTables()) {
             hgBuilder.buildEdge(table);
-            System.out.println(table.getPredicateName());
         }
         for (Predicate table : hgFinder.getTables()) {
             if (table instanceof ViewPredicate) {
                 ViewPredicate view = (ViewPredicate) table;
                 for (Equality join : view.getJoins()) {
                     hgBuilder.buildViewJoin(view.getAlias(), join);
-                    System.out.println("1:" + join.getPredicate1() + "." + join.getAttribute1() + ", " + join.getPredicate2() + "." + join.getAttribute2());
                 }
             }
         }
         for (Equality join : hgFinder.getJoins()) {
             hgBuilder.buildJoin(join);
-            System.out.println("2:" + join.getPredicate1() + "." + join.getAttribute1() + ", " + join.getPredicate2() + "." + join.getAttribute2());
         }
 
         // Convert the hgtools Hypergraph type to the local hypergraph type
