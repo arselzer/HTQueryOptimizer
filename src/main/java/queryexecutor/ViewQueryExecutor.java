@@ -15,17 +15,17 @@ import java.sql.*;
 import java.util.*;
 
 public class ViewQueryExecutor implements QueryExecutor {
-    private Connection connection;
-    private DBSchema schema;
-    private DecompositionOptions decompositionOptions;
-    private SQLQuery sqlQuery;
+    protected Connection connection;
+    protected DBSchema schema;
+    protected DecompositionOptions decompositionOptions;
+    protected SQLQuery sqlQuery;
 
-    private long queryRunningTime;
-    private Hypergraph hypergraph;
-    private JoinTreeNode joinTree;
-    private String generatedFunction;
+    protected long queryRunningTime;
+    protected Hypergraph hypergraph;
+    protected JoinTreeNode joinTree;
+    protected String generatedFunction;
 
-    private Integer timeout = null;
+    protected Integer timeout = null;
 
     public ViewQueryExecutor(Connection connection) throws SQLException {
         this.connection = connection;
@@ -57,7 +57,6 @@ public class ViewQueryExecutor implements QueryExecutor {
 
         Map<String, TableStatistics> statisticsMap = new HashMap<>();
         for (Table table: schema.getTables()) {
-            System.out.println(table.getName());
             statisticsMap.put(table.getName(), extractTableStatistics(table.getName()));
         }
         sqlQuery.setStatistics(statisticsMap);
@@ -134,7 +133,7 @@ public class ViewQueryExecutor implements QueryExecutor {
         connection.prepareStatement("SET enable_mergejoin = 1;").execute();
     }
 
-    private TableStatistics extractTableStatistics(String tableName) throws SQLException {
+    protected TableStatistics extractTableStatistics(String tableName) throws SQLException {
         PreparedStatement getCountStmt = connection.prepareStatement(String.format("SELECT count(*) as n_rows FROM %s;", tableName));
 
         ResultSet rsCount = getCountStmt.executeQuery();
@@ -169,7 +168,7 @@ public class ViewQueryExecutor implements QueryExecutor {
                 mostFrequentValuesForColumn.put(mostFrequentValsArray[i], (double) mostFrequentValsFrequenciesArray[i]);
             }
             mostFrequentValues.put(columnName, mostFrequentValuesForColumn);
-            System.out.println(tableName + "." + columnName + ": " + mostFrequentValuesForColumn.keySet());
+            System.out.println(tableName + "." + columnName + ": " + mostFrequentValuesForColumn.keySet() + ", " + mostFrequentValuesForColumn.values());
 
             // TODO extract histogram
         }

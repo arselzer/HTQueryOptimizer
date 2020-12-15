@@ -1,6 +1,6 @@
 {
   "*": {
-    "dbSizeMin": 3,
-    "dbSizeMax": 3
+    "dbSizeMin": 6,
+    "dbSizeMax": 6
   }
 }

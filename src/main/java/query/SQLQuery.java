@@ -144,6 +144,305 @@ public class SQLQuery {
         }
     }
 
+    public ParallelQueryExecution toParallelExecution() throws QueryConversionException {
+        System.out.println("toParallelExecution called");
+
+        List<List<String>> resultQueryStages = new LinkedList<>();
+
+        Hypergraph hg;
+        if (statistics == null) {
+            hg = toHypergraph();
+        }
+        else {
+            try {
+                // Fails when columns are "joined" inside the table
+                hg = toWeightedHypergraph();
+            }
+            catch (IllegalArgumentException e) {
+                throw new QueryConversionException(e.getMessage(), e);
+            }
+        }
+        this.hypergraph = hg;
+
+        try {
+            joinTree = hg.toJoinTree(decompositionOptions);
+        } catch (JoinTreeGenerationException e) {
+            throw new QueryConversionException("Error generating join tree: " + e.getMessage());
+        }
+
+        String finalTableName = UUID.randomUUID().toString().replace("-", "");
+
+        DropStatements dropStatements = new DropStatements();
+
+        List<Column> resultColumns = new LinkedList<>();
+
+        // Check if there is a select * or select [specific columns]
+        if (projectColumns.size() == 1 && projectColumns.get(0).equals("*")) {
+            // Go through all hypergraph vertices
+            for (String node : hg.getNodes()) {
+                // Look up the column name for the vertex name - get any actual column
+                // from any table associated - the type has to be equal anyway
+                Map<String, List<String>> nodeCols = hg.getInverseEquivalenceMapping().get(node);
+                // Get any table name
+                String table = (String) nodeCols.keySet().toArray()[0];
+                // Build the table.column identifier
+                String identifier = table + "." + nodeCols.get(table).get(0);
+
+                Column realColumn = columnByNameMap.get(identifier);
+                resultColumns.add(new Column(node, realColumn.getType()));
+            }
+        } else {
+            for (String projectCol : projectColumns) {
+                Column realColumn = columnByNameMap.get(columnAliases.get(projectCol));
+                String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
+                Column newColumn = new Column(hyperedge, realColumn.getType());
+                // Check if the same column isn't already part of the output.
+                // The same variable might have been specified in multiple columns
+                if (!resultColumns.contains(newColumn)) {
+                    resultColumns.add(newColumn);
+                }
+                // TODO support non-fully qualified columns
+            }
+        }
+
+        System.out.println("Output columns: " + resultColumns);
+
+        // Transform project column names to hypergraph variable names
+        joinTree.projectAllColumns(resultColumns.stream()
+                .map(Column::getName)
+                .collect(Collectors.toSet()));
+
+        // Set up a lookup table of tables for quickly getting the variables of a hyperedge
+        Map<String, Table> tablesByName = new HashMap<>();
+        for (Table t : dbSchema.getTables()) {
+            tablesByName.put(t.getName(), t);
+        }
+
+
+        List<String> columnDefinitions = resultColumns.stream()
+                .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
+
+        List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
+
+
+        /**
+         * Stage 1 - join tables inside tree nodes
+         *
+         * Create a view for each join tree node.
+         * Join the tables in the node.
+         * This step is redundant with hypertree width 1 and could be optimized away (if it has any significant overhead)
+         */
+
+        List<String> stage1 = new LinkedList<>();
+
+        for (Set<JoinTreeNode> layer : joinLayers) {
+            for (JoinTreeNode node : layer) {
+                LinkedList<String> aliasedTables = new LinkedList<>();
+
+                for (String tableAliasName : node.getTables()) {
+                    // Very important distinction: tableName is the DB table name, tableAliasName is the potentially
+                    // renamed table name. Multiple aliases may point to the same table.
+                    // The alias may also be equivalent to the table if no renaming has occurred
+                    String tableName = tableAliases.get(tableAliasName);
+                    LinkedList<String> columnRewrites = new LinkedList<>();
+
+                    Hyperedge he = hg.getEdgeByName(tableAliasName);
+                    for (String variableName : he.getNodes()) {
+                        // Get only the first as any of the equivalent is sufficient
+                        String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableAliasName).get(0);
+                        columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
+                    }
+
+                    // Check if there are more variables than columns -> Some columns are equivalent and
+                    // a filter checking this needs to be added
+                    if (he.getNodes().size() < tablesByName.get(tableName).getColumns().size()) {
+                        List<String> whereConditions = new LinkedList<>();
+                        for (String variable : he.getNodes()) {
+                            List<String> equivalentCols = hg.getInverseEquivalenceMapping().get(variable).get(tableName);
+                            for (int i = 0; i < equivalentCols.size() - 1; i++) {
+                                String cur = equivalentCols.get(i);
+                                String next = equivalentCols.get(i + 1);
+
+                                whereConditions.add(String.format("%s = %s", cur, next));
+                            }
+                        }
+
+                        // Rename the table to the table alias
+                        aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s",
+                                String.join(", ", columnRewrites),
+                                tableName,
+                                String.join(" AND ", whereConditions),
+                                tableAliasName));
+                    } else {
+                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableAliasName));
+                    }
+                }
+
+                String sqlStatement = "";
+
+                if (aliasedTables.size() == 1) {
+                    sqlStatement += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
+                    dropStatements.dropView(node.getIdentifier(1));
+                } else {
+                    sqlStatement += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
+                    dropStatements.dropTable(node.getIdentifier(1));
+                }
+
+                sqlStatement += String.format("AS SELECT %s FROM %s;\n",
+                        String.join(", ", node.getAttributes()),
+                        String.join(" NATURAL INNER JOIN ", aliasedTables));
+
+                stage1.add(sqlStatement);
+            }
+        }
+
+        resultQueryStages.add(stage1);
+
+        /**
+         * Stage 2 - semi joins upwards
+         *
+         * Create a view for each join tree node from the second one upwards.
+         * Join the tables in the node
+         */
+
+        for (int i = joinLayers.size() - 2; i >= 0; i--) {
+            Set<JoinTreeNode> layer = joinLayers.get(i);
+
+            List<String> layerStatements = new LinkedList<>();
+            for (JoinTreeNode node : layer) {
+                List<String> semiJoins = new LinkedList<>();
+                for (JoinTreeNode child : node.getSuccessors()) {
+                    String childName = child.getIdentifier(1);
+                    HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
+                    HashSet<String> childCols = new HashSet<>(child.getAttributes());
+                    // Perform set intersection
+                    sameNameColumns.retainAll(childCols);
+
+                    // Construct semi join conditions for WHERE statement
+                    List<String> semiJoinConditions = new LinkedList<>();
+                    for (String columnName : sameNameColumns) {
+                        semiJoinConditions.add(String.format("(%s.%s = %s.%s)",
+                                node.getIdentifier(1), columnName,
+                                childName, columnName));
+                    }
+
+                    // EXISTS is the only choice because IN does not support multiple columns
+                    if (!semiJoinConditions.isEmpty()) {
+                        semiJoins.add(String.format("(EXISTS (SELECT * FROM %s WHERE %s))", childName, String.join(" AND ", semiJoinConditions)));
+                    }
+                }
+
+                String sqlStatement = "";
+
+                if (!semiJoins.isEmpty()) {
+                    sqlStatement += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
+                    dropStatements.dropTable(node.getIdentifier(2));
+                    sqlStatement += String.format("AS SELECT *\n");
+                    sqlStatement += String.format("FROM %s\n", node.getIdentifier(1));
+                    sqlStatement += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
+                } else {
+                    // If there are no semi joins, just create a view to avoid unnecessary copying
+                    sqlStatement += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+                    dropStatements.dropView(node.getIdentifier(2));
+                    sqlStatement += String.format("AS SELECT *\n");
+                    sqlStatement += String.format("FROM %s;\n", node.getIdentifier(1));
+                }
+
+                layerStatements.add(sqlStatement);
+            }
+            resultQueryStages.add(layerStatements);
+        }
+
+        List<String> aliasViews = new LinkedList<>();
+
+        // Create views for the last layer (which are just an alias for the views from stage 1)
+        for (JoinTreeNode node : joinLayers.get(joinLayers.size() - 1)) {
+            String createStatement = String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2))
+            + String.format("AS SELECT * FROM %s;\n", node.getIdentifier(1));
+            aliasViews.add(createStatement);
+            dropStatements.dropView(node.getIdentifier(2));
+        }
+
+        resultQueryStages.add(aliasViews);
+
+        // Stage 3 - semi joins downwards
+        //fnStr += "-- STAGE 3\n";
+
+        for (int i = 1; i < joinLayers.size(); i++) {
+            Set<JoinTreeNode> layer = joinLayers.get(i);
+            //fnStr += "-- layer " + i + "\n";
+            List<String> layerStatements = new LinkedList<>();
+
+            for (JoinTreeNode node : layer) {
+                JoinTreeNode parent = node.getPredecessor();
+
+                String parentName = parent.getIdentifier(2);
+                HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
+                HashSet<String> childCols = new HashSet<>(parent.getAttributes());
+                // Perform set intersection
+                sameNameColumns.retainAll(childCols);
+
+                List<String> semiJoinConditions = new LinkedList<>();
+                for (String columnName : sameNameColumns) {
+                    semiJoinConditions.add(String.format("(%s.%s = %s.%s)",
+                            node.getIdentifier(2), columnName,
+                            parentName, columnName));
+                }
+
+                String sqlStatement = "";
+
+                if (!semiJoinConditions.isEmpty()) {
+                    sqlStatement += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(3));
+                    dropStatements.dropTable(node.getIdentifier(3));
+                } else {
+                    sqlStatement += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
+                    dropStatements.dropView(node.getIdentifier(3));
+                }
+                sqlStatement += String.format("AS SELECT *\n");
+                sqlStatement += String.format("FROM %s\n", node.getIdentifier(2));
+                if (!semiJoinConditions.isEmpty()) {
+                    sqlStatement += String.format("WHERE EXISTS (SELECT * FROM %s WHERE %s);\n",
+                            parent.getIdentifier(2), String.join(" AND ", semiJoinConditions));
+                } else {
+                    sqlStatement += ";";
+                }
+                layerStatements.add(sqlStatement);
+            }
+            resultQueryStages.add(layerStatements);
+        }
+
+        String topStatement = "";
+
+        // Create one view for the root node
+        topStatement += String.format("CREATE TEMP VIEW %s\n", joinTree.getIdentifier(3));
+        topStatement += String.format("AS SELECT * FROM %s;\n", joinTree.getIdentifier(2));
+        dropStatements.dropView(joinTree.getIdentifier(3));
+
+        resultQueryStages.add(List.of(topStatement));
+
+
+        // Stage 4 - join everything
+
+        //fnStr += "-- STAGE 4\n";
+
+        List<String> allStage3Tables = new LinkedList<>();
+        for (Set<JoinTreeNode> layer : joinLayers) {
+            for (JoinTreeNode node : layer) {
+                allStage3Tables.add(node.getIdentifier(3));
+            }
+        }
+
+        String finalQuery = String.format("CREATE TEMP TABLE %s AS SELECT %s\n", finalTableName,
+                resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
+
+        finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
+
+        resultQueryStages.add(List.of(finalQuery));
+
+        return new ParallelQueryExecution(resultQueryStages, dropStatements, resultColumns, finalTableName);
+    }
+
+
     public String toFunction(String functionName) throws QueryConversionException {
         System.out.println("toFunction called");
         Hypergraph hg;
@@ -495,24 +794,5 @@ public class SQLQuery {
 
     public JoinTreeNode getJoinTree() {
         return joinTree;
-    }
-
-    /**
-     * Class to keep track of tables and views to drop (in the correct order)
-     */
-    private class DropStatements {
-        private LinkedList<String> dropStrings = new LinkedList<>();
-
-        public void dropTable(String name) {
-            dropStrings.addFirst(String.format("DROP TABLE %s;", name));
-        }
-
-        public void dropView(String name) {
-            dropStrings.addFirst(String.format("DROP VIEW %s;", name));
-        }
-
-        public String toString() {
-            return String.join("\n", dropStrings);
-        }
     }
 }
