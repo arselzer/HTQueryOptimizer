@@ -310,8 +310,6 @@ public class Benchmark {
                 System.err.println("Table not found: " + e.getMessage());
             }
 
-            //System.out.println(optimizedRowCount.keySet());
-
             result.setHypergraph(optimizedQE.getHypergraph());
             result.setJoinTree(optimizedQE.getJoinTree());
             result.setGeneratedQuery(optimizedQE.getGeneratedFunction());

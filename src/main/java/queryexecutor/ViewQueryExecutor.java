@@ -86,6 +86,8 @@ public class ViewQueryExecutor implements QueryExecutor {
 
             queryRunningTime = System.currentTimeMillis() - startTime;
 
+            System.out.println("total time elapsed: " + queryRunningTime);
+
             //PreparedStatement psSelectFromView = connection.prepareStatement(String.format("SELECT * FROM %s", finalTableName));
             //ResultSet rs = psSelectFromView.executeQuery();
 

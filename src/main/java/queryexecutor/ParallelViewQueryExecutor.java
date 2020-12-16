@@ -42,8 +42,8 @@ public class ParallelViewQueryExecutor extends ViewQueryExecutor {
 
         try {
             for (List<String> layer : queryExecution.getSqlStatements()) {
-                layer.parallelStream().forEach(query -> {
-                    System.out.println("executing query: " + query);
+                layer.stream().forEach(query -> {
+                    System.out.println("-- executing query: \n" + query);
                     try {
                         PreparedStatement ps = connection.prepareStatement(query);
                         ps.execute();
@@ -51,7 +51,7 @@ public class ParallelViewQueryExecutor extends ViewQueryExecutor {
                         throw new RuntimeException(e);
                     }
                 });
-                System.out.println("time elapsed: " + (System.currentTimeMillis() - startTime));
+                System.out.println("-- time elapsed: " + (System.currentTimeMillis() - startTime));
             }
         }
         catch (RuntimeException e) {
@@ -75,7 +75,9 @@ public class ParallelViewQueryExecutor extends ViewQueryExecutor {
         System.out.println("total time elapsed: " + queryRunningTime);
 
         // Remove temp views / tables
-        connection.prepareStatement(queryExecution.getDropStatements().toString()).execute();
+        for (String dropStatement : queryExecution.getDropStatements().toList()) {
+            connection.prepareStatement(dropStatement).execute();
+        }
 
         return rs;
     }

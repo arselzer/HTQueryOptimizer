@@ -1,6 +1,7 @@
 package query;
 
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Class to keep track of tables and views to drop (in the correct order)
@@ -18,5 +19,8 @@ public class DropStatements {
 
     public String toString() {
         return String.join("\n", dropStrings);
+    }
+    public List<String> toList() {
+        return dropStrings;
     }
 }
