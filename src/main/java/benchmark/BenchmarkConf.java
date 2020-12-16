@@ -11,7 +11,7 @@ public class BenchmarkConf {
     // Timeout in seconds
     private Integer queryTimeout = null;
     private Integer dbSize = 1;
-
+    private boolean parallel = true;
     private Boolean skipRows = true;
 
     public BenchmarkConf(String db, String query, String suffix, DecompositionOptions decompositionOptions) {
@@ -22,7 +22,8 @@ public class BenchmarkConf {
     }
 
     public BenchmarkConf(String db, String query, String suffix,
-                         DecompositionOptions decompositionOptions, Integer timeout, Integer run, Integer dbSize) {
+                         DecompositionOptions decompositionOptions, Integer timeout, Integer run, Integer dbSize,
+                         boolean parallel) {
         this.db = db;
         this.query = query;
         this.suffix = suffix;
@@ -30,6 +31,7 @@ public class BenchmarkConf {
         this.queryTimeout = timeout;
         this.run = run;
         this.dbSize = dbSize;
+        this.parallel = parallel;
     }
 
     public String getDb() {
@@ -90,6 +92,14 @@ public class BenchmarkConf {
 
     public DecompositionOptions getDecompositionOptions() {
         return decompositionOptions;
+    }
+
+    public boolean isParallel() {
+        return parallel;
+    }
+
+    public void setParallel(boolean parallel) {
+        this.parallel = parallel;
     }
 
     public void setDecompositionOptions(DecompositionOptions decompositionOptions) {

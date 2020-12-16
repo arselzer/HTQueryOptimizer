@@ -145,8 +145,6 @@ public class SQLQuery {
     }
 
     public ParallelQueryExecution toParallelExecution() throws QueryConversionException {
-        System.out.println("toParallelExecution called");
-
         List<List<String>> resultQueryStages = new LinkedList<>();
 
         Hypergraph hg;
@@ -170,7 +168,7 @@ public class SQLQuery {
             throw new QueryConversionException("Error generating join tree: " + e.getMessage());
         }
 
-        String finalTableName = UUID.randomUUID().toString().replace("-", "");
+        String finalTableName = "htqo_" + UUID.randomUUID().toString().replace("-", "");
 
         DropStatements dropStatements = new DropStatements();
 
@@ -217,10 +215,6 @@ public class SQLQuery {
         for (Table t : dbSchema.getTables()) {
             tablesByName.put(t.getName(), t);
         }
-
-
-        List<String> columnDefinitions = resultColumns.stream()
-                .map(col -> col.getName() + " " + col.getType()).collect(Collectors.toList());
 
         List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
 
@@ -366,11 +360,9 @@ public class SQLQuery {
         resultQueryStages.add(aliasViews);
 
         // Stage 3 - semi joins downwards
-        //fnStr += "-- STAGE 3\n";
 
         for (int i = 1; i < joinLayers.size(); i++) {
             Set<JoinTreeNode> layer = joinLayers.get(i);
-            //fnStr += "-- layer " + i + "\n";
             List<String> layerStatements = new LinkedList<>();
 
             for (JoinTreeNode node : layer) {
@@ -432,17 +424,17 @@ public class SQLQuery {
             }
         }
 
-        String finalQuery = String.format("CREATE TEMP TABLE %s AS SELECT %s\n", finalTableName,
+        String finalQuery = String.format("CREATE TEMP VIEW %s AS SELECT %s\n", finalTableName,
                 resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
-
         finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
+        dropStatements.dropView(finalTableName);
 
         resultQueryStages.add(List.of(finalQuery));
 
         return new ParallelQueryExecution(resultQueryStages, dropStatements, resultColumns, finalTableName);
     }
 
-
+    // TODO refactor to use the above method
     public String toFunction(String functionName) throws QueryConversionException {
         System.out.println("toFunction called");
         Hypergraph hg;

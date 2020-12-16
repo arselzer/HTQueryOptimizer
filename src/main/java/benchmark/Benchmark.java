@@ -8,6 +8,7 @@ import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
 import hypergraph.WeightedHypergraph;
 import org.apache.commons.cli.*;
+import queryexecutor.ParallelViewQueryExecutor;
 import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
 import queryexecutor.ViewQueryExecutor;
@@ -37,6 +38,7 @@ public class Benchmark {
     private Set<String> queries = null;
     private List<BenchmarkResult> results = new LinkedList<>();
     private boolean checkCorrectness = false;
+    private boolean runparallel = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -62,6 +64,7 @@ public class Benchmark {
         Option setDecompositionAlgos = new Option("m", "methods", true, "set decomposition method");
         Option setQueries = new Option("q", "queries", true, "set queries");
         Option setCheckCorrectness = new Option("c", "check", false, "check correctness of optimized query");
+        Option runParallel = new Option("p", "parallel", false, "execute the query in parallel");
 
         options.addOption(setDb);
         options.addOption(setTimeout);
@@ -69,6 +72,7 @@ public class Benchmark {
         options.addOption(setDecompositionAlgos);
         options.addOption(setQueries);
         options.addOption(setCheckCorrectness);
+        options.addOption(runParallel);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -115,6 +119,9 @@ public class Benchmark {
             if (cmd.hasOption("check")) {
                 benchmark.setCheckCorrectness(true);
             }
+            if (cmd.hasOption("parallel")) {
+                benchmark.setRunparallel(true);
+            }
 
             benchmark.run();
 
@@ -153,11 +160,13 @@ public class Benchmark {
                 queryWriter.write(res.getQuery());
                 queryWriter.close();
 
-                // Write out the optimized generated query
-                File generatedQueryFile = new File(subResultsDir + "/generated.sql");
-                PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
-                generatedQueryWriter.write(res.getGeneratedQuery());
-                generatedQueryWriter.close();
+                if (res.getGeneratedQuery() != null) {
+                    // Write out the optimized generated query
+                    File generatedQueryFile = new File(subResultsDir + "/generated.sql");
+                    PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
+                    generatedQueryWriter.write(res.getGeneratedQuery());
+                    generatedQueryWriter.close();
+                }
 
                 // Write out the serialized results as json
                 File resultJsonFile = new File(subResultsDir + "/result.json");
@@ -202,6 +211,10 @@ public class Benchmark {
         this.checkCorrectness = checkCorrectness;
     }
 
+    public void setRunparallel(boolean runparallel) {
+        this.runparallel = runparallel;
+    }
+
     private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
@@ -233,7 +246,12 @@ public class Benchmark {
 
             try {
                 originalQE = new UnoptimizedQueryExecutor(conn);
-                optimizedQE = new ViewQueryExecutor(conn);
+                if (runparallel) {
+                    optimizedQE = new ParallelViewQueryExecutor(conn);
+                }
+                else {
+                    optimizedQE = new ViewQueryExecutor(conn);
+                }
             } catch (SQLException e) {
                 throw e;
                 // Rethrow exceptions occuring during setup
@@ -412,11 +430,11 @@ public class Benchmark {
                                 for (int run = 1; run <= runs; run++) {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
-                                                detkdecompOptions, queryTimeout, run, size));
+                                                detkdecompOptions, queryTimeout, run, size, runparallel));
                                     }
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
-                                                balancedGoOptions, queryTimeout, run, size));
+                                                balancedGoOptions, queryTimeout, run, size, runparallel));
                                     }
                                 }
                             }

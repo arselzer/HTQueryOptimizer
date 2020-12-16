@@ -168,7 +168,7 @@ public class ViewQueryExecutor implements QueryExecutor {
                 mostFrequentValuesForColumn.put(mostFrequentValsArray[i], (double) mostFrequentValsFrequenciesArray[i]);
             }
             mostFrequentValues.put(columnName, mostFrequentValuesForColumn);
-            System.out.println(tableName + "." + columnName + ": " + mostFrequentValuesForColumn.keySet() + ", " + mostFrequentValuesForColumn.values());
+            //System.out.println(tableName + "." + columnName + ": " + mostFrequentValuesForColumn.keySet() + ", " + mostFrequentValuesForColumn.values());
 
             // TODO extract histogram
         }

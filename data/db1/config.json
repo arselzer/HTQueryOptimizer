@@ -12,7 +12,7 @@
     "dbSizeMax": 22
   },
   "multiple-cycles.sql": {
-    "dbSizeMin": 6,
-    "dbSizeMax": 6
+    "dbSizeMin": 5,
+    "dbSizeMax": 5
   }
 }

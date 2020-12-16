@@ -3,6 +3,7 @@ package queryexecutor;
 import exceptions.QueryConversionException;
 import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
+import query.ParallelQueryExecution;
 import query.SQLQuery;
 import schema.Table;
 import schema.TableStatistics;
@@ -12,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ParallelViewQueryExecutor extends ViewQueryExecutor {
@@ -30,44 +32,52 @@ public class ParallelViewQueryExecutor extends ViewQueryExecutor {
         }
         sqlQuery.setStatistics(statisticsMap);
 
-        String functionName = SQLQuery.generateFunctionName();
-        String functionStr = sqlQuery.toFunction(functionName);
+        ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution();
 
         // Save hypergraph and join tree for benchmarks and analysis
         this.hypergraph = sqlQuery.getHypergraph();
         this.joinTree = sqlQuery.getJoinTree();
-        this.generatedFunction = functionStr;
 
         long startTime = System.currentTimeMillis();
 
-        try (PreparedStatement psFunction = connection.prepareStatement(functionStr)) {
-            psFunction.execute();
-
-            PreparedStatement psSelect = connection.prepareStatement(
-                    String.format("SELECT * FROM %s();", functionName),
-                    ResultSet.TYPE_SCROLL_INSENSITIVE,
-                    ResultSet.CONCUR_READ_ONLY);
-            if (timeout != null) {
-                psSelect.setQueryTimeout(timeout);
+        try {
+            for (List<String> layer : queryExecution.getSqlStatements()) {
+                layer.parallelStream().forEach(query -> {
+                    System.out.println("executing query: " + query);
+                    try {
+                        PreparedStatement ps = connection.prepareStatement(query);
+                        ps.execute();
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                System.out.println("time elapsed: " + (System.currentTimeMillis() - startTime));
             }
-            psSelect.closeOnCompletion();
-            ResultSet rs = psSelect.executeQuery();
-
-            queryRunningTime = System.currentTimeMillis() - startTime;
-
-            //PreparedStatement psSelectFromView = connection.prepareStatement(String.format("SELECT * FROM %s", finalTableName));
-            //ResultSet rs = psSelectFromView.executeQuery();
-
-            // TODO maybe keep the function over several calls for performance
-            PreparedStatement psDelete = connection.prepareStatement(String.format("DROP FUNCTION %s;", functionName));
-            psDelete.execute();
-            psDelete.close();
-
-            //enableMergeJoin();
-            // TODO disabling merge join alters global db state ? - maybe isolate it if possible
-
-            return rs;
         }
+        catch (RuntimeException e) {
+            // It's not possible to throw a checked exception in a lambda function
+            // TODO write a custom SQLRuntimeException
+            throw new SQLException(e);
+        }
+
+        PreparedStatement psSelect = connection.prepareStatement(
+                String.format("SELECT * FROM %s;", queryExecution.getFinalSelectName()),
+                ResultSet.TYPE_SCROLL_INSENSITIVE,
+                ResultSet.CONCUR_READ_ONLY);
+        if (timeout != null) {
+            psSelect.setQueryTimeout(timeout);
+        }
+        psSelect.closeOnCompletion();
+        ResultSet rs = psSelect.executeQuery();
+
+        queryRunningTime = System.currentTimeMillis() - startTime;
+
+        System.out.println("total time elapsed: " + queryRunningTime);
+
+        // Remove temp views / tables
+        connection.prepareStatement(queryExecution.getDropStatements().toString()).execute();
+
+        return rs;
     }
 
 }

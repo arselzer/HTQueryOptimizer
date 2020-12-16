@@ -19,6 +19,7 @@ public class SummarizedResultsCSVGenerator {
             "treeNodes",
             "origTimeout",
             "optTimeout",
+            "parallelized",
             "correct"
     };
 
@@ -45,6 +46,7 @@ public class SummarizedResultsCSVGenerator {
                 result.getJoinTree().getNumberOfNodes() + "," +
                 (result.isUnoptimizedQueryTimeout() ? 1 : 0) + "," +
                 (result.isOptimizedQueryTimeout() ? 1 : 0) + "," +
+                (result.getConf().isParallel() ? 1 : 0) + "," +
                 (result.isOptimizedResultCorrect() ? 1 : 0) +
                 "\n";
 

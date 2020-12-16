@@ -71,11 +71,11 @@ public class WeightedHypergraph extends Hypergraph {
                 commonAttributes.retainAll(edge.getNodes());
             }
 
-            System.out.println("bag: " + bag);
+            //System.out.println("bag: " + bag);
 
             Double weight = 1.0;
             for (String attribute : commonAttributes) {
-                System.out.println("common attribute: " + attribute);
+                //System.out.println("common attribute: " + attribute);
                 // The values with frequencies which occur in all joined attributes
                 Set<String> sharedFrequentValues = new HashSet<>();
                 for (Hyperedge edge : bag) {
@@ -95,7 +95,6 @@ public class WeightedHypergraph extends Hypergraph {
 
                 Double columnSelectivity = 0.0;
                 for (String value : sharedFrequentValues) {
-                    System.out.println("shared frequent value: " + value);
                     List<Double> frequencies = new LinkedList<>();
                     for (Hyperedge edge : bag) {
 //                        System.out.println("value to frequency map: " + statistics.get(edge.getName()).getMostCommonFrequencies() + ", attribute: " + attribute);
@@ -125,7 +124,7 @@ public class WeightedHypergraph extends Hypergraph {
             // Multiply the join selectivity with the row count of the cross product
             for (Hyperedge edge : bag) {
                 weight *= statistics.get(edge.getName()).getRowCount();
-                System.out.println("edge: " + edge + ", row count: " + statistics.get(edge.getName()).getRowCount() + ", weight: " + weight);
+                //System.out.println("edge: " + edge + ", row count: " + statistics.get(edge.getName()).getRowCount() + ", weight: " + weight);
             }
 
             weights.add(new BagWeight(bag, weight));
