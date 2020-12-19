@@ -62,6 +62,11 @@ public class ParallelViewQueryExecutor extends ViewQueryExecutor {
             }
         }
         catch (RuntimeException e) {
+            // Remove temp views / tables TODO refactor to avoid duplicate code
+            for (String dropStatement : queryExecution.getDropStatements().toList()) {
+                connection.prepareStatement(dropStatement).execute();
+            }
+
             // It's not possible to throw a checked exception in a lambda function
             // TODO write a custom SQLRuntimeException
             throw new SQLException(e);

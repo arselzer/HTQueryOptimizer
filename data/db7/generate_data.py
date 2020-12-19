@@ -5,7 +5,7 @@ import itertools
 import pandas as pd
 import numpy as np
 
-zp = 0.00
+zp = 0.025
 
 dbSize = int(sys.argv[1])
 size = dbSize * 20
