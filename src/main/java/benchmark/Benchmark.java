@@ -8,10 +8,7 @@ import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
 import hypergraph.WeightedHypergraph;
 import org.apache.commons.cli.*;
-import queryexecutor.ParallelViewQueryExecutor;
-import queryexecutor.QueryExecutor;
-import queryexecutor.UnoptimizedQueryExecutor;
-import queryexecutor.ViewQueryExecutor;
+import queryexecutor.*;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -30,7 +27,6 @@ public class Benchmark {
     private String dbDir = null;
     private Properties connectionProperties;
     private int runs = 1;
-    //private Connection conn;
     private String dbURL;
     // Use balancedgo per default
     private Set<DecompositionOptions.DecompAlgorithm> decompAlgorithms
@@ -222,155 +218,158 @@ public class Benchmark {
         System.out.printf("Benchmarking %s/%s (size %s, run %s)\n",
                 dbFileName, queryFileName, conf.getDbSize(), conf.getRun());
 
-        // Try with resources to close each connection. Otherwise memory leaks might occur
-        try (Connection conn = DriverManager.getConnection(dbURL, connectionProperties)) {
-            File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
-            File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
+        ConnectionPool connPool = new ConnectionPool(dbURL, connectionProperties);
+        File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
+        File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
 
-            String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
-            result.setQuery(query);
+        String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
+        result.setQuery(query);
 
-            // Run create.sh
-            ProcessBuilder pb = new ProcessBuilder();
+        // Run create.sh
+        ProcessBuilder pb = new ProcessBuilder();
 
-            pb.command(createFile.getAbsolutePath(), String.format("%d", conf.getDbSize()));
-            BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(pb.start().getInputStream()));
+        pb.command(createFile.getAbsolutePath(), String.format("%d", conf.getDbSize()));
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(pb.start().getInputStream()));
 
-            // Wait for psql to finish otherwise tables might be missing
-            List<String> psqlOutput = reader.lines().collect(Collectors.toList());
-            System.out.println(String.join(" ", psqlOutput));
+        // Wait for psql to finish otherwise tables might be missing
+        List<String> psqlOutput = reader.lines().collect(Collectors.toList());
+        System.out.println(String.join(" ", psqlOutput));
 
-            QueryExecutor originalQE = null;
-            ViewQueryExecutor optimizedQE = null;
+        QueryExecutor originalQE = null;
+        ViewQueryExecutor optimizedQE = null;
 
-            try {
-                originalQE = new UnoptimizedQueryExecutor(conn);
-                if (runparallel) {
-                    optimizedQE = new ParallelViewQueryExecutor(conn);
-                }
-                else {
-                    optimizedQE = new ViewQueryExecutor(conn);
-                }
-            } catch (SQLException e) {
-                throw e;
-                // Rethrow exceptions occuring during setup
+        Connection conn = DriverManager.getConnection(dbURL, connectionProperties);
+
+        try {
+            originalQE = new UnoptimizedQueryExecutor(conn);
+
+            if (runparallel) {
+                optimizedQE = new ParallelViewQueryExecutor(connPool);
             }
-
-            // Set timeouts if specified
-            if (conf.getQueryTimeout() != null) {
-                originalQE.setTimeout(conf.getQueryTimeout());
-                optimizedQE.setTimeout(conf.getQueryTimeout());
+            else {
+                optimizedQE = new ViewQueryExecutor(connPool);
             }
-
-            optimizedQE.setDecompositionOptions(conf.getDecompositionOptions());
-
-            /** Execute optimized query **/
-
-            HashMap<String, Integer> optimizedRowCount = new HashMap<>();
-
-            ResultSet optimizedRS = null;
-            try {
-                conn.prepareStatement("vacuum analyze;").execute();
-
-                long startTimeOptimized = System.currentTimeMillis();
-                optimizedRS = optimizedQE.execute(query);
-                result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
-                result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
-
-                ResultSetMetaData metaData = optimizedRS.getMetaData();
-                int colCount = metaData.getColumnCount();
-                result.setOptimizedColumns(colCount);
-
-                int optimizedCount = 0;
-                if (!checkCorrectness) {
-                    optimizedRS.last();
-                    optimizedCount = optimizedRS.getRow();
-                } else {
-                    while (optimizedRS.next()) {
-                        String row = "";
-                        for (int i = 1; i <= colCount; i++) {
-                            row += optimizedRS.getString(i) + ",";
-                        }
-                        optimizedRowCount.putIfAbsent(row, 1);
-                        optimizedRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
-
-                        optimizedCount++;
-                    }
-                }
-
-                result.setOptimizedRows(optimizedCount);
-
-                // Close the resultSet to close the PreparedStatement such that no memory is leaked
-                optimizedRS.close();
-            } catch (SQLException e) {
-                System.err.println("Timeout: " + e.getMessage());
-                result.setOptimizedQueryTimeout(true);
-            } catch (TableNotFoundException e) {
-                System.err.println("Table not found: " + e.getMessage());
-            }
-
-            result.setHypergraph(optimizedQE.getHypergraph());
-            result.setJoinTree(optimizedQE.getJoinTree());
-            result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
-
-            /** Execute original query **/
-
-            HashMap<String, Integer> originalRowCount = new HashMap<>();
-            ResultSet originalRS = null;
-            try {
-                conn.prepareStatement("vacuum analyze;").execute();
-                long startTimeUnoptimized = System.currentTimeMillis();
-                originalRS = originalQE.execute(query);
-                result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
-
-                ResultSetMetaData metaData = originalRS.getMetaData();
-                int colCount = metaData.getColumnCount();
-                result.setUnoptimizedColumns(colCount);
-
-                int originalCount = 0;
-                if (!checkCorrectness) {
-                    originalRS.last();
-                    originalCount = originalRS.getRow();
-                } else {
-                    while (originalRS.next()) {
-                        String row = "";
-                        for (int i = 1; i <= colCount; i++) {
-                            row += originalRS.getString(i) + ",";
-                        }
-                        originalRowCount.putIfAbsent(row, 1);
-                        originalRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
-
-                        originalCount++;
-                    }
-                }
-
-                result.setUnoptimizedRows(originalCount);
-
-                originalRS.close();
-            } catch (SQLException e) {
-                System.err.println("Timeout: " + e.getMessage());
-                result.setUnoptimizedQueryTimeout(true);
-            } catch (TableNotFoundException e) {
-                System.err.println("Table not found: " + e.getMessage());
-            }
-
-            // Check if all rows occur the same number of times
-            boolean correctResult = true;
-
-            for (String key : optimizedRowCount.keySet()) {
-                Integer optCount = optimizedRowCount.get(key);
-                Integer origCount = originalRowCount.get(key);
-                if (!optCount.equals(origCount)) {
-                    correctResult = false;
-                    System.err.printf("Row counts of row %s do not match: %s (orig) vs %s (opt)\n", key, origCount, optCount);
-                }
-            }
-
-            result.setOptimizedResultCorrect(correctResult);
-
-            results.add(result);
+        } catch (SQLException e) {
+            throw e;
+            // Rethrow exceptions occuring during setup
         }
+
+        // Set timeouts if specified
+        if (conf.getQueryTimeout() != null) {
+            originalQE.setTimeout(conf.getQueryTimeout());
+            optimizedQE.setTimeout(conf.getQueryTimeout());
+        }
+
+        optimizedQE.setDecompositionOptions(conf.getDecompositionOptions());
+
+        /** Execute optimized query **/
+
+        HashMap<String, Integer> optimizedRowCount = new HashMap<>();
+
+        ResultSet optimizedRS = null;
+        try {
+            conn.prepareStatement("vacuum analyze;").execute();
+
+            long startTimeOptimized = System.currentTimeMillis();
+            optimizedRS = optimizedQE.execute(query);
+            result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
+            result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
+
+            ResultSetMetaData metaData = optimizedRS.getMetaData();
+            int colCount = metaData.getColumnCount();
+            result.setOptimizedColumns(colCount);
+
+            int optimizedCount = 0;
+            if (!checkCorrectness) {
+                optimizedRS.last();
+                optimizedCount = optimizedRS.getRow();
+            } else {
+                while (optimizedRS.next()) {
+                    String row = "";
+                    for (int i = 1; i <= colCount; i++) {
+                        row += optimizedRS.getString(i) + ",";
+                    }
+                    optimizedRowCount.putIfAbsent(row, 1);
+                    optimizedRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
+
+                    optimizedCount++;
+                }
+            }
+
+            result.setOptimizedRows(optimizedCount);
+
+            // Close the resultSet to close the PreparedStatement such that no memory is leaked
+            optimizedRS.close();
+        } catch (SQLException e) {
+            System.err.println("Timeout: " + e.getMessage());
+            result.setOptimizedQueryTimeout(true);
+        } catch (TableNotFoundException e) {
+            System.err.println("Table not found: " + e.getMessage());
+        }
+
+        result.setHypergraph(optimizedQE.getHypergraph());
+        result.setJoinTree(optimizedQE.getJoinTree());
+        result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
+
+        /** Execute original query **/
+
+        HashMap<String, Integer> originalRowCount = new HashMap<>();
+        ResultSet originalRS = null;
+        try {
+            conn.prepareStatement("vacuum analyze;").execute();
+            long startTimeUnoptimized = System.currentTimeMillis();
+            originalRS = originalQE.execute(query);
+            result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
+
+            ResultSetMetaData metaData = originalRS.getMetaData();
+            int colCount = metaData.getColumnCount();
+            result.setUnoptimizedColumns(colCount);
+
+            int originalCount = 0;
+            if (!checkCorrectness) {
+                originalRS.last();
+                originalCount = originalRS.getRow();
+            } else {
+                while (originalRS.next()) {
+                    String row = "";
+                    for (int i = 1; i <= colCount; i++) {
+                        row += originalRS.getString(i) + ",";
+                    }
+                    originalRowCount.putIfAbsent(row, 1);
+                    originalRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
+
+                    originalCount++;
+                }
+            }
+
+            result.setUnoptimizedRows(originalCount);
+
+            originalRS.close();
+        } catch (SQLException e) {
+            System.err.println("Timeout: " + e.getMessage());
+            result.setUnoptimizedQueryTimeout(true);
+        } catch (TableNotFoundException e) {
+            System.err.println("Table not found: " + e.getMessage());
+        }
+
+        // Check if all rows occur the same number of times
+        boolean correctResult = true;
+
+        for (String key : optimizedRowCount.keySet()) {
+            Integer optCount = optimizedRowCount.get(key);
+            Integer origCount = originalRowCount.get(key);
+            if (!optCount.equals(origCount)) {
+                correctResult = false;
+                System.err.printf("Row counts of row %s do not match: %s (orig) vs %s (opt)\n", key, origCount, optCount);
+            }
+        }
+
+        conn.close();
+
+        result.setOptimizedResultCorrect(correctResult);
+
+        results.add(result);
     }
 
     private List<BenchmarkConf> generateBenchmarkConfigs() throws IOException {

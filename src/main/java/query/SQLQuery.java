@@ -275,10 +275,10 @@ public class SQLQuery {
                 String sqlStatement = "";
 
                 if (aliasedTables.size() == 1) {
-                    sqlStatement += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
+                    sqlStatement += String.format("CREATE VIEW %s\n", node.getIdentifier(1));
                     dropStatements.dropView(node.getIdentifier(1));
                 } else {
-                    sqlStatement += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
+                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(1));
                     dropStatements.dropTable(node.getIdentifier(1));
                 }
 
@@ -329,14 +329,14 @@ public class SQLQuery {
                 String sqlStatement = "";
 
                 if (!semiJoins.isEmpty()) {
-                    sqlStatement += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
+                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(2));
                     dropStatements.dropTable(node.getIdentifier(2));
                     sqlStatement += String.format("AS SELECT *\n");
                     sqlStatement += String.format("FROM %s\n", node.getIdentifier(1));
                     sqlStatement += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
                 } else {
                     // If there are no semi joins, just create a view to avoid unnecessary copying
-                    sqlStatement += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+                    sqlStatement += String.format("CREATE VIEW %s\n", node.getIdentifier(2));
                     dropStatements.dropView(node.getIdentifier(2));
                     sqlStatement += String.format("AS SELECT *\n");
                     sqlStatement += String.format("FROM %s;\n", node.getIdentifier(1));
@@ -351,7 +351,7 @@ public class SQLQuery {
 
         // Create views for the last layer (which are just an alias for the views from stage 1)
         for (JoinTreeNode node : joinLayers.get(joinLayers.size() - 1)) {
-            String createStatement = String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2))
+            String createStatement = String.format("CREATE VIEW %s\n", node.getIdentifier(2))
             + String.format("AS SELECT * FROM %s;\n", node.getIdentifier(1));
             aliasViews.add(createStatement);
             dropStatements.dropView(node.getIdentifier(2));
@@ -384,10 +384,10 @@ public class SQLQuery {
                 String sqlStatement = "";
 
                 if (!semiJoinConditions.isEmpty()) {
-                    sqlStatement += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(3));
+                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(3));
                     dropStatements.dropTable(node.getIdentifier(3));
                 } else {
-                    sqlStatement += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
+                    sqlStatement += String.format("CREATE VIEW %s\n", node.getIdentifier(3));
                     dropStatements.dropView(node.getIdentifier(3));
                 }
                 sqlStatement += String.format("AS SELECT *\n");
@@ -406,7 +406,7 @@ public class SQLQuery {
         String topStatement = "";
 
         // Create one view for the root node
-        topStatement += String.format("CREATE TEMP VIEW %s\n", joinTree.getIdentifier(3));
+        topStatement += String.format("CREATE VIEW %s\n", joinTree.getIdentifier(3));
         topStatement += String.format("AS SELECT * FROM %s;\n", joinTree.getIdentifier(2));
         dropStatements.dropView(joinTree.getIdentifier(3));
 
@@ -424,7 +424,7 @@ public class SQLQuery {
             }
         }
 
-        String finalQuery = String.format("CREATE TEMP VIEW %s AS SELECT %s\n", finalTableName,
+        String finalQuery = String.format("CREATE VIEW %s AS SELECT %s\n", finalTableName,
                 resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
         finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
         dropStatements.dropView(finalTableName);
@@ -570,10 +570,10 @@ public class SQLQuery {
                 }
 
                 if (aliasedTables.size() == 1) {
-                    fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(1));
+                    fnStr += String.format("CREATE VIEW %s\n", node.getIdentifier(1));
                     dropStatements.dropView(node.getIdentifier(1));
                 } else {
-                    fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(1));
+                    fnStr += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(1));
                     dropStatements.dropTable(node.getIdentifier(1));
                 }
 
@@ -619,14 +619,14 @@ public class SQLQuery {
                 }
 
                 if (!semiJoins.isEmpty()) {
-                    fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(2));
+                    fnStr += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(2));
                     dropStatements.dropTable(node.getIdentifier(2));
                     fnStr += String.format("AS SELECT *\n");
                     fnStr += String.format("FROM %s\n", node.getIdentifier(1));
                     fnStr += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
                 } else {
                     // If there are no semi joins, just create a view to avoid unnecessary copying
-                    fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+                    fnStr += String.format("CREATE VIEW %s\n", node.getIdentifier(2));
                     dropStatements.dropView(node.getIdentifier(2));
                     fnStr += String.format("AS SELECT *\n");
                     fnStr += String.format("FROM %s;\n", node.getIdentifier(1));
@@ -636,7 +636,7 @@ public class SQLQuery {
 
         // Create views for the last layer (which are just an alias for the views from stage 1)
         for (JoinTreeNode node : joinLayers.get(joinLayers.size() - 1)) {
-            fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(2));
+            fnStr += String.format("CREATE VIEW %s\n", node.getIdentifier(2));
             dropStatements.dropView(node.getIdentifier(2));
             fnStr += String.format("AS SELECT * FROM %s;\n", node.getIdentifier(1));
         }
@@ -665,10 +665,10 @@ public class SQLQuery {
                 }
 
                 if (!semiJoinConditions.isEmpty()) {
-                    fnStr += String.format("CREATE TEMP TABLE %s\n", node.getIdentifier(3));
+                    fnStr += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(3));
                     dropStatements.dropTable(node.getIdentifier(3));
                 } else {
-                    fnStr += String.format("CREATE TEMP VIEW %s\n", node.getIdentifier(3));
+                    fnStr += String.format("CREATE VIEW %s\n", node.getIdentifier(3));
                     dropStatements.dropView(node.getIdentifier(3));
                 }
                 fnStr += String.format("AS SELECT *\n");
@@ -683,7 +683,7 @@ public class SQLQuery {
         }
 
         // Create one view for the root node
-        fnStr += String.format("CREATE TEMP VIEW %s\n", joinTree.getIdentifier(3));
+        fnStr += String.format("CREATE VIEW %s\n", joinTree.getIdentifier(3));
         dropStatements.dropView(joinTree.getIdentifier(3));
         fnStr += String.format("AS SELECT * FROM %s;\n", joinTree.getIdentifier(2));
 

@@ -17,8 +17,11 @@ import java.util.List;
 import java.util.Map;
 
 public class ParallelViewQueryExecutor extends ViewQueryExecutor {
-    public ParallelViewQueryExecutor(Connection connection) throws SQLException {
-        super(connection);
+    private ConnectionPool connectionPool;
+
+    public ParallelViewQueryExecutor(ConnectionPool connectionPool) throws SQLException {
+        super(connectionPool);
+        this.connectionPool = connectionPool;
     }
 
     @Override
@@ -42,13 +45,17 @@ public class ParallelViewQueryExecutor extends ViewQueryExecutor {
 
         try {
             for (List<String> layer : queryExecution.getSqlStatements()) {
-                layer.stream().forEach(query -> {
+                layer.parallelStream().forEach(query -> {
                     System.out.println("-- executing query: \n" + query);
                     try {
-                        PreparedStatement ps = connection.prepareStatement(query);
+                        Connection conn = connectionPool.getConnection();
+                        PreparedStatement ps = conn.prepareStatement(query);
                         ps.execute();
+                        connectionPool.returnConnection(conn);
                     } catch (SQLException e) {
                         throw new RuntimeException(e);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
                 });
                 System.out.println("-- time elapsed: " + (System.currentTimeMillis() - startTime));
@@ -81,5 +88,4 @@ public class ParallelViewQueryExecutor extends ViewQueryExecutor {
 
         return rs;
     }
-
 }

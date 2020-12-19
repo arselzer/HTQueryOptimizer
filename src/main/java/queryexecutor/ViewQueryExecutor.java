@@ -27,8 +27,12 @@ public class ViewQueryExecutor implements QueryExecutor {
 
     protected Integer timeout = null;
 
-    public ViewQueryExecutor(Connection connection) throws SQLException {
-        this.connection = connection;
+    public ViewQueryExecutor(ConnectionPool connectionPool) throws SQLException {
+        try {
+            this.connection = connectionPool.getConnection();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         this.decompositionOptions = new DecompositionOptions();
 
         extractSchema();
