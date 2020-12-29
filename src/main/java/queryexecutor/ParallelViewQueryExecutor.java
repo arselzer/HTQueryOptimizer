@@ -20,6 +20,10 @@ public class ParallelViewQueryExecutor extends ViewQueryExecutor {
     private ConnectionPool connectionPool;
 
     public ParallelViewQueryExecutor(ConnectionPool connectionPool) throws SQLException {
+        /**
+         * We need the connection pool because connections are processed in a
+         * single-core in postgres: https://stackoverflow.com/questions/32629988/query-parallelization-for-single-connection-in-postgres
+         */
         super(connectionPool);
         this.connectionPool = connectionPool;
     }

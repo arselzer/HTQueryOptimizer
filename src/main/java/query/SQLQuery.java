@@ -32,6 +32,7 @@ public class SQLQuery {
     private String query;
     private Schema schema;
     private DBSchema dbSchema;
+    private String queryIdentifier;
     private DecompositionOptions decompositionOptions;
     // Hypertree node -> column name
     private Map<String, Column> columnByNameMap;
@@ -57,6 +58,7 @@ public class SQLQuery {
         buildColumnLookup();
 
         decompositionOptions = new DecompositionOptions();
+        queryIdentifier = UUID.randomUUID().toString().replace("-", "");
     }
 
     public void setStatistics(Map<String, TableStatistics> statistics) {
@@ -106,6 +108,10 @@ public class SQLQuery {
 
     public void setDecompositionOptions(DecompositionOptions decompositionOptions) {
         this.decompositionOptions = decompositionOptions;
+    }
+
+    private String getNodeIdentifier(JoinTreeNode node, int stage) {
+        return node.getIdentifier(stage) +  "_" + queryIdentifier.substring(0, 6);
     }
 
     private void findProjectColumnsAndAliases() throws QueryConversionException, TableNotFoundException {
@@ -275,11 +281,11 @@ public class SQLQuery {
                 String sqlStatement = "";
 
                 if (aliasedTables.size() == 1) {
-                    sqlStatement += String.format("CREATE VIEW %s\n", node.getIdentifier(1));
-                    dropStatements.dropView(node.getIdentifier(1));
+                    sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 1));
+                    dropStatements.dropView(getNodeIdentifier(node, 1));
                 } else {
-                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(1));
-                    dropStatements.dropTable(node.getIdentifier(1));
+                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", getNodeIdentifier(node, 1));
+                    dropStatements.dropTable(getNodeIdentifier(node, 1));
                 }
 
                 sqlStatement += String.format("AS SELECT %s FROM %s;\n",
@@ -306,7 +312,7 @@ public class SQLQuery {
             for (JoinTreeNode node : layer) {
                 List<String> semiJoins = new LinkedList<>();
                 for (JoinTreeNode child : node.getSuccessors()) {
-                    String childName = child.getIdentifier(1);
+                    String childName = getNodeIdentifier(child, 1);
                     HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
                     HashSet<String> childCols = new HashSet<>(child.getAttributes());
                     // Perform set intersection
@@ -316,30 +322,30 @@ public class SQLQuery {
                     List<String> semiJoinConditions = new LinkedList<>();
                     for (String columnName : sameNameColumns) {
                         semiJoinConditions.add(String.format("(%s.%s = %s.%s)",
-                                node.getIdentifier(1), columnName,
+                                getNodeIdentifier(node, 1), columnName,
                                 childName, columnName));
                     }
 
                     // EXISTS is the only choice because IN does not support multiple columns
                     if (!semiJoinConditions.isEmpty()) {
-                        semiJoins.add(String.format("(EXISTS (SELECT * FROM %s WHERE %s))", childName, String.join(" AND ", semiJoinConditions)));
+                        semiJoins.add(String.format("(EXISTS (SELECT 1 FROM %s WHERE %s))", childName, String.join(" AND ", semiJoinConditions)));
                     }
                 }
 
                 String sqlStatement = "";
 
                 if (!semiJoins.isEmpty()) {
-                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(2));
-                    dropStatements.dropTable(node.getIdentifier(2));
+                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", getNodeIdentifier(node, 2));
+                    dropStatements.dropTable(getNodeIdentifier(node, 2));
                     sqlStatement += String.format("AS SELECT *\n");
-                    sqlStatement += String.format("FROM %s\n", node.getIdentifier(1));
+                    sqlStatement += String.format("FROM %s\n", getNodeIdentifier(node, 1));
                     sqlStatement += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
                 } else {
                     // If there are no semi joins, just create a view to avoid unnecessary copying
-                    sqlStatement += String.format("CREATE VIEW %s\n", node.getIdentifier(2));
-                    dropStatements.dropView(node.getIdentifier(2));
+                    sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 2));
+                    dropStatements.dropView(getNodeIdentifier(node, 2));
                     sqlStatement += String.format("AS SELECT *\n");
-                    sqlStatement += String.format("FROM %s;\n", node.getIdentifier(1));
+                    sqlStatement += String.format("FROM %s;\n", getNodeIdentifier(node, 1));
                 }
 
                 layerStatements.add(sqlStatement);
@@ -351,10 +357,10 @@ public class SQLQuery {
 
         // Create views for the last layer (which are just an alias for the views from stage 1)
         for (JoinTreeNode node : joinLayers.get(joinLayers.size() - 1)) {
-            String createStatement = String.format("CREATE VIEW %s\n", node.getIdentifier(2))
-            + String.format("AS SELECT * FROM %s;\n", node.getIdentifier(1));
+            String createStatement = String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 2))
+            + String.format("AS SELECT * FROM %s;\n", getNodeIdentifier(node, 1));
             aliasViews.add(createStatement);
-            dropStatements.dropView(node.getIdentifier(2));
+            dropStatements.dropView(getNodeIdentifier(node, 2));
         }
 
         resultQueryStages.add(aliasViews);
@@ -368,7 +374,7 @@ public class SQLQuery {
             for (JoinTreeNode node : layer) {
                 JoinTreeNode parent = node.getPredecessor();
 
-                String parentName = parent.getIdentifier(2);
+                String parentName = getNodeIdentifier(parent, 2);
                 HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
                 HashSet<String> childCols = new HashSet<>(parent.getAttributes());
                 // Perform set intersection
@@ -377,24 +383,24 @@ public class SQLQuery {
                 List<String> semiJoinConditions = new LinkedList<>();
                 for (String columnName : sameNameColumns) {
                     semiJoinConditions.add(String.format("(%s.%s = %s.%s)",
-                            node.getIdentifier(2), columnName,
+                            getNodeIdentifier(node, 2), columnName,
                             parentName, columnName));
                 }
 
                 String sqlStatement = "";
 
                 if (!semiJoinConditions.isEmpty()) {
-                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(3));
-                    dropStatements.dropTable(node.getIdentifier(3));
+                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", getNodeIdentifier(node, 3));
+                    dropStatements.dropTable(getNodeIdentifier(node, 3));
                 } else {
-                    sqlStatement += String.format("CREATE VIEW %s\n", node.getIdentifier(3));
-                    dropStatements.dropView(node.getIdentifier(3));
+                    sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 3));
+                    dropStatements.dropView(getNodeIdentifier(node, 3));
                 }
                 sqlStatement += String.format("AS SELECT *\n");
-                sqlStatement += String.format("FROM %s\n", node.getIdentifier(2));
+                sqlStatement += String.format("FROM %s\n", getNodeIdentifier(node, 2));
                 if (!semiJoinConditions.isEmpty()) {
-                    sqlStatement += String.format("WHERE EXISTS (SELECT * FROM %s WHERE %s);\n",
-                            parent.getIdentifier(2), String.join(" AND ", semiJoinConditions));
+                    sqlStatement += String.format("WHERE EXISTS (SELECT 1 FROM %s WHERE %s);\n",
+                            getNodeIdentifier(parent, 2), String.join(" AND ", semiJoinConditions));
                 } else {
                     sqlStatement += ";";
                 }
@@ -406,9 +412,9 @@ public class SQLQuery {
         String topStatement = "";
 
         // Create one view for the root node
-        topStatement += String.format("CREATE VIEW %s\n", joinTree.getIdentifier(3));
-        topStatement += String.format("AS SELECT * FROM %s;\n", joinTree.getIdentifier(2));
-        dropStatements.dropView(joinTree.getIdentifier(3));
+        topStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(joinTree, 3));
+        topStatement += String.format("AS SELECT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
+        dropStatements.dropView(getNodeIdentifier(joinTree, 3));
 
         resultQueryStages.add(List.of(topStatement));
 
@@ -420,7 +426,7 @@ public class SQLQuery {
         List<String> allStage3Tables = new LinkedList<>();
         for (Set<JoinTreeNode> layer : joinLayers) {
             for (JoinTreeNode node : layer) {
-                allStage3Tables.add(node.getIdentifier(3));
+                allStage3Tables.add(getNodeIdentifier(node, 3));
             }
         }
 
