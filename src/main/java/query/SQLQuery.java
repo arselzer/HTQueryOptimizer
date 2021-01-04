@@ -39,7 +39,7 @@ public class SQLQuery {
     // List of columns to project in the end (or *)
     private List<String> projectColumns;
     // A set of all involved tables
-    private Set<String> aliasTables;
+    private Set<String> tables;
     // Table aliases
     private Map<String, String> tableAliases;
     // Column aliases
@@ -121,11 +121,11 @@ public class SQLQuery {
             SQLQueryParser queryParser = new SQLQueryParser(stmt, dbSchema);
             projectColumns = queryParser.getProjectColumns();
             tableAliases = queryParser.getAliases();
-            aliasTables = queryParser.getTables();
+            tables = queryParser.getTables();
 
             // Fill all column aliases: e.g. renamed.a -> original.a
             columnAliases = new HashMap<>();
-            for (String aliasTableName : aliasTables) {
+            for (String aliasTableName : tables) {
                 String realTableName = tableAliases.get(aliasTableName);
 
                 Table realTable = dbSchema.getTableByName(realTableName);
@@ -792,5 +792,9 @@ public class SQLQuery {
 
     public JoinTreeNode getJoinTree() {
         return joinTree;
+    }
+
+    public Set<String> getTables() {
+        return tables;
     }
 }

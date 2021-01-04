@@ -6,10 +6,7 @@ import hypergraph.Hypergraph;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -419,7 +416,13 @@ public class VisualizationInstance {
         Path src = toPDF();
         Path dst = outputFile;
 
-        Files.copy(src, dst, StandardCopyOption.REPLACE_EXISTING);
+        try {
+            Files.copy(src, dst, StandardCopyOption.REPLACE_EXISTING);
+        }
+        catch (NoSuchFileException e) {
+            // TODO investigate cause
+            System.err.println("Error: copying hypergraph PDF failed");
+        }
     }
 
     public void displayPDF() throws IOException, InterruptedException {

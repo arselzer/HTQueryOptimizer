@@ -60,8 +60,8 @@ public class ViewQueryExecutor implements QueryExecutor {
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
         Map<String, TableStatistics> statisticsMap = new HashMap<>();
-        for (Table table: schema.getTables()) {
-            statisticsMap.put(table.getName(), extractTableStatistics(table.getName()));
+        for (String tableName: sqlQuery.getTables()) {
+            statisticsMap.put(tableName, extractTableStatistics(tableName));
         }
         sqlQuery.setStatistics(statisticsMap);
 

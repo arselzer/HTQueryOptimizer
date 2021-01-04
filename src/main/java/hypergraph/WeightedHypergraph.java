@@ -77,27 +77,31 @@ public class WeightedHypergraph extends Hypergraph {
             for (String attribute : commonAttributes) {
                 //System.out.println("common attribute: " + attribute);
                 // The values with frequencies which occur in all joined attributes
-                Set<String> sharedFrequentValues = new HashSet<>();
+                // First, start with the common vals of one edge
+                Iterator<Hyperedge> edgeIterator = bag.iterator();
+                Hyperedge firstEdge = edgeIterator.next();
+                String firstEdgeColumnName = getInverseEquivalenceMapping().get(attribute).get(firstEdge.getName()).get(0);
+                Set<String> sharedCommonValues = statistics.get(firstEdge.getName())
+                        .getMostCommonFrequencies().get(firstEdgeColumnName).keySet();
+
                 for (Hyperedge edge : bag) {
                     String tableName = edge.getName();
                     TableStatistics tableStats = statistics.get(tableName);
                     // TODO for simplicity the case of multiple equal columns in the same table is not considered
                     String columnName = getInverseEquivalenceMapping().get(attribute).get(tableName).get(0);
-                    // Sometimes, if very few values exist in a table, no statistics are calculated and no values are set of the column
                     Map<String, Double> mostCommonFrequencies = tableStats.getMostCommonFrequencies().get(columnName);
                     if (mostCommonFrequencies != null) {
                         Set<String> commonVals = mostCommonFrequencies.keySet();
-                        for (String val : commonVals) {
-                            sharedFrequentValues.add(val);
-                        }
+                        sharedCommonValues.retainAll(commonVals);
                     }
                 }
 
                 Double columnSelectivity = 0.0;
-                for (String value : sharedFrequentValues) {
+                for (String value : sharedCommonValues) {
+                    //System.out.println("shared common value: " + value);
                     List<Double> frequencies = new LinkedList<>();
                     for (Hyperedge edge : bag) {
-//                        System.out.println("value to frequency map: " + statistics.get(edge.getName()).getMostCommonFrequencies() + ", attribute: " + attribute);
+                        //System.out.println("value to frequency map: " + statistics.get(edge.getName()).getMostCommonFrequencies() + ", attribute: " + attribute);
 //                        System.out.println("value to frequency: " + statistics.get(edge.getName()).getMostCommonFrequencies().get(attribute));
                         String columnName = getInverseEquivalenceMapping().get(attribute).get(edge.getName()).get(0);
                         Map<String, Double> valueToFrequencyMap = statistics.get(edge.getName()).getMostCommonFrequencies().get(columnName);
@@ -105,20 +109,23 @@ public class WeightedHypergraph extends Hypergraph {
                             Double frequency = valueToFrequencyMap.get(value);
                             if (frequency != null) {
                                 frequencies.add(frequency);
+                                //System.out.println("frequency added " + frequency);
                                 //System.out.println(edge.getName() + " " + statistics.get(edge.getName()).getMostCommonFrequencies());
                             }
                         }
                     }
                     if (!frequencies.isEmpty()) {
+                        //System.out.println("frequencies: " + frequencies);
                         columnSelectivity += frequencies.stream().reduce(1.0, (a,b) -> a * b);
                     }
                 }
-                if (sharedFrequentValues.isEmpty()) {
+                if (sharedCommonValues.isEmpty()) {
                     // Cross product
                     columnSelectivity = 1.0;
                 }
 
                 weight *= columnSelectivity;
+                //System.out.println("column selectivity: " + columnSelectivity);
             }
 
             // Multiply the join selectivity with the row count of the cross product
@@ -126,6 +133,7 @@ public class WeightedHypergraph extends Hypergraph {
                 weight *= statistics.get(edge.getName()).getRowCount();
                 //System.out.println("edge: " + edge + ", row count: " + statistics.get(edge.getName()).getRowCount() + ", weight: " + weight);
             }
+            //System.out.println("total selectivity: " + weight + ", row estimate: " + weight);
 
             weights.add(new BagWeight(bag, weight));
         }

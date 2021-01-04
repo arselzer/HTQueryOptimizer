@@ -2,7 +2,7 @@
 
 path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
-./dbgen -s 1.2
+./dbgen -s 0.15
 
 tables=(nation region part supplier partsupp customer orders lineitem);
 
