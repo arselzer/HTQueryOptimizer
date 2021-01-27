@@ -1,4 +1,4 @@
-drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11;
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11 cascade;
 
 create table t1 (a integer, b integer);
 create table t2 (a integer, b integer);

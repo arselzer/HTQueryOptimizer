@@ -14,7 +14,7 @@ import schema.TableStatistics;
 import java.sql.*;
 import java.util.*;
 
-public class ViewQueryExecutor implements QueryExecutor {
+public class TempTableQueryExecutor implements QueryExecutor {
     protected Connection connection;
     protected DBSchema schema;
     protected DecompositionOptions decompositionOptions;
@@ -27,7 +27,7 @@ public class ViewQueryExecutor implements QueryExecutor {
 
     protected Integer timeout = null;
 
-    public ViewQueryExecutor(ConnectionPool connectionPool) throws SQLException {
+    public TempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {
         try {
             this.connection = connectionPool.getConnection();
         } catch (InterruptedException e) {

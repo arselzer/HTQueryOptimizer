@@ -1,16 +1,15 @@
 import exceptions.QueryConversionException;
 import exceptions.TableNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import queryexecutor.ConnectionPool;
 import queryexecutor.QueryExecutor;
 import queryexecutor.UnoptimizedQueryExecutor;
-import queryexecutor.ViewQueryExecutor;
+import queryexecutor.TempTableQueryExecutor;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.Properties;
 
 public class QueryExecutorTest {
@@ -83,6 +82,7 @@ public class QueryExecutorTest {
             "and t3.a = t4.a\n" +
             "AND t4.b = t5.a;";
     private static Connection conn;
+    private static ConnectionPool connPool;
 
     @BeforeEach
     void connect() throws SQLException {
@@ -96,11 +96,12 @@ public class QueryExecutorTest {
         //properties.setProperty("ssl", "true");
 
         conn = DriverManager.getConnection(url, properties);
+        connPool = new ConnectionPool(url, properties);
     }
 
     @Test
     void connectAndQuery() throws SQLException, QueryConversionException, TableNotFoundException {
-        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
+        TempTableQueryExecutor qe = new TempTableQueryExecutor(connPool);
 
         ResultSet rs = qe.execute(starQuery);
 
@@ -113,7 +114,7 @@ public class QueryExecutorTest {
 
     @Test
     void triangleQuery() throws SQLException, QueryConversionException, TableNotFoundException {
-        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
+        TempTableQueryExecutor qe = new TempTableQueryExecutor(connPool);
 
         ResultSet rs = qe.execute(triangleQuery);
 
@@ -126,7 +127,7 @@ public class QueryExecutorTest {
 
     @Test
     void triangleStarQuery() throws SQLException, QueryConversionException, TableNotFoundException {
-        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
+        TempTableQueryExecutor qe = new TempTableQueryExecutor(connPool);
 
         ResultSet rs = qe.execute(triangleStarQuery);
 
@@ -140,7 +141,7 @@ public class QueryExecutorTest {
     @Test
     void multipleCyclesQuery() throws SQLException, QueryConversionException, TableNotFoundException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
-        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
+        TempTableQueryExecutor qe = new TempTableQueryExecutor(connPool);
 
         long startTime = System.currentTimeMillis();
         ResultSet rs = qe.execute(multipleCyclesQuery);
@@ -162,7 +163,7 @@ public class QueryExecutorTest {
     @Test
     void multipleCyclesQuery2() throws SQLException, QueryConversionException, IOException, InterruptedException, TableNotFoundException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
-        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
+        TempTableQueryExecutor qe = new TempTableQueryExecutor(connPool);
 
         long startTime = System.currentTimeMillis();
         ResultSet rs = qe.execute(multipleCyclesQuery2);
@@ -181,7 +182,7 @@ public class QueryExecutorTest {
     @Test
     void multipleCyclesQuery3() throws SQLException, QueryConversionException, TableNotFoundException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
-        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
+        TempTableQueryExecutor qe = new TempTableQueryExecutor(connPool);
 
         long startTime = System.currentTimeMillis();
         ResultSet rs = qe.execute(multipleCyclesQuery3);
@@ -198,7 +199,7 @@ public class QueryExecutorTest {
     @Test
     void chainQuery() throws SQLException, QueryConversionException, TableNotFoundException {
         QueryExecutor uoqe = new UnoptimizedQueryExecutor(conn);
-        ViewQueryExecutor qe = new ViewQueryExecutor(conn);
+        TempTableQueryExecutor qe = new TempTableQueryExecutor(connPool);
 
         long startTime = System.currentTimeMillis();
         ResultSet rs = qe.execute(chainQuery);

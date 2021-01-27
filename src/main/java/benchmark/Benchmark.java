@@ -237,7 +237,7 @@ public class Benchmark {
         System.out.println(String.join(" ", psqlOutput));
 
         QueryExecutor originalQE = null;
-        ViewQueryExecutor optimizedQE = null;
+        TempTableQueryExecutor optimizedQE = null;
 
         Connection conn = DriverManager.getConnection(dbURL, connectionProperties);
 
@@ -245,10 +245,10 @@ public class Benchmark {
             originalQE = new UnoptimizedQueryExecutor(conn);
 
             if (runparallel) {
-                optimizedQE = new ParallelViewQueryExecutor(connPool);
+                optimizedQE = new ParallelTempTableQueryExecutor(connPool);
             }
             else {
-                optimizedQE = new ViewQueryExecutor(connPool);
+                optimizedQE = new TempTableQueryExecutor(connPool);
             }
         } catch (SQLException e) {
             throw e;

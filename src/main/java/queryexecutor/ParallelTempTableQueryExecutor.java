@@ -2,10 +2,8 @@ package queryexecutor;
 
 import exceptions.QueryConversionException;
 import exceptions.TableNotFoundException;
-import hypergraph.DecompositionOptions;
 import query.ParallelQueryExecution;
 import query.SQLQuery;
-import schema.Table;
 import schema.TableStatistics;
 
 import java.sql.Connection;
@@ -16,10 +14,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ParallelViewQueryExecutor extends ViewQueryExecutor {
+public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     private ConnectionPool connectionPool;
 
-    public ParallelViewQueryExecutor(ConnectionPool connectionPool) throws SQLException {
+    public ParallelTempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {
         /**
          * We need the connection pool because connections are processed in a
          * single-core in postgres: https://stackoverflow.com/questions/32629988/query-parallelization-for-single-connection-in-postgres
