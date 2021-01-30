@@ -4,6 +4,8 @@ path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 cd $path
 
+export PGPASSWORD=test
+
 dbSize="${1}"
 
 psql -U test -d testdb -f "${path}/create.sql"

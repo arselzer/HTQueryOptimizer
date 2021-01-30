@@ -6,6 +6,8 @@ cd $path
 
 dbSize="${1}"
 
+export PGPASSWORD=test
+
 psql -U test -d testdb -f "${path}/create.sql"
 
 python ${path}/generate_data.py $dbSize

@@ -2,6 +2,8 @@
 
 path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
+export PGPASSWORD=test
+
 tables=(t1 t2 t3 t4 t5);
 
 for table in "${tables[@]}"; do

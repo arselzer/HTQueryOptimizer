@@ -4,6 +4,8 @@ path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 cd $path
 
+export PGPASSWORD=test
+
 dbSize="${1}"
 
 ./generate_data.py $dbSize
