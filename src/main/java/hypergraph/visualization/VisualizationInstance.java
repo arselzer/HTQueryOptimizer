@@ -11,8 +11,8 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class VisualizationInstance {
-    private static double MAX_X = 10.0;
-    private static double MAX_Y = 10.0;
+    private static double MAX_X = 20.0;
+    private static double MAX_Y = 20.0;
     private static double MIN_NODE_DISTANCE = 1.0;
     private static double NEW_POINT_RADIUS = 6;
     private static int MAX_POINT_TRIES = 10000;
