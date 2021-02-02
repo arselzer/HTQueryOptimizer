@@ -1,5 +1,7 @@
 package query;
 
+import hypergraph.Hypergraph;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,19 +36,33 @@ public class JoinTreeNode {
      *
      * @param projectColumns columns that are needed for the end result of the query
      */
-    public void projectAllColumns(Collection<String> projectColumns) {
+    public void projectAllColumns(Collection<String> projectColumns, Hypergraph hg) {
         for (Set<JoinTreeNode> layer : getLayers()) {
             for (JoinTreeNode node : layer) {
                 HashSet<String> remainingAttributes = new HashSet<>(node.getAttributes());
 
                 HashSet<String> toKeep = new HashSet<>(projectColumns);
+                // Add all variables occuring in predecessor nodes
                 if (node.getPredecessor() != null) {
                     toKeep.addAll(node.getPredecessor().getAttributes());
                 }
-
+                // Add all variables occuring in successor nodes
                 for (JoinTreeNode successor : node.getSuccessors()) {
                     toKeep.addAll(successor.getAttributes());
                 }
+                // Add all variables needed for in-node joins
+                Set<String> joinVariables = new HashSet<>(hg.getEdgeByName(node.getTables().get(0)).getNodes());
+                for (int i = 1; i < node.getTables().size(); i++) {
+                    Set<String> newVars = new HashSet<>(hg.getEdgeByName(node.getTables().get(i)).getNodes());
+                    //System.out.println("joinVariables: " + joinVariables + ", newVars: " + newVars);
+                    for (String var: newVars) {
+                        if (joinVariables.contains(var)) {
+                            toKeep.add(var);
+                        }
+                    }
+                    joinVariables.addAll(newVars);
+                }
+                //System.out.println(toKeep);
 
                 remainingAttributes.retainAll(toKeep);
                 node.setAttributes(new LinkedList<>(remainingAttributes));

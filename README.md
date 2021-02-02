@@ -23,6 +23,11 @@ grant all privileges on database testdb to test;
 
 To run the benchmark, use `java -Xmx22G -cp "target/HTQueryOptimizer-1.0-SNAPSHOT.jar" "benchmark.Benchmark" [args]`
 
+### Examples
+
+* `java -Xmx22G -cp "target/HTQueryOptimizer-1.0-SNAPSHOT.jar" "benchmark.Benchmark" -d tpc-h-2 -q extra.sql -parallel -t 10000`
+
+
 ### Database and query configuration
 
 Benchmark data is saved in `data/`. For each database, a directory is created with the name of the database. Inside a

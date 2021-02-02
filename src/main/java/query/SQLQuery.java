@@ -214,7 +214,9 @@ public class SQLQuery {
         // Transform project column names to hypergraph variable names
         joinTree.projectAllColumns(resultColumns.stream()
                 .map(Column::getName)
-                .collect(Collectors.toSet()));
+                .collect(Collectors.toSet()), hg);
+
+        System.out.println("Reduced attribute join tree: " + joinTree);
 
         // Set up a lookup table of tables for quickly getting the variables of a hyperedge
         Map<String, Table> tablesByName = new HashMap<>();
@@ -223,7 +225,6 @@ public class SQLQuery {
         }
 
         List<Set<JoinTreeNode>> joinLayers = joinTree.getLayers();
-
 
         /**
          * Stage 1 - join tables inside tree nodes
@@ -247,11 +248,15 @@ public class SQLQuery {
                     LinkedList<String> columnRewrites = new LinkedList<>();
 
                     Hyperedge he = hg.getEdgeByName(tableAliasName);
-                    for (String variableName : he.getNodes()) {
+                    Set<String> tableVariables = new HashSet<>(node.getAttributes());
+                    tableVariables.retainAll(he.getNodes());
+
+                    for (String variableName : tableVariables) {
                         // Get only the first as any of the equivalent is sufficient
                         String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableAliasName).get(0);
                         columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
                     }
+                    // TODO handle case of cross-product and no columns from that table selected
 
                     // Check if there are more variables than columns -> Some columns are equivalent and
                     // a filter checking this needs to be added
@@ -269,12 +274,14 @@ public class SQLQuery {
 
                         // Rename the table to the table alias
                         aliasedTables.add(String.format("(SELECT %s FROM %s WHERE %s) %s",
-                                String.join(", ", columnRewrites),
+                                String.join(", ", columnRewrites.size() > 0 ? columnRewrites : List.of("1")), // If there are no selections, select 1
                                 tableName,
                                 String.join(" AND ", whereConditions),
                                 tableAliasName));
                     } else {
-                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s", String.join(", ", columnRewrites), tableName, tableAliasName));
+                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s",
+                                String.join(", ", columnRewrites.size() > 0 ? columnRewrites : List.of("1")),
+                                tableName, tableAliasName));
                     }
                 }
 
@@ -505,7 +512,7 @@ public class SQLQuery {
         // Transform project column names to hypergraph variable names
         joinTree.projectAllColumns(resultColumns.stream()
                 .map(Column::getName)
-                .collect(Collectors.toSet()));
+                .collect(Collectors.toSet()), hg);
 
         // Set up a lookup table of tables for quickly getting the variables of a hyperedge
         Map<String, Table> tablesByName = new HashMap<>();
