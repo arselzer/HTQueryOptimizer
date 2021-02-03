@@ -45,12 +45,25 @@ database and inside it a directory for each query of the form `queryname-dbsize-
 The file `generated.sql` contains the generated function, `query.sql` the original query, `query.json` the JSON-serialized
 form of the results in a detailed form.
 
-## Arguments
+## Usage
 
-* **-t timeout**: set the timeout of queries in seconds, e.g. `-t 20`, *default: 25s*
-* **-a algorithms**: set the algorithms used, e.g. `-a BALANCEDGO,DETKDECOMP`, *default: BALANCEDGO*
-* **-d db** set the database(s), *default: all*
-* **-q query** set the queries, *default: all*
-* **-r runs** set how often to do the benchmark for more reliable data, *default: 1*
-* **-c** check if the rows are equivalent in the original and optimized query i.e. each row occurs the same number of times
-  Warning: currently does not work correctly for `select * from ...` queries
+```
+java -cp {jar} "benchmark.Benchmark" [-c] [-d <arg>] [-m <arg>]
+       [-p] [-q <arg>] [-r <arg>] [-t <arg>] [--threads <arg>]
+ -c,--check           check if the rows are equivalent in the original and
+                      optimized query i.e. each row occurs the same number
+                      of times
+                      Warning: currently does not work correctly for
+                      `select * from ...` queries
+ -d,--db <arg>        the database(s) to use, default: all
+ -m,--methods <arg>   the algorithms used, e.g. `-a
+                      BALANCEDGO,DETKDECOMP`, default: BALANCEDGO
+ -p,--parallel        execute the query in parallel
+ -q,--queries <arg>   the queries to benchmark, default: all
+ -r,--runs <arg>      the number of repetitions of each run, default: 1
+ -t,--timeout <arg>   the timeout of queries in seconds, e.g. `-t 20`,
+                      default: 25s
+    --threads <arg>   the number of threads used for parallel execution
+
+
+```

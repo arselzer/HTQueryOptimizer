@@ -13,7 +13,8 @@ public class ConnectionPool {
     private LinkedBlockingQueue<Connection> connectionQueue = new LinkedBlockingQueue<>();
 
     public ConnectionPool(String dbURL, Properties connectionProperties, int size) throws SQLException {
-        for (int i = 0; i < size; i++) {
+        // Create one extra connection for statistics extraction, creating prepared statements, etc.
+        for (int i = 0; i < size + 1; i++) {
             Connection conn = DriverManager.getConnection(dbURL, connectionProperties);
             connections.add(conn);
             connectionQueue.add(conn);

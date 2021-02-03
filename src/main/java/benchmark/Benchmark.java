@@ -26,6 +26,7 @@ public class Benchmark {
     private String dbRootDir;
     private String dbDir = null;
     private Properties connectionProperties;
+    private Integer threadCount = null;
     private int runs = 1;
     private String dbURL;
     // Use balancedgo per default
@@ -52,15 +53,18 @@ public class Benchmark {
     public static void main(String[] args) {
         Options options = new Options();
 
-        Option setDb = new Option("d", "db", true, "test db");
-        Option setTimeout = new Option("t", "timeout", true, "set query timeout");
+        Option setDb = new Option("d", "db", true, "the database(s) to use, default: all");
+        Option setTimeout = new Option("t", "timeout", true, "the timeout of queries in seconds, e.g. `-t 20`, default: 25s");
         setTimeout.setType(Integer.class);
-        Option setRuns = new Option("r", "runs", true, "set runs");
+        Option setRuns = new Option("r", "runs", true, "the number of repetitions of each run, default: 1");
         setRuns.setType(Integer.class);
-        Option setDecompositionAlgos = new Option("m", "methods", true, "set decomposition method");
-        Option setQueries = new Option("q", "queries", true, "set queries");
-        Option setCheckCorrectness = new Option("c", "check", false, "check correctness of optimized query");
+        Option setDecompositionAlgos = new Option("m", "methods", true, "the algorithms used, e.g. `-a BALANCEDGO,DETKDECOMP`, default: BALANCEDGO");
+        Option setQueries = new Option("q", "queries", true, "the queries to benchmark, default: all");
+        Option setCheckCorrectness = new Option("c", "check", false, "check if the rows are equivalent in the original and optimized query i.e. each row occurs the same number of times\n" +
+                "  Warning: currently does not work correctly for `select * from ...` queries");
         Option runParallel = new Option("p", "parallel", false, "execute the query in parallel");
+        Option parallelThreads = new Option(null, "threads", true, "the number of threads used for parallel execution");
+        parallelThreads.setType(Integer.class);
 
         options.addOption(setDb);
         options.addOption(setTimeout);
@@ -69,13 +73,16 @@ public class Benchmark {
         options.addOption(setQueries);
         options.addOption(setCheckCorrectness);
         options.addOption(runParallel);
+        options.addOption(parallelThreads);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
         try {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
-            System.err.print("Error parsing arguments:" + e.getMessage());
+            System.err.println("Error parsing arguments:" + e.getMessage());
+            HelpFormatter helpFormatter = new HelpFormatter();
+            helpFormatter.printHelp("java -cp {jar} \"benchmark.Benchmark\"", "", options, "", true);
             System.exit(1);
         }
 
@@ -117,6 +124,13 @@ public class Benchmark {
             }
             if (cmd.hasOption("parallel")) {
                 benchmark.setRunparallel(true);
+            }
+            if (cmd.hasOption("threads")) {
+                Integer threadCount = Integer.parseInt(cmd.getOptionValue("threads"));
+                if (threadCount < 1) {
+                    throw new IllegalArgumentException("The thread count has to be at least 1");
+                }
+                benchmark.setThreadCount(threadCount);
             }
 
             benchmark.run();
@@ -211,6 +225,10 @@ public class Benchmark {
         this.runparallel = runparallel;
     }
 
+    public void setThreadCount(Integer threadCount) {
+        this.threadCount = threadCount;
+    }
+
     private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
@@ -218,7 +236,13 @@ public class Benchmark {
         System.out.printf("Benchmarking %s/%s (size %s, run %s)\n",
                 dbFileName, queryFileName, conf.getDbSize(), conf.getRun());
 
-        ConnectionPool connPool = new ConnectionPool(dbURL, connectionProperties);
+        ConnectionPool connPool;
+        if (threadCount == null) {
+            connPool = new ConnectionPool(dbURL, connectionProperties);
+        }
+        else {
+            connPool = new ConnectionPool(dbURL, connectionProperties, threadCount);
+        }
         File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
         File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
 
