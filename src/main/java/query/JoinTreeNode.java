@@ -1,6 +1,7 @@
 package query;
 
 import hypergraph.Hypergraph;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -100,6 +101,17 @@ public class JoinTreeNode {
     }
 
     /**
+     * @return All nodes of the join tree as a Set
+     */
+    public Set<JoinTreeNode> getAllNodes() {
+        Set<JoinTreeNode> nodes = new HashSet<>();
+        for (Set<JoinTreeNode> layer : getLayers()) {
+            nodes.addAll(layer);
+        }
+        return nodes;
+    }
+
+    /**
      * Quickly retrieves the leaf nodes of maximum depth (of the whole tree)
      *
      * @return Leaf nodes at max depth
@@ -149,6 +161,70 @@ public class JoinTreeNode {
         return 1 + successors.stream()
                 .map(JoinTreeNode::getNumberOfNodes)
                 .reduce(0, Integer::sum);
+    }
+
+    public int getHypertreeWidth() {
+        int maxWidth = tables.size();
+        for (JoinTreeNode descendant : successors) {
+            if (descendant.getHypertreeWidth() > maxWidth) {
+                maxWidth = descendant.getHypertreeWidth();
+            }
+        }
+
+        return maxWidth;
+    }
+
+    public double[] getEdgeBagSizes() {
+        return getAllNodes().stream()
+                .map(node -> node.tables.size())
+                .mapToDouble(x -> x)
+                .toArray();
+    }
+
+    public double[] getVertexBagSizes() {
+        return getAllNodes().stream()
+                .map(node -> node.attributes.size())
+                .mapToDouble(x -> x)
+                .toArray();
+    }
+
+    public DescriptiveStatistics getEdgeBagSizeStatistics() {
+        return new DescriptiveStatistics(getEdgeBagSizes());
+    }
+
+    public DescriptiveStatistics getVertexBagSizeStatistics() {
+        return new DescriptiveStatistics(getVertexBagSizes());
+    }
+
+    public boolean isJoinNode() {
+        return successors.size() > 1;
+    }
+
+    public double getBalancednessFactor() {
+        double balancednessValuesSum = 0;
+        double count = 0;
+
+        for (JoinTreeNode node : getAllNodes()) {
+            if (node.isJoinNode()) {
+                int smallerTreeSize = Integer.MAX_VALUE;
+                int largerTreeSize = 0;
+
+                for (JoinTreeNode successor : successors) {
+                    int successorTreeSize = successor.getNumberOfNodes();
+                    if (successorTreeSize < smallerTreeSize) {
+                        smallerTreeSize = successorTreeSize;
+                    }
+                    if (successorTreeSize > largerTreeSize) {
+                        largerTreeSize = successorTreeSize;
+                    }
+                }
+
+                balancednessValuesSum += ((double) smallerTreeSize) / ((double) largerTreeSize);
+                count += 1;
+            }
+        }
+
+        return balancednessValuesSum / count;
     }
 
     public List<JoinTreeNode> getSuccessors() {

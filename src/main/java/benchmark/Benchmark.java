@@ -237,11 +237,11 @@ public class Benchmark {
                 dbFileName, queryFileName, conf.getDbSize(), conf.getRun());
 
         ConnectionPool connPool;
-        if (threadCount == null) {
+        if (conf.getThreadCount() == null) {
             connPool = new ConnectionPool(dbURL, connectionProperties);
         }
         else {
-            connPool = new ConnectionPool(dbURL, connectionProperties, threadCount);
+            connPool = new ConnectionPool(dbURL, connectionProperties, conf.getThreadCount());
         }
         File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
         File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
@@ -268,7 +268,7 @@ public class Benchmark {
         try {
             originalQE = new UnoptimizedQueryExecutor(conn);
 
-            if (runparallel) {
+            if (conf.isParallel()) {
                 optimizedQE = new ParallelTempTableQueryExecutor(connPool);
             }
             else {
@@ -451,11 +451,11 @@ public class Benchmark {
                                 for (int run = 1; run <= runs; run++) {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
-                                                detkdecompOptions, queryTimeout, run, size, runparallel));
+                                                detkdecompOptions, queryTimeout, run, size, runparallel, threadCount));
                                     }
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
-                                                balancedGoOptions, queryTimeout, run, size, runparallel));
+                                                balancedGoOptions, queryTimeout, run, size, runparallel, threadCount));
                                     }
                                 }
                             }
