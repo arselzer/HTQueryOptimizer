@@ -289,6 +289,9 @@ public class Benchmark {
 
         /** Execute optimized query **/
 
+        System.gc();
+        System.runFinalization();
+
         HashMap<String, Integer> optimizedRowCount = new HashMap<>();
 
         ResultSet optimizedRS = null;
@@ -337,6 +340,9 @@ public class Benchmark {
         result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
 
         /** Execute original query **/
+
+        System.gc();
+        System.runFinalization();
 
         HashMap<String, Integer> originalRowCount = new HashMap<>();
         ResultSet originalRS = null;

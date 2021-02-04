@@ -1,5 +1,6 @@
 package hypergraph;
 
+import at.ac.tuwien.dbai.hgtools.hypergraph.Edge;
 import exceptions.JoinTreeGenerationException;
 import hypergraph.visualization.HypergraphVisualizer;
 import org.jgrapht.Graph;
@@ -326,6 +327,26 @@ public class Hypergraph {
     public void addEdge(Hyperedge edge) {
         this.edges.add(edge);
         edgesByName.put(edge.getName(), edge);
+    }
+
+    private at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph toAlternativeHypergraph() {
+        at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph otherHG = new at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph();
+        for (Hyperedge edge : edges) {
+            otherHG.addEdge(new Edge(edge.getName(), edge.getNodes().toArray(new String[0])));
+        }
+        return otherHG;
+    }
+
+    public int getDegree() {
+        return toAlternativeHypergraph().degree();
+    }
+
+    public int getVCDimension() {
+        return toAlternativeHypergraph().VCdimension();
+    }
+
+    public int getBIP() {
+        return toAlternativeHypergraph().cntBip(2);
     }
 
     public Hyperedge getEdgeByName(String name) {

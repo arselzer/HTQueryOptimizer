@@ -15,14 +15,17 @@ public class SummarizedResultsCSVGenerator {
             "optRows",
             "origCols",
             "optCols",
-            "treeHeight",
-            "treeNodes",
-            "treeWidth",
             "origTimeout",
             "optTimeout",
             "parallelized",
             "threads",
             "correct",
+            "hgDegree",
+            "hgVCDimension",
+            "hgBIP",
+            "treeHeight",
+            "treeNodes",
+            "treeWidth",
             "balancednessFactor",
             "vertexBagSizeMin",
             "vertexBagSizeMax",
@@ -55,14 +58,17 @@ public class SummarizedResultsCSVGenerator {
                 result.getOptimizedRows() + "," +
                 result.getUnoptimizedColumns() + "," +
                 result.getOptimizedColumns() + "," +
-                result.getJoinTree().getHeight() + "," +
-                result.getJoinTree().getNumberOfNodes() + "," +
-                result.getJoinTree().getHypertreeWidth() + "," +
                 (result.isUnoptimizedQueryTimeout() ? 1 : 0) + "," +
                 (result.isOptimizedQueryTimeout() ? 1 : 0) + "," +
                 (result.getConf().isParallel() ? 1 : 0) + "," +
                 (result.getConf().getThreadCount() == null ? -1 : result.getConf().getThreadCount()) + "," +
                 (result.isOptimizedResultCorrect() ? 1 : 0) + "," +
+                result.getHypergraph().getDegree() + "," +
+                result.getHypergraph().getVCDimension() + "," +
+                result.getHypergraph().getBIP() + "," +
+                result.getJoinTree().getHeight() + "," +
+                result.getJoinTree().getNumberOfNodes() + "," +
+                result.getJoinTree().getHypertreeWidth() + "," +
                 result.getJoinTree().getBalancednessFactor() + "," +
                 result.getJoinTree().getVertexBagSizeStatistics().getMin() + "," +
                 result.getJoinTree().getVertexBagSizeStatistics().getMax() + "," +
