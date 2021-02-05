@@ -48,14 +48,18 @@ form of the results in a detailed form.
 ## Usage
 
 ```
-java -cp {jar} "benchmark.Benchmark" [-c] [-d <arg>] [-m <arg>]
-       [-p] [-q <arg>] [-r <arg>] [-t <arg>] [--threads <arg>]
+java -cp {jar} "benchmark.Benchmark" [--boolean] [-c] [-d <arg>]
+       [-h] [-m <arg>] [-p] [-q <arg>] [-r <arg>] [-t <arg>] [--threads
+       <arg>] [--unweighted]
+    --boolean         run the queries as boolean queries (checking whether
+                      there is a result only)
  -c,--check           check if the rows are equivalent in the original and
                       optimized query i.e. each row occurs the same number
                       of times
                       Warning: currently does not work correctly for
                       `select * from ...` queries
  -d,--db <arg>        the database(s) to use, default: all
+ -h,--help            show this
  -m,--methods <arg>   the algorithms used, e.g. `-a
                       BALANCEDGO,DETKDECOMP`, default: BALANCEDGO
  -p,--parallel        execute the query in parallel
@@ -64,6 +68,6 @@ java -cp {jar} "benchmark.Benchmark" [-c] [-d <arg>] [-m <arg>]
  -t,--timeout <arg>   the timeout of queries in seconds, e.g. `-t 20`,
                       default: 25s
     --threads <arg>   the number of threads used for parallel execution
-
-
+    --unweighted      use statistics (i.e. weighted hypergraphs) for query
+                      optimization
 ```

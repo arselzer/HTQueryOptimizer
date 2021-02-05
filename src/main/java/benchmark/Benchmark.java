@@ -21,7 +21,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Benchmark {
+    private static Options options = new Options();
     private static int DEFAULT_TIMEOUT = 25;
+
     private int queryTimeout = DEFAULT_TIMEOUT;
     private String dbRootDir;
     private String dbDir = null;
@@ -52,9 +54,13 @@ public class Benchmark {
         this.dbDir = db;
     }
 
-    public static void main(String[] args) {
-        Options options = new Options();
+    public static void showHelp() {
+        HelpFormatter helpFormatter = new HelpFormatter();
+        helpFormatter.printHelp("java -cp {jar} \"benchmark.Benchmark\"", "", options, "", true);
+    }
 
+    public static void main(String[] args) {
+        Option help = new Option("h", "help", false, "show this");
         Option setDb = new Option("d", "db", true, "the database(s) to use, default: all");
         Option setTimeout = new Option("t", "timeout", true, "the timeout of queries in seconds, e.g. `-t 20`, default: 25s");
         setTimeout.setType(Integer.class);
@@ -70,6 +76,7 @@ public class Benchmark {
         Option booleanQuery = new Option(null, "boolean", false, "run the queries as boolean queries (checking whether there is a result only)");
         Option unweighted = new Option(null, "unweighted", false, "use statistics (i.e. weighted hypergraphs) for query optimization");
 
+        options.addOption(help);
         options.addOption(setDb);
         options.addOption(setTimeout);
         options.addOption(setRuns);
@@ -85,11 +92,15 @@ public class Benchmark {
         CommandLine cmd = null;
         try {
             cmd = parser.parse(options, args);
+            showHelp();
         } catch (ParseException e) {
             System.err.println("Error parsing arguments:" + e.getMessage());
-            HelpFormatter helpFormatter = new HelpFormatter();
-            helpFormatter.printHelp("java -cp {jar} \"benchmark.Benchmark\"", "", options, "", true);
             System.exit(1);
+        }
+
+        if (cmd.hasOption("help")) {
+            showHelp();
+            System.exit(0);
         }
 
         String url = "jdbc:postgresql://localhost/testdb";
