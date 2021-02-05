@@ -45,7 +45,7 @@ public class UnoptimizedQueryExecutor implements QueryExecutor {
 
     @Override
     public ResultSet executeBoolean(String query) throws SQLException, QueryConversionException, TableNotFoundException {
-        String booleanQuery = "SELECT EXISTS (" + query.replaceFirst(";\\s*$", "") + ");";
+        String booleanQuery = "SELECT * FROM (" + query.replaceFirst(";\\s*$", "") + ") sq LIMIT 1;";
 
         return execute(booleanQuery);
     }

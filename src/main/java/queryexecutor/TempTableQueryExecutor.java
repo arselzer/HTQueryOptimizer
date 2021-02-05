@@ -105,7 +105,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
             psFunction.execute();
 
             PreparedStatement psSelect = connection.prepareStatement(
-                    String.format(booleanQuery ? "SELECT EXISTS (SELECT * FROM %s());" : "SELECT * FROM %s();", functionName),
+                    String.format(booleanQuery ? "SELECT * FROM %s() LIMIT 1;" : "SELECT * FROM %s();", functionName),
                     ResultSet.TYPE_SCROLL_INSENSITIVE,
                     ResultSet.CONCUR_READ_ONLY);
             if (timeout != null) {

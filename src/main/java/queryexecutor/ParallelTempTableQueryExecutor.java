@@ -49,7 +49,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
             sqlQuery.setStatistics(statisticsMap);
         }
 
-        ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution();
+        ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution(booleanQuery);
 
         // Save hypergraph and join tree for benchmarks and analysis
         this.hypergraph = sqlQuery.getHypergraph();
@@ -87,7 +87,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         }
 
         PreparedStatement psSelect = connection.prepareStatement(
-                String.format(booleanQuery ? "SELECT EXISTS (SELECT * FROM %s);" : "SELECT * FROM %s;",
+                String.format(booleanQuery ? "SELECT * FROM %s LIMIT 1;" : "SELECT * FROM %s;",
                         queryExecution.getFinalSelectName()),
                 ResultSet.TYPE_SCROLL_INSENSITIVE,
                 ResultSet.CONCUR_READ_ONLY);

@@ -151,6 +151,10 @@ public class SQLQuery {
     }
 
     public ParallelQueryExecution toParallelExecution() throws QueryConversionException {
+        return toParallelExecution(false);
+    }
+
+    public ParallelQueryExecution toParallelExecution(boolean bcq) throws QueryConversionException {
         List<List<String>> resultQueryStages = new LinkedList<>();
 
         Hypergraph hg;
@@ -372,77 +376,92 @@ public class SQLQuery {
 
         resultQueryStages.add(aliasViews);
 
-        // Stage 3 - semi joins downwards
+        if (!bcq) {
+            // Only perform semi-joins downwards and the full join if the query is not a BCQ i.e. all results need
+            // to be enumerated
 
-        for (int i = 1; i < joinLayers.size(); i++) {
-            Set<JoinTreeNode> layer = joinLayers.get(i);
-            List<String> layerStatements = new LinkedList<>();
+            // Stage 3 - semi joins downwards
 
-            for (JoinTreeNode node : layer) {
-                JoinTreeNode parent = node.getPredecessor();
+            for (int i = 1; i < joinLayers.size(); i++) {
+                Set<JoinTreeNode> layer = joinLayers.get(i);
+                List<String> layerStatements = new LinkedList<>();
 
-                String parentName = getNodeIdentifier(parent, 2);
-                HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
-                HashSet<String> childCols = new HashSet<>(parent.getAttributes());
-                // Perform set intersection
-                sameNameColumns.retainAll(childCols);
+                for (JoinTreeNode node : layer) {
+                    JoinTreeNode parent = node.getPredecessor();
 
-                List<String> semiJoinConditions = new LinkedList<>();
-                for (String columnName : sameNameColumns) {
-                    semiJoinConditions.add(String.format("(%s.%s = %s.%s)",
-                            getNodeIdentifier(node, 2), columnName,
-                            parentName, columnName));
+                    String parentName = getNodeIdentifier(parent, 2);
+                    HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
+                    HashSet<String> childCols = new HashSet<>(parent.getAttributes());
+                    // Perform set intersection
+                    sameNameColumns.retainAll(childCols);
+
+                    List<String> semiJoinConditions = new LinkedList<>();
+                    for (String columnName : sameNameColumns) {
+                        semiJoinConditions.add(String.format("(%s.%s = %s.%s)",
+                                getNodeIdentifier(node, 2), columnName,
+                                parentName, columnName));
+                    }
+
+                    String sqlStatement = "";
+
+                    if (!semiJoinConditions.isEmpty()) {
+                        sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", getNodeIdentifier(node, 3));
+                        dropStatements.dropTable(getNodeIdentifier(node, 3));
+                    } else {
+                        sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 3));
+                        dropStatements.dropView(getNodeIdentifier(node, 3));
+                    }
+                    sqlStatement += String.format("AS SELECT *\n");
+                    sqlStatement += String.format("FROM %s\n", getNodeIdentifier(node, 2));
+                    if (!semiJoinConditions.isEmpty()) {
+                        sqlStatement += String.format("WHERE EXISTS (SELECT 1 FROM %s WHERE %s);\n",
+                                getNodeIdentifier(parent, 2), String.join(" AND ", semiJoinConditions));
+                    } else {
+                        sqlStatement += ";";
+                    }
+                    layerStatements.add(sqlStatement);
                 }
-
-                String sqlStatement = "";
-
-                if (!semiJoinConditions.isEmpty()) {
-                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", getNodeIdentifier(node, 3));
-                    dropStatements.dropTable(getNodeIdentifier(node, 3));
-                } else {
-                    sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 3));
-                    dropStatements.dropView(getNodeIdentifier(node, 3));
-                }
-                sqlStatement += String.format("AS SELECT *\n");
-                sqlStatement += String.format("FROM %s\n", getNodeIdentifier(node, 2));
-                if (!semiJoinConditions.isEmpty()) {
-                    sqlStatement += String.format("WHERE EXISTS (SELECT 1 FROM %s WHERE %s);\n",
-                            getNodeIdentifier(parent, 2), String.join(" AND ", semiJoinConditions));
-                } else {
-                    sqlStatement += ";";
-                }
-                layerStatements.add(sqlStatement);
+                resultQueryStages.add(layerStatements);
             }
-            resultQueryStages.add(layerStatements);
-        }
 
-        String topStatement = "";
+            String topStatement = "";
 
-        // Create one view for the root node
-        topStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(joinTree, 3));
-        topStatement += String.format("AS SELECT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
-        dropStatements.dropView(getNodeIdentifier(joinTree, 3));
+            // Create one view for the root node
+            topStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(joinTree, 3));
+            topStatement += String.format("AS SELECT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
+            dropStatements.dropView(getNodeIdentifier(joinTree, 3));
 
-        resultQueryStages.add(List.of(topStatement));
+            resultQueryStages.add(List.of(topStatement));
 
 
-        // Stage 4 - join everything
+            // Stage 4 - join everything
 
-        //fnStr += "-- STAGE 4\n";
+            //fnStr += "-- STAGE 4\n";
 
-        List<String> allStage3Tables = new LinkedList<>();
-        for (Set<JoinTreeNode> layer : joinLayers) {
-            for (JoinTreeNode node : layer) {
-                allStage3Tables.add(getNodeIdentifier(node, 3));
+            List<String> allStage3Tables = new LinkedList<>();
+            for (Set<JoinTreeNode> layer : joinLayers) {
+                for (JoinTreeNode node : layer) {
+                    allStage3Tables.add(getNodeIdentifier(node, 3));
+                }
             }
+
+            String finalQuery = String.format("CREATE VIEW %s AS SELECT %s\n", finalTableName,
+                    resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
+            finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
+            dropStatements.dropView(finalTableName);
+
+            resultQueryStages.add(List.of(finalQuery));
         }
+        else {
+            // If only a BCQ is needed, create a VIEW alias of the last join tree node
 
-        String finalQuery = String.format("CREATE VIEW %s AS SELECT %s\n", finalTableName,
-                resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
-        finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
-        dropStatements.dropView(finalTableName);
-
-        resultQueryStages.add(List.of(finalQuery));
+            // Since it is the top layer, there can only be one node (the root of the tree)
+            JoinTreeNode topNode = (JoinTreeNode) joinLayers.get(0).toArray()[0];
+            String finalQuery = String.format("CREATE VIEW %s AS SELECT * FROM %s\n",
+                    finalTableName, getNodeIdentifier(topNode, 2));
+            dropStatements.dropView(finalTableName);
+            resultQueryStages.add(List.of(finalQuery));
+        }
 
         return new ParallelQueryExecution(resultQueryStages, dropStatements, resultColumns, finalTableName);
     }
