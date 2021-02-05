@@ -36,6 +36,7 @@ public class Benchmark {
     private List<BenchmarkResult> results = new LinkedList<>();
     private boolean checkCorrectness = false;
     private boolean runparallel = false;
+    private boolean booleanQuery = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -65,6 +66,7 @@ public class Benchmark {
         Option runParallel = new Option("p", "parallel", false, "execute the query in parallel");
         Option parallelThreads = new Option(null, "threads", true, "the number of threads used for parallel execution");
         parallelThreads.setType(Integer.class);
+        Option booleanQuery = new Option(null, "boolean", false, "run the queries as boolean queries (checking whether there is a result only)");
 
         options.addOption(setDb);
         options.addOption(setTimeout);
@@ -74,6 +76,7 @@ public class Benchmark {
         options.addOption(setCheckCorrectness);
         options.addOption(runParallel);
         options.addOption(parallelThreads);
+        options.addOption(booleanQuery);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -131,6 +134,9 @@ public class Benchmark {
                     throw new IllegalArgumentException("The thread count has to be at least 1");
                 }
                 benchmark.setThreadCount(threadCount);
+            }
+            if (cmd.hasOption("boolean")) {
+                benchmark.setBooleanQuery(true);
             }
 
             benchmark.run();
@@ -229,6 +235,10 @@ public class Benchmark {
         this.threadCount = threadCount;
     }
 
+    public void setBooleanQuery(boolean booleanQuery) {
+        this.booleanQuery = booleanQuery;
+    }
+
     private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
@@ -299,7 +309,12 @@ public class Benchmark {
             conn.prepareStatement("vacuum analyze;").execute();
 
             long startTimeOptimized = System.currentTimeMillis();
-            optimizedRS = optimizedQE.execute(query);
+            if (conf.isBooleanQuery()) {
+                optimizedRS = optimizedQE.executeBoolean(query);
+            }
+            else {
+                optimizedRS = optimizedQE.execute(query);
+            }
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
 
@@ -349,7 +364,12 @@ public class Benchmark {
         try {
             conn.prepareStatement("vacuum analyze;").execute();
             long startTimeUnoptimized = System.currentTimeMillis();
-            originalRS = originalQE.execute(query);
+            if (conf.isBooleanQuery()) {
+                originalRS = originalQE.executeBoolean(query);
+            }
+            else {
+                originalRS = originalQE.execute(query);
+            }
             result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
 
             ResultSetMetaData metaData = originalRS.getMetaData();
@@ -457,11 +477,11 @@ public class Benchmark {
                                 for (int run = 1; run <= runs; run++) {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
-                                                detkdecompOptions, queryTimeout, run, size, runparallel, threadCount));
+                                                detkdecompOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery));
                                     }
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
-                                                balancedGoOptions, queryTimeout, run, size, runparallel, threadCount));
+                                                balancedGoOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery));
                                     }
                                 }
                             }

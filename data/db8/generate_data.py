@@ -7,9 +7,9 @@ import numpy as np
 import random
 
 dbSize = int(sys.argv[1])
-size = 62 * 20
+size = 20 * dbSize
 
-zp = 0.010 + 0.0025 * dbSize
+zp = 0.010 + 0.0025# * dbSize
 
 #a = pd.DataFrame(list(itertools.permutations(range(1, 3), 2)) * (dbSize * 2), columns=["x","y"])
 def gen_list(v1, v2, p):

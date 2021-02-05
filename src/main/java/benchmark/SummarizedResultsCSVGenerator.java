@@ -1,5 +1,8 @@
 package benchmark;
 
+import hypergraph.Hypergraph;
+import query.JoinTreeNode;
+
 public class SummarizedResultsCSVGenerator {
 
     private static String[] columns = new String[]{
@@ -19,6 +22,7 @@ public class SummarizedResultsCSVGenerator {
             "optTimeout",
             "parallelized",
             "threads",
+            "boolean",
             "correct",
             "hgDegree",
             "hgVCDimension",
@@ -46,6 +50,8 @@ public class SummarizedResultsCSVGenerator {
     }
 
     public void addResult(BenchmarkResult result) {
+        Hypergraph hg = result.getHypergraph();
+        JoinTreeNode jt = result.getJoinTree();
         csv += result.getConf().getDb() + "," +
                 result.getConf().getQuery() + "," +
                 result.getConf().getDecompositionOptions().getAlgorithm().name() + "," +
@@ -62,24 +68,25 @@ public class SummarizedResultsCSVGenerator {
                 (result.isOptimizedQueryTimeout() ? 1 : 0) + "," +
                 (result.getConf().isParallel() ? 1 : 0) + "," +
                 (result.getConf().getThreadCount() == null ? -1 : result.getConf().getThreadCount()) + "," +
+                (result.getConf().isBooleanQuery() ? 1 : 0) + "," +
                 (result.isOptimizedResultCorrect() ? 1 : 0) + "," +
-                result.getHypergraph().getDegree() + "," +
-                result.getHypergraph().getVCDimension() + "," +
-                result.getHypergraph().getBIP() + "," +
-                result.getJoinTree().getHeight() + "," +
-                result.getJoinTree().getNumberOfNodes() + "," +
-                result.getJoinTree().getHypertreeWidth() + "," +
-                result.getJoinTree().getBalancednessFactor() + "," +
-                result.getJoinTree().getVertexBagSizeStatistics().getMin() + "," +
-                result.getJoinTree().getVertexBagSizeStatistics().getMax() + "," +
-                result.getJoinTree().getVertexBagSizeStatistics().getMean() + "," +
-                result.getJoinTree().getVertexBagSizeStatistics().getSum() + "," +
-                result.getJoinTree().getVertexBagSizeStatistics().getStandardDeviation() + "," +
-                result.getJoinTree().getEdgeBagSizeStatistics().getMin() + "," +
-                result.getJoinTree().getEdgeBagSizeStatistics().getMax() + "," +
-                result.getJoinTree().getEdgeBagSizeStatistics().getMean() + "," +
-                result.getJoinTree().getEdgeBagSizeStatistics().getSum() + "," +
-                result.getJoinTree().getEdgeBagSizeStatistics().getStandardDeviation() +
+                (hg == null ? "" : hg.getDegree()) + "," +
+                (hg == null ? "" : hg.getVCDimension()) + "," +
+                (hg == null ? "" : hg.getBIP()) + "," +
+                (jt == null ? "" : jt.getHeight()) + "," +
+                (jt == null ? "" : jt.getNumberOfNodes()) + "," +
+                (jt == null ? "" : jt.getHypertreeWidth()) + "," +
+                (jt == null ? "" : jt.getBalancednessFactor()) + "," +
+                (jt == null ? "" : jt.getVertexBagSizeStatistics().getMin()) + "," +
+                (jt == null ? "" : jt.getVertexBagSizeStatistics().getMax()) + "," +
+                (jt == null ? "" : jt.getVertexBagSizeStatistics().getMean()) + "," +
+                (jt == null ? "" : jt.getVertexBagSizeStatistics().getSum()) + "," +
+                (jt == null ? "" : jt.getVertexBagSizeStatistics().getStandardDeviation()) + "," +
+                (jt == null ? "" : jt.getEdgeBagSizeStatistics().getMin()) + "," +
+                (jt == null ? "" : jt.getEdgeBagSizeStatistics().getMax()) + "," +
+                (jt == null ? "" : jt.getEdgeBagSizeStatistics().getMean()) + "," +
+                (jt == null ? "" : jt.getEdgeBagSizeStatistics().getSum()) + "," +
+                (jt == null ? "" : jt.getEdgeBagSizeStatistics().getStandardDeviation()) +
                 "\n";
 
     }

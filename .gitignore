@@ -5,3 +5,4 @@ target/
 out/
 benchmark-results-*
 dependency-reduced-pom.xml
+.ipynb_checkpoints

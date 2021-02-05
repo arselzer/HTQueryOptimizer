@@ -81,8 +81,12 @@ public class WeightedHypergraph extends Hypergraph {
                 Iterator<Hyperedge> edgeIterator = bag.iterator();
                 Hyperedge firstEdge = edgeIterator.next();
                 String firstEdgeColumnName = getInverseEquivalenceMapping().get(attribute).get(firstEdge.getName()).get(0);
-                Set<String> sharedCommonValues = statistics.get(firstEdge.getName())
-                        .getMostCommonFrequencies().get(firstEdgeColumnName).keySet();
+                Map<String, Map<String, Double>> firstEdgeMostCommonFrequencies = statistics.get(firstEdge.getName())
+                        .getMostCommonFrequencies();
+                Set<String> sharedCommonValues = new HashSet<>();
+                if (!firstEdgeMostCommonFrequencies.isEmpty()) {
+                    sharedCommonValues.addAll(firstEdgeMostCommonFrequencies.get(firstEdgeColumnName).keySet());
+                }
 
                 for (Hyperedge edge : bag) {
                     String tableName = edge.getName();

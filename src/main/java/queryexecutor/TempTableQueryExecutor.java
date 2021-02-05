@@ -55,7 +55,18 @@ public class TempTableQueryExecutor implements QueryExecutor {
     }
 
     @Override
+    public ResultSet executeBoolean(PreparedStatement ps) throws SQLException, QueryConversionException, TableNotFoundException {
+        String query = ps.toString();
+
+        return execute(query, true);
+    }
+
+    @Override
     public ResultSet execute(String queryStr) throws SQLException, QueryConversionException, TableNotFoundException {
+        return execute(queryStr, false);
+    }
+
+    public ResultSet execute(String queryStr, boolean booleanQuery) throws SQLException, QueryConversionException, TableNotFoundException {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
@@ -79,7 +90,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
             psFunction.execute();
 
             PreparedStatement psSelect = connection.prepareStatement(
-                    String.format("SELECT * FROM %s();", functionName),
+                    String.format(booleanQuery ? "SELECT EXISTS (SELECT * FROM %s());" : "SELECT * FROM %s();", functionName),
                     ResultSet.TYPE_SCROLL_INSENSITIVE,
                     ResultSet.CONCUR_READ_ONLY);
             if (timeout != null) {
@@ -105,6 +116,11 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
             return rs;
         }
+    }
+
+    @Override
+    public ResultSet executeBoolean(String query) throws SQLException, QueryConversionException, TableNotFoundException {
+        return execute(query, true);
     }
 
     private DBSchema getSchema() {

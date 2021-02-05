@@ -10,7 +10,7 @@ Requries python3. Simple example usage:
 Create tables and fill with data:
 
 ```
-	psql $dbname -f init.sql
+	psql $dbname -f init.sql.txt
 ```
 
 # Queries

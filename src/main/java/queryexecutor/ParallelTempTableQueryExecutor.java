@@ -27,7 +27,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     }
 
     @Override
-    public ResultSet execute(String queryStr) throws SQLException, QueryConversionException, TableNotFoundException {
+    public ResultSet execute(String queryStr, boolean booleanQuery) throws SQLException, QueryConversionException, TableNotFoundException {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
@@ -75,7 +75,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         }
 
         PreparedStatement psSelect = connection.prepareStatement(
-                String.format("SELECT * FROM %s;", queryExecution.getFinalSelectName()),
+                String.format(booleanQuery ? "SELECT EXISTS (SELECT * FROM %s);" : "SELECT * FROM %s;",
+                        queryExecution.getFinalSelectName()),
                 ResultSet.TYPE_SCROLL_INSENSITIVE,
                 ResultSet.CONCUR_READ_ONLY);
         if (timeout != null) {

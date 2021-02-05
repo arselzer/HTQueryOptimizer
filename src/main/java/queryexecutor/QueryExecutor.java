@@ -12,5 +12,9 @@ public interface QueryExecutor {
 
     ResultSet execute(PreparedStatement preparedStatement) throws SQLException, QueryConversionException, TableNotFoundException;
 
+    ResultSet executeBoolean(PreparedStatement preparedStatement) throws SQLException, QueryConversionException, TableNotFoundException;
+
     ResultSet execute(String query) throws SQLException, QueryConversionException, TableNotFoundException;
+
+    ResultSet executeBoolean(String query) throws SQLException, QueryConversionException, TableNotFoundException;
 }

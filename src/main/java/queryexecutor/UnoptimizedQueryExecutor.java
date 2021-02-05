@@ -1,6 +1,7 @@
 package queryexecutor;
 
 import exceptions.QueryConversionException;
+import exceptions.TableNotFoundException;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -30,15 +31,22 @@ public class UnoptimizedQueryExecutor implements QueryExecutor {
     }
 
     @Override
+    public ResultSet executeBoolean(PreparedStatement preparedStatement) throws SQLException, QueryConversionException, TableNotFoundException {
+        return executeBoolean(preparedStatement.toString());
+    }
+
+    @Override
     public ResultSet execute(String query) throws SQLException, QueryConversionException {
         PreparedStatement ps = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE,
                 ResultSet.CONCUR_READ_ONLY);
-        ps.closeOnCompletion();
 
-        if (timeout != null) {
-            ps.setQueryTimeout(timeout);
-        }
+        return execute(ps);
+    }
 
-        return ps.executeQuery();
+    @Override
+    public ResultSet executeBoolean(String query) throws SQLException, QueryConversionException, TableNotFoundException {
+        String booleanQuery = "SELECT EXISTS (" + query.replaceFirst(";\\s*$", "") + ");";
+
+        return execute(booleanQuery);
     }
 }

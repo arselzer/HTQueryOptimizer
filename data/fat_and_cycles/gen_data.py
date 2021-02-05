@@ -70,4 +70,4 @@ if __name__ == "__main__":
     for k, v in REL_NAME.items():
         to_csv('{}.csv'.format(k), eval(k), v)
 
-    create_init_sql('init.sql')
+    create_init_sql('init.sql.txt')
