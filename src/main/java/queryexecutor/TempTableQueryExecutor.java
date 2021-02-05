@@ -26,6 +26,19 @@ public class TempTableQueryExecutor implements QueryExecutor {
     protected String generatedFunction;
 
     protected Integer timeout = null;
+    protected boolean useStatistics = true;
+
+    public TempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics) throws SQLException {
+        try {
+            this.connection = connectionPool.getConnection();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        this.decompositionOptions = new DecompositionOptions();
+        this.useStatistics = useStatistics;
+
+        extractSchema();
+    }
 
     public TempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {
         try {
@@ -70,11 +83,13 @@ public class TempTableQueryExecutor implements QueryExecutor {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
-        Map<String, TableStatistics> statisticsMap = new HashMap<>();
-        for (String tableName: sqlQuery.getTables()) {
-            statisticsMap.put(tableName, extractTableStatistics(tableName));
+        if (useStatistics) {
+            Map<String, TableStatistics> statisticsMap = new HashMap<>();
+            for (String tableName : sqlQuery.getTables()) {
+                statisticsMap.put(tableName, extractTableStatistics(tableName));
+            }
+            sqlQuery.setStatistics(statisticsMap);
         }
-        sqlQuery.setStatistics(statisticsMap);
 
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);

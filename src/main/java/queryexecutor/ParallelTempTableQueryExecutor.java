@@ -17,10 +17,20 @@ import java.util.Map;
 public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     private ConnectionPool connectionPool;
 
+    public ParallelTempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics) throws SQLException {
+        /**
+         * We need the connection pool because connections are processed on a
+         * single core in postgres: https://stackoverflow.com/questions/32629988/query-parallelization-for-single-connection-in-postgres
+         */
+        // TODO refactor constructors
+        super(connectionPool, useStatistics);
+        this.connectionPool = connectionPool;
+    }
+
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {
         /**
          * We need the connection pool because connections are processed in a
-         * single-core in postgres: https://stackoverflow.com/questions/32629988/query-parallelization-for-single-connection-in-postgres
+         * single core in postgres: https://stackoverflow.com/questions/32629988/query-parallelization-for-single-connection-in-postgres
          */
         super(connectionPool);
         this.connectionPool = connectionPool;
@@ -31,11 +41,13 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
-        Map<String, TableStatistics> statisticsMap = new HashMap<>();
-        for (String tableName: sqlQuery.getTables()) {
-            statisticsMap.put(tableName, extractTableStatistics(tableName));
+        if (useStatistics) {
+            Map<String, TableStatistics> statisticsMap = new HashMap<>();
+            for (String tableName : sqlQuery.getTables()) {
+                statisticsMap.put(tableName, extractTableStatistics(tableName));
+            }
+            sqlQuery.setStatistics(statisticsMap);
         }
-        sqlQuery.setStatistics(statisticsMap);
 
         ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution();
 

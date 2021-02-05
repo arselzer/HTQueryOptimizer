@@ -37,6 +37,7 @@ public class Benchmark {
     private boolean checkCorrectness = false;
     private boolean runparallel = false;
     private boolean booleanQuery = false;
+    private boolean useStatistics = true;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -67,6 +68,7 @@ public class Benchmark {
         Option parallelThreads = new Option(null, "threads", true, "the number of threads used for parallel execution");
         parallelThreads.setType(Integer.class);
         Option booleanQuery = new Option(null, "boolean", false, "run the queries as boolean queries (checking whether there is a result only)");
+        Option unweighted = new Option(null, "unweighted", false, "use statistics (i.e. weighted hypergraphs) for query optimization");
 
         options.addOption(setDb);
         options.addOption(setTimeout);
@@ -77,6 +79,7 @@ public class Benchmark {
         options.addOption(runParallel);
         options.addOption(parallelThreads);
         options.addOption(booleanQuery);
+        options.addOption(unweighted);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -138,6 +141,9 @@ public class Benchmark {
             if (cmd.hasOption("boolean")) {
                 benchmark.setBooleanQuery(true);
             }
+            if (cmd.hasOption("unweighted")) {
+                benchmark.setUseStatistics(false);
+            }
 
             benchmark.run();
 
@@ -157,12 +163,14 @@ public class Benchmark {
                 File hypergraphFile = new File(subResultsDir + "/hypergraph.dtl");
 
                 // Write hypergraph
-                PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
-                hypergraphWriter.write(res.getHypergraph().toDTL());
-                hypergraphWriter.close();
+                if (res.getHypergraph() != null) {
+                    PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
+                    hypergraphWriter.write(res.getHypergraph().toDTL());
+                    hypergraphWriter.close();
 
-                // Write graph rendering
-                res.getHypergraph().toPDF(Paths.get(subResultsDir + "/hypergraph.pdf"));
+                    // Write graph rendering
+                    res.getHypergraph().toPDF(Paths.get(subResultsDir + "/hypergraph.pdf"));
+                }
 
                 // Write out the java data structure
                 File resultTxtFile = new File(subResultsDir + "/result.txt");
@@ -235,6 +243,10 @@ public class Benchmark {
         this.threadCount = threadCount;
     }
 
+    public void setUseStatistics(boolean useStatistics) {
+        this.useStatistics = useStatistics;
+    }
+
     public void setBooleanQuery(boolean booleanQuery) {
         this.booleanQuery = booleanQuery;
     }
@@ -279,10 +291,10 @@ public class Benchmark {
             originalQE = new UnoptimizedQueryExecutor(conn);
 
             if (conf.isParallel()) {
-                optimizedQE = new ParallelTempTableQueryExecutor(connPool);
+                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics);
             }
             else {
-                optimizedQE = new TempTableQueryExecutor(connPool);
+                optimizedQE = new TempTableQueryExecutor(connPool, useStatistics);
             }
         } catch (SQLException e) {
             throw e;
@@ -477,11 +489,11 @@ public class Benchmark {
                                 for (int run = 1; run <= runs; run++) {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
-                                                detkdecompOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery));
+                                                detkdecompOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics));
                                     }
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
-                                                balancedGoOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery));
+                                                balancedGoOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics));
                                     }
                                 }
                             }

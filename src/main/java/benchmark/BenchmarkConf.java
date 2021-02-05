@@ -15,6 +15,7 @@ public class BenchmarkConf {
     private Boolean skipRows = true;
     private Integer threadCount = null;
     private boolean booleanQuery = false;
+    private boolean useStatistics = true;
 
     public BenchmarkConf(String db, String query, String suffix, DecompositionOptions decompositionOptions) {
         this.db = db;
@@ -25,7 +26,7 @@ public class BenchmarkConf {
 
     public BenchmarkConf(String db, String query, String suffix,
                          DecompositionOptions decompositionOptions, Integer timeout, Integer run, Integer dbSize,
-                         boolean parallel, Integer threadCount, boolean booleanQuery) {
+                         boolean parallel, Integer threadCount, boolean booleanQuery, boolean useStatistics) {
         this.db = db;
         this.query = query;
         this.suffix = suffix;
@@ -36,6 +37,7 @@ public class BenchmarkConf {
         this.parallel = parallel;
         this.threadCount = threadCount;
         this.booleanQuery = booleanQuery;
+        this.useStatistics = useStatistics;
     }
 
     public String getDb() {
