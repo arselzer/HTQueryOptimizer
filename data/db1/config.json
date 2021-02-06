@@ -9,14 +9,18 @@
   },
   "triangle-star.sql":{
     "dbSizeMin": 20,
-    "dbSizeMax": 28
+    "dbSizeMax": 32
   },
   "multiple-cycles.sql": {
     "dbSizeMin": 1,
     "dbSizeMax": 1
   },
+  "triangle.sql": {
+    "dbSizeMin": 2,
+    "dbSizeMax": 14
+  },
   "multiple-cycles2.sql": {
-  "dbSizeMin": 6,
-  "dbSizeMax": 18
+  "dbSizeMin": 10,
+  "dbSizeMax": 11
 }
 }

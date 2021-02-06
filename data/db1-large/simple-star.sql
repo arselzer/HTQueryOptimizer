@@ -1,7 +1,0 @@
-SELECT t1.a,t5.b,t6.a
-FROM t1, t2, t3, t4, t5, t6
-WHERE t1.a = t2.a
-AND t1.a = t3.a
-AND t1.a = t4.a
-AND t4.b = t5.a
-AND t5.b = t6.a;

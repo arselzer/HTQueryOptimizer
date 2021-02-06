@@ -282,6 +282,11 @@ public class Benchmark {
         String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
         result.setQuery(query);
 
+        Connection conn = DriverManager.getConnection(dbURL, connectionProperties);
+
+        conn.prepareStatement(
+                "select 'drop table if exists \"' || tablename || '\" cascade;' from pg_tables;").execute();
+
         // Run create.sh
         ProcessBuilder pb = new ProcessBuilder();
 
@@ -295,8 +300,6 @@ public class Benchmark {
 
         QueryExecutor originalQE = null;
         TempTableQueryExecutor optimizedQE = null;
-
-        Connection conn = DriverManager.getConnection(dbURL, connectionProperties);
 
         try {
             originalQE = new UnoptimizedQueryExecutor(conn);
