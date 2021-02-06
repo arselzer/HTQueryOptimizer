@@ -323,7 +323,14 @@ public class SQLQuery {
             for (JoinTreeNode node : layer) {
                 List<String> semiJoins = new LinkedList<>();
                 for (JoinTreeNode child : node.getSuccessors()) {
-                    String childName = getNodeIdentifier(child, 1);
+                    // If the child node is a leaf, use the result from stage 1, else stage 2 was computed and use that
+                    String childName;
+                    if (child.isLeaf()) {
+                        childName = getNodeIdentifier(child, 1);
+                    }
+                    else {
+                        childName = getNodeIdentifier(child, 2);
+                    }
                     HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
                     HashSet<String> childCols = new HashSet<>(child.getAttributes());
                     // Perform set intersection
@@ -377,9 +384,7 @@ public class SQLQuery {
         resultQueryStages.add(aliasViews);
 
         if (!bcq) {
-            // Only perform semi-joins downwards and the full join if the query is not a BCQ i.e. all results need
-            // to be enumerated
-
+            // TODO refactor
             // Stage 3 - semi joins downwards
 
             for (int i = 1; i < joinLayers.size(); i++) {
@@ -389,7 +394,13 @@ public class SQLQuery {
                 for (JoinTreeNode node : layer) {
                     JoinTreeNode parent = node.getPredecessor();
 
-                    String parentName = getNodeIdentifier(parent, 2);
+                    String parentName;
+                    if (parent.getPredecessor() == null) {
+                        parentName = getNodeIdentifier(parent, 2);
+                    }
+                    else {
+                        parentName = getNodeIdentifier(parent, 3);
+                    }
                     HashSet<String> sameNameColumns = new HashSet<>(node.getAttributes());
                     HashSet<String> childCols = new HashSet<>(parent.getAttributes());
                     // Perform set intersection
@@ -415,7 +426,7 @@ public class SQLQuery {
                     sqlStatement += String.format("FROM %s\n", getNodeIdentifier(node, 2));
                     if (!semiJoinConditions.isEmpty()) {
                         sqlStatement += String.format("WHERE EXISTS (SELECT 1 FROM %s WHERE %s);\n",
-                                getNodeIdentifier(parent, 2), String.join(" AND ", semiJoinConditions));
+                                parentName, String.join(" AND ", semiJoinConditions));
                     } else {
                         sqlStatement += ";";
                     }

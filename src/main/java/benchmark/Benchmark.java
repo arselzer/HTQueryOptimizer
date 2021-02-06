@@ -92,9 +92,9 @@ public class Benchmark {
         CommandLine cmd = null;
         try {
             cmd = parser.parse(options, args);
-            showHelp();
         } catch (ParseException e) {
             System.err.println("Error parsing arguments:" + e.getMessage());
+            showHelp();
             System.exit(1);
         }
 

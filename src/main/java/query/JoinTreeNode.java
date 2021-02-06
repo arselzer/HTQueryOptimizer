@@ -200,6 +200,10 @@ public class JoinTreeNode {
         return successors.size() > 1;
     }
 
+    public boolean isLeaf() {
+        return successors.size() == 0;
+    }
+
     public double getBalancednessFactor() {
         double balancednessValuesSum = 0;
         double count = 0;
