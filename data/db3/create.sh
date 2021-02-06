@@ -13,7 +13,7 @@ dbSize="${1}"
 tables=(t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20);
 
 for table in "${tables[@]}"; do
-  psql -U test -d testdb -c "drop table if exists $table ;";
+  psql -U test -d testdb -c "drop table if exists $table cascade;";
 done;
 
 for table in "${tables[@]}"; do

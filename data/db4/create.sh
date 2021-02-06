@@ -7,7 +7,7 @@ export PGPASSWORD=test
 tables=(t1 t2 t3 t4 t5);
 
 for table in "${tables[@]}"; do
-  psql -U test -d testdb -c "drop table if exists $table ;";
+  psql -U test -d testdb -c "drop table if exists $table cascade;";
 done;
 
 #for table in "${tables[@]}"; do
