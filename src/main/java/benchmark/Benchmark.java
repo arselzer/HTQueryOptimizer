@@ -262,6 +262,34 @@ public class Benchmark {
         this.booleanQuery = booleanQuery;
     }
 
+    private void dropAllTables(Connection conn) throws SQLException {
+        // Taken from: https://stackoverflow.com/questions/3327312/how-can-i-drop-all-the-tables-in-a-postgresql-database
+        System.out.println("Dropping all tables");
+        conn.prepareStatement("DO $$ DECLARE\n" +
+                "    r RECORD;\n" +
+                "BEGIN\n" +
+                "    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP\n" +
+                "        EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';\n" +
+                "    END LOOP;\n" +
+                "END $$;").execute();
+    }
+
+    private void insertData(BenchmarkConf conf) throws IOException {
+        String dbFileName = conf.getDb();
+        File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
+
+        // Run create.sh
+        ProcessBuilder pb = new ProcessBuilder();
+
+        pb.command(createFile.getAbsolutePath(), String.format("%d", conf.getDbSize()));
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(pb.start().getInputStream()));
+
+        // Wait for psql to finish otherwise tables might be missing
+        List<String> psqlOutput = reader.lines().collect(Collectors.toList());
+        System.out.println("Running insert script: " + String.join(" ", psqlOutput));
+    }
+
     private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
@@ -276,7 +304,6 @@ public class Benchmark {
         else {
             connPool = new ConnectionPool(dbURL, connectionProperties, conf.getThreadCount());
         }
-        File createFile = new File(dbRootDir + "/" + dbFileName + "/create.sh");
         File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
 
         String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
@@ -284,19 +311,8 @@ public class Benchmark {
 
         Connection conn = DriverManager.getConnection(dbURL, connectionProperties);
 
-        conn.prepareStatement(
-                "select 'drop table if exists \"' || tablename || '\" cascade;' from pg_tables;").execute();
-
-        // Run create.sh
-        ProcessBuilder pb = new ProcessBuilder();
-
-        pb.command(createFile.getAbsolutePath(), String.format("%d", conf.getDbSize()));
-        BufferedReader reader = new BufferedReader(
-                new InputStreamReader(pb.start().getInputStream()));
-
-        // Wait for psql to finish otherwise tables might be missing
-        List<String> psqlOutput = reader.lines().collect(Collectors.toList());
-        System.out.println(String.join(" ", psqlOutput));
+        dropAllTables(conn);
+        insertData(conf);
 
         QueryExecutor originalQE = null;
         TempTableQueryExecutor optimizedQE = null;
@@ -312,7 +328,7 @@ public class Benchmark {
             }
         } catch (SQLException e) {
             throw e;
-            // Rethrow exceptions occuring during setup
+            // Rethrow exceptions occurring during setup
         }
 
         // Set timeouts if specified
@@ -381,6 +397,9 @@ public class Benchmark {
         result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
 
         /** Execute original query **/
+
+        dropAllTables(conn);
+        insertData(conf);
 
         System.gc();
         System.runFinalization();
