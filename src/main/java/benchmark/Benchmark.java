@@ -40,6 +40,7 @@ public class Benchmark {
     private boolean runparallel = false;
     private boolean booleanQuery = false;
     private boolean useStatistics = true;
+    private boolean keepTables = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -75,6 +76,7 @@ public class Benchmark {
         parallelThreads.setType(Integer.class);
         Option booleanQuery = new Option(null, "boolean", false, "run the queries as boolean queries (checking whether there is a result only)");
         Option unweighted = new Option(null, "unweighted", false, "use statistics (i.e. weighted hypergraphs) for query optimization");
+        Option keepTables = new Option(null, "keep-tables", false, "don't drop the tables and insert new data");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -87,6 +89,7 @@ public class Benchmark {
         options.addOption(parallelThreads);
         options.addOption(booleanQuery);
         options.addOption(unweighted);
+        options.addOption(keepTables);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -154,6 +157,9 @@ public class Benchmark {
             }
             if (cmd.hasOption("unweighted")) {
                 benchmark.setUseStatistics(false);
+            }
+            if (cmd.hasOption("keep-tables")) {
+                benchmark.setKeepTables(true);
             }
 
             benchmark.run();
@@ -262,6 +268,10 @@ public class Benchmark {
         this.booleanQuery = booleanQuery;
     }
 
+    public void setKeepTables(boolean keepTables) {
+        this.keepTables = keepTables;
+    }
+
     private void dropAllTables(Connection conn) throws SQLException {
         // Taken from: https://stackoverflow.com/questions/3327312/how-can-i-drop-all-the-tables-in-a-postgresql-database
         System.out.println("Dropping all tables");
@@ -311,8 +321,10 @@ public class Benchmark {
 
         Connection conn = DriverManager.getConnection(dbURL, connectionProperties);
 
-        dropAllTables(conn);
-        insertData(conf);
+        if (!keepTables) {
+            dropAllTables(conn);
+            insertData(conf);
+        }
 
         QueryExecutor originalQE = null;
         TempTableQueryExecutor optimizedQE = null;
@@ -398,8 +410,10 @@ public class Benchmark {
 
         /** Execute original query **/
 
-        dropAllTables(conn);
-        insertData(conf);
+        if (!keepTables) {
+            dropAllTables(conn);
+            insertData(conf);
+        }
 
         System.gc();
         System.runFinalization();
