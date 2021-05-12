@@ -5,14 +5,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
 import at.ac.tuwien.dbai.hgtools.util.CombinationIterator;
 import at.ac.tuwien.dbai.hgtools.util.PowerSetIterator;
+import at.ac.tuwien.dbai.hgtools.util.Writable;
 
-public class Hypergraph {
+public class Hypergraph implements Writable {
 
 	private Set<Edge> edges;
 	private Set<String> vertices;
@@ -41,15 +41,17 @@ public class Hypergraph {
 
 	@Override
 	public String toString() {
-		String s = "";
+		StringBuilder sb = new StringBuilder(200);
 		for (String line : toFile()) {
-			s += line + System.getProperty("line.separator");
+			sb.append(line);
+			sb.append(System.getProperty("line.separator"));
 		}
-		return s;
+		return sb.toString();
 	}
 
+	@Override
 	public List<String> toFile() {
-		List<String> out = new LinkedList<String>();
+		List<String> out = new ArrayList<>(edges.size());
 		for (Iterator<Edge> it = edges.iterator(); it.hasNext();) {
 			String e = it.next().toString();
 			if (it.hasNext())
@@ -62,7 +64,7 @@ public class Hypergraph {
 	}
 
 	public List<String> toPaceFile() {
-		List<String> out = new LinkedList<>();
+		List<String> out = new ArrayList<>(edges.size() + 1);
 		int n = cntVertices();
 		int m = cntEdges();
 		out.add("p htd " + n + " " + m + "\n");
@@ -74,8 +76,8 @@ public class Hypergraph {
 			line.append(nextEdge++);
 			for (Iterator<String> it = e.getVertices().iterator(); it.hasNext();) {
 				String v = it.next();
-				if (!s2i.containsKey(v)) {
-					s2i.put(v, nextVertex++);
+				if (s2i.putIfAbsent(v, nextVertex) == null) {
+					nextVertex++;
 				}
 				int iV = s2i.get(v);
 				line.append(' ');
@@ -120,14 +122,12 @@ public class Hypergraph {
 		int maxBip = 0;
 
 		if (k <= edges.size()) {
-			CombinationIterator<Edge> cit = new CombinationIterator<Edge>(edges, k);
+			CombinationIterator<Edge> cit = new CombinationIterator<>(edges, k);
 			while (cit.hasNext()) {
 				Collection<Edge> subset = cit.next();
-				HashSet<String> inter = new HashSet<String>();
-
 				Iterator<Edge> it = subset.iterator();
 				Edge e = it.next();
-				inter = new HashSet<String>(e.getVertices());
+				HashSet<String> inter = new HashSet<>(e.getVertices());
 
 				while (it.hasNext()) {
 					inter.retainAll(it.next().getVertices());
@@ -141,8 +141,8 @@ public class Hypergraph {
 		return maxBip;
 	}
 
-	public int VCdimension() {
-		int maxVC = (int) Math.floor(((Math.log(cntEdges()) / Math.log(2))));
+	public int vcDimension() {
+		int maxVC = (int) Math.floor(Math.log(cntEdges()) / Math.log(2));
 		int i;
 
 		// Find the maximum cardinality of a shattered subset of V
@@ -151,11 +151,11 @@ public class Hypergraph {
 
 			// For each subset X of size vc check if it is shattered, if X is shattered then
 			// vc is at least i
-			CombinationIterator<String> cit = new CombinationIterator<String>(vertices, i);
+			CombinationIterator<String> cit = new CombinationIterator<>(vertices, i);
 			while (cit.hasNext() && !shattered) {
 				boolean checkX = true;
 				Collection<String> setX = cit.next();
-				PowerSetIterator<String> itPSetX = new PowerSetIterator<String>(setX);
+				PowerSetIterator<String> itPSetX = new PowerSetIterator<>(setX);
 
 				// For each A \subseteq X check if there is an edge s.t. A = X \cap e
 				// if there is a subset such that this check fails (checkX = false), then X is
@@ -165,7 +165,7 @@ public class Hypergraph {
 					boolean edgeFound = false;
 
 					for (Iterator<Edge> it = edges.iterator(); it.hasNext() && !edgeFound;) {
-						Collection<String> helpX = new ArrayList<String>(setX);
+						Collection<String> helpX = new ArrayList<>(setX);
 						helpX.retainAll(it.next().getVertices());
 						if (helpX.size() == psetX.size() && helpX.containsAll(psetX)) {
 							edgeFound = true;
@@ -189,29 +189,4 @@ public class Hypergraph {
 		return i - 1;
 	}
 
-	/*
-	 * Implementation might have errors.
-	 * 
-	 * public int VCdimension() { boolean found = false; int maxVC = (int)
-	 * Math.floor(((Math.log(cntEdges())/Math.log(2)))); int vc;
-	 * 
-	 * for (vc = 1; vc <= maxVC; vc++ ) { found = false; CombinationIterator<String>
-	 * cit = new CombinationIterator<String>(vertices,vc); while (cit.hasNext() &&
-	 * !found) { PowerSetIterator<String> psetX = new
-	 * PowerSetIterator<String>(cit.next()); LinkedList<Integer> usedE = new
-	 * LinkedList<Integer>(); ArrayList<Edge> edges = new
-	 * ArrayList<Edge>(this.getEdges()); if (VCdimHelper(psetX,edges,usedE)) found =
-	 * true; } if (!found) return vc-1; }
-	 * 
-	 * 
-	 * return vc-1; }
-	 * 
-	 * private boolean VCdimHelper(PowerSetIterator<String> itPSetX, ArrayList<Edge>
-	 * edges, LinkedList<Integer> usedEdges) { if (itPSetX.hasNext()) { Set<String>
-	 * setX = itPSetX.next(); for (int i=0; i<edges.size() &&
-	 * !usedEdges.contains(i); i++) { if
-	 * (edges.get(i).getVertices().containsAll(setX)) { usedEdges.push(i); if
-	 * (VCdimHelper(itPSetX,edges,usedEdges)) { return true; } else {
-	 * usedEdges.pop(); } } } return false; } else return true; }
-	 */
 }
