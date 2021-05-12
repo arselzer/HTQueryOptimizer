@@ -115,7 +115,7 @@ import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 import net.sf.jsqlparser.statement.values.ValuesStatement;
 
-public abstract class QueryVisitorUnsupportedAdapter
+public class QueryVisitorUnsupportedAdapter
 		implements StatementVisitor, SelectVisitor, SelectItemVisitor, FromItemVisitor, ExpressionVisitor {
 
 	protected static final String NOT_SUPPORTED_YET = "Not supported yet.";
