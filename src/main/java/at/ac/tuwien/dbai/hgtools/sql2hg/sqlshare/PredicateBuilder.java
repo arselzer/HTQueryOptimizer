@@ -7,10 +7,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 
+import at.ac.tuwien.dbai.hgtools.sql2hg.ExpressionVisitorAdapterFixed;
 import at.ac.tuwien.dbai.hgtools.sql2hg.PredicateDefinition;
-import at.ac.tuwien.dbai.hgtools.util.ExpressionVisitorAdapterFixed;
 import at.ac.tuwien.dbai.hgtools.util.Util;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
@@ -48,7 +50,7 @@ public class PredicateBuilder {
 
 	private PriorityQueue<SelectItem> selItems;
 
-	private HashSet<String> viewNames = null;
+	private Set<String> viewNames = null;
 	private HashSet<PredicateDefinition> viewPreds = null;
 	private HashMap<Select, PredicateBuilder> sel2pb = null;
 	private HashSet<PredicateDefinition> preds = null;
@@ -86,11 +88,11 @@ public class PredicateBuilder {
 		this(name, null);
 	}
 
-	public PredicateBuilder(String name, LinkedList<String> viewAttrs) {
+	public PredicateBuilder(String name, List<String> viewAttrs) {
 		this(name, viewAttrs, null);
 	}
 
-	public PredicateBuilder(String name, LinkedList<String> viewAttrs, HashSet<String> viewNames) {
+	public PredicateBuilder(String name, List<String> viewAttrs, Set<String> viewNames) {
 		if (name == null) {
 			throw new NullPointerException();
 		}
@@ -99,11 +101,11 @@ public class PredicateBuilder {
 		this.viewNames = viewNames;
 	}
 
-	public HashSet<PredicateDefinition> buildPredicates(Statement stmt) {
+	public Set<PredicateDefinition> buildPredicates(Statement stmt) {
 		return buildPredicates(stmt, false);
 	}
 
-	public HashSet<PredicateDefinition> buildPredicates(Statement stmt, boolean quotes) {
+	public Set<PredicateDefinition> buildPredicates(Statement stmt, boolean quotes) {
 		alias2def = new HashMap<>();
 		partialDefs = new HashMap<>();
 		sel2pb = new HashMap<>();
@@ -113,7 +115,7 @@ public class PredicateBuilder {
 		viewNames = (viewNames == null) ? new HashSet<>() : viewNames;
 		viewPreds = new HashSet<>(); // TODO maybe pass also this?
 
-		selItems = new PriorityQueue<SelectItem>(new CustomComp());
+		selItems = new PriorityQueue<>(new CustomComp());
 
 		myName = (myName == null) ? "" : myName;
 		if (myAttributes == null) {
@@ -152,8 +154,9 @@ public class PredicateBuilder {
 			unknownColumns.clear();
 		}
 
-		for (String predName : partialDefs.keySet()) {
-			HashSet<String> attributes = partialDefs.get(predName);
+		for (Map.Entry<String, HashSet<String>> entry : partialDefs.entrySet()) {
+			String predName = entry.getKey();
+			HashSet<String> attributes = entry.getValue();
 			PredicateDefinition p = null;
 			if (quotes) {
 				p = new PredicateDefinitionQuote(predName, attributes);
@@ -201,19 +204,19 @@ public class PredicateBuilder {
 		return n;
 	}
 
-	public HashSet<String> getViewNames() {
+	public Set<String> getViewNames() {
 		return viewNames;
 	}
 
-	public HashSet<PredicateDefinition> getViewPredicates() {
+	public Set<PredicateDefinition> getViewPredicates() {
 		return viewPreds;
 	}
 
-	public HashSet<PredicateDefinition> getPredicates() {
+	public Set<PredicateDefinition> getPredicates() {
 		return preds;
 	}
 
-	public HashSet<String> getUnknowncolumns() {
+	public Set<String> getUnknowncolumns() {
 		return unknownColumns;
 	}
 
@@ -348,9 +351,7 @@ public class PredicateBuilder {
 			tablesInTheFrom.add(alias);
 			String tableName = table.getName();
 			alias2def.put(alias, tableName);
-			if (!partialDefs.containsKey(tableName)) {
-				partialDefs.put(tableName, new HashSet<>());
-			}
+			partialDefs.putIfAbsent(tableName, new HashSet<>());
 		}
 
 		@Override

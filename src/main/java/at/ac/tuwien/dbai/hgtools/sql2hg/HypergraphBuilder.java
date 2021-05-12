@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.jgrapht.alg.util.UnionFind;
 
@@ -12,7 +13,7 @@ import at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph;
 
 public class HypergraphBuilder {
 
-	public final static String SEP = ".";
+	public static final String SEP = "_";
 
 	private static String getFullName(String table, String col) {
 		return table.equals("") ? col : table + SEP + col;
@@ -27,7 +28,7 @@ public class HypergraphBuilder {
 		h = new Hypergraph();
 		nextVar = 0;
 		colToVar = new HashMap<>();
-		vars = new UnionFind<String>(new HashSet<String>());
+		vars = new UnionFind<>(new HashSet<>());
 	}
 
 	public void buildEdge(Predicate table) {
@@ -72,28 +73,31 @@ public class HypergraphBuilder {
 	}
 
 	public Hypergraph getHypergraph() {
-		// System.out.println(vars);
 		for (Edge e : h.getEdges()) {
 			for (String v : e.getVertices()) {
 				String newName = vars.find(v);
-				//System.out.println(newName + ", " + v + ", edge= " + e.getName());
 				if (!v.equals(newName) && !e.renameVertex(v, newName)) {
-					//System.out.println("new = " + newName + ", old=" + v + ", edge= " + e.getName());
-					throw new RuntimeException("Vertex " + newName + " already exists.");
+					throw new ExistingVertexException(newName);
 				}
 			}
 		}
 		return h;
 	}
 
-	public HashMap<String, List<String>> getVarToColMapping() {
+	static class ExistingVertexException extends RuntimeException {
+		private static final long serialVersionUID = -3927324731343631494L;
+
+		public ExistingVertexException(String name) {
+			super("Vertex " + name + " already exists.");
+		}
+	}
+
+	public Map<String, List<String>> getVarToColMapping() {
 		HashMap<String, List<String>> varToCol = new HashMap<>();
-		for (String col : colToVar.keySet()) {
-			String var = vars.find(colToVar.get(col));
-			if (!varToCol.containsKey(var)) {
-				varToCol.put(var, new LinkedList<>());
-			}
-			varToCol.get(var).add(col);
+		for (Map.Entry<String, String> entry : colToVar.entrySet()) {
+			String col = entry.getKey();
+			String var = vars.find(entry.getValue());
+			varToCol.computeIfAbsent(var, k -> new LinkedList<>()).add(col);
 		}
 		return varToCol;
 	}
