@@ -45,7 +45,7 @@ import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 import net.sf.jsqlparser.statement.values.ValuesStatement;
 
-public class QueryVisitorNoExpressionAdapter
+public abstract class QueryVisitorNoExpressionAdapter
 		implements StatementVisitor, SelectVisitor, SelectItemVisitor, FromItemVisitor {
 
 	@Override
