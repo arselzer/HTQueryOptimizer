@@ -398,7 +398,7 @@ public class Benchmark {
             // Close the resultSet to close the PreparedStatement such that no memory is leaked
             optimizedRS.close();
         } catch (SQLException e) {
-            System.err.println("Timeout: " + e.getMessage());
+            System.err.println("Timeout or error: " + e.getMessage());
             result.setOptimizedQueryTimeout(true);
         } catch (TableNotFoundException e) {
             System.err.println("Table not found: " + e.getMessage());
@@ -456,7 +456,7 @@ public class Benchmark {
 
             originalRS.close();
         } catch (SQLException e) {
-            System.err.println("Timeout: " + e.getMessage());
+            System.err.println("Timeout or error: " + e.getMessage());
             result.setUnoptimizedQueryTimeout(true);
         } catch (TableNotFoundException e) {
             System.err.println("Table not found: " + e.getMessage());
