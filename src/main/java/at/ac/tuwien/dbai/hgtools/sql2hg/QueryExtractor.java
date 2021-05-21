@@ -8,6 +8,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import net.sf.jsqlparser.statement.CreateFunctionalStatement;
+import net.sf.jsqlparser.statement.alter.sequence.AlterSequence;
+import net.sf.jsqlparser.statement.create.schema.CreateSchema;
+import net.sf.jsqlparser.statement.create.sequence.CreateSequence;
+import net.sf.jsqlparser.statement.grant.Grant;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
@@ -474,6 +479,11 @@ public class QueryExtractor extends QueryVisitorNoExpressionAdapter {
 	// StatementVisitor
 
 	@Override
+	public void visit(CreateSchema createSchema) {
+
+	}
+
+	@Override
 	public void visit(Select select) {
 		if (select.getWithItemsList() != null) {
 			for (WithItem withItem : select.getWithItemsList()) {
@@ -489,6 +499,26 @@ public class QueryExtractor extends QueryVisitorNoExpressionAdapter {
 		resolver.enterNewScope(body, inSetOpList);
 		body.accept(this);
 		resolver.exitCurrentScope();
+	}
+
+	@Override
+	public void visit(Grant grant) {
+
+	}
+
+	@Override
+	public void visit(CreateSequence createSequence) {
+
+	}
+
+	@Override
+	public void visit(AlterSequence alterSequence) {
+
+	}
+
+	@Override
+	public void visit(CreateFunctionalStatement createFunctionalStatement) {
+
 	}
 
 	// Helper classes
