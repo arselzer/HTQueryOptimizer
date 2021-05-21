@@ -342,7 +342,7 @@ public class Hypergraph {
     }
 
     public int getVCDimension() {
-        return toAlternativeHypergraph().VCdimension();
+        return toAlternativeHypergraph().vcDimension();
     }
 
     public int getBIP() {
