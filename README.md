@@ -32,7 +32,7 @@ To run the benchmark, use `java -Xmx22G -cp "target/HTQueryOptimizer-1.0-SNAPSHO
 
 Benchmark data is saved in `data/`. For each database, a directory is created with the name of the database. Inside a
 file called `create.sh` has to be created. It is called with the database size as the first parameter (`./create.sh $size`).
-The file name `create.sql` is reserved and will not be interpreted as a query. Any other `.sql` files are seen as queries.
+The file name `create.sql` is resHerved and will not be interpreted as a query. Any other `.sql` files are seen as queries.
 
 To configure the range of data sizes used for benchmarking, the file `config.json` can be used. If it does not exists,
 min = max = 1.
