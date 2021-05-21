@@ -780,6 +780,8 @@ public class SQLQuery {
         ConjunctiveQueryFinder hgFinder = new ConjunctiveQueryFinder(schema);
         hgFinder.run(selectStmt);
 
+        System.out.println("tables: " + hgFinder.getTables());
+        System.out.println("joins: " + hgFinder.getJoins());
         HypergraphBuilder hgBuilder = new HypergraphBuilder();
         for (Predicate table : hgFinder.getTables()) {
             hgBuilder.buildEdge(table);
