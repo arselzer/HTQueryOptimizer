@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class SimplePredicate implements Predicate {
 
-	public static final String SEP = "_";
+	public static final String SEP = ".";
 
 	protected PredicateDefinition definition;
 	protected String alias;

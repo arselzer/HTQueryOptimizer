@@ -85,7 +85,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
         if (useStatistics) {
             Map<String, TableStatistics> statisticsMap = new HashMap<>();
-            for (String tableName : sqlQuery.getTables()) {
+            for (String tableName : sqlQuery.getAliasTables()) {
                 statisticsMap.put(tableName, extractTableStatistics(tableName));
             }
             sqlQuery.setStatistics(statisticsMap);
