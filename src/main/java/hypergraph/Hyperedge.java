@@ -5,6 +5,7 @@ import java.util.Set;
 
 public class Hyperedge {
     private String name;
+    private String realName;
     private Set<String> nodes;
 
     public Hyperedge() {

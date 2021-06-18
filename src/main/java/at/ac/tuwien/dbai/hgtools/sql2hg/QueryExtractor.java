@@ -52,7 +52,7 @@ import net.sf.jsqlparser.statement.select.WithItem;
 public class QueryExtractor extends QueryVisitorNoExpressionAdapter {
 
 	private static String makeName(String prefix, String name) {
-		return prefix.equals("") ? name : prefix + "_" + name;
+		return prefix.equals("") ? name : prefix + "." + name;
 	}
 
 	private static String getTableAliasName(Table table) {

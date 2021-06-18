@@ -1,6 +1,5 @@
 package hypergraph;
 
-import at.ac.tuwien.dbai.hgtools.util.CombinationIterator;
 import exceptions.JoinTreeGenerationException;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
@@ -12,7 +11,6 @@ import org.apache.commons.math3.util.Combinations;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -22,6 +20,8 @@ import java.util.stream.Collectors;
 public class WeightedHypergraph extends Hypergraph {
     private Set<BagWeight> weights;
     private Map<String, TableStatistics> statistics;
+    // Table aliases are required to find the real table names to access the statistics
+    private Map<String, String> tableAliases;
     // Keep an ordered list of hyperedges for index access when using the combinations iterator
     List<Hyperedge> orderedEdges = new LinkedList<>(getEdges());
 
@@ -29,22 +29,26 @@ public class WeightedHypergraph extends Hypergraph {
         super();
     }
 
-    public WeightedHypergraph(Set<String> nodes, Set<Hyperedge> edges) {
+    // Weights are uninitialized
+    public WeightedHypergraph(Set<String> nodes, Set<Hyperedge> edges, Map<String, String> tableAliases) {
         super(nodes, edges);
         this.weights = new HashSet<>();
+        this.tableAliases = tableAliases;
     }
 
+    // Weights are set at construction
     public WeightedHypergraph(Set<String> nodes, Set<Hyperedge> edges, Set<BagWeight> weights) {
         super(nodes, edges);
         this.weights = weights;
     }
 
-    public WeightedHypergraph(Hypergraph hypergraph, Map<String, TableStatistics> statistics) {
-        super(hypergraph.getNodes(), hypergraph.getEdges());
+    // Add weights to an existing unweighted hypergraph
+    public WeightedHypergraph(Hypergraph hypergraph, Map<String, TableStatistics> statistics, Map<String, String> tableAliases) {
+        super(hypergraph.getVertices(), hypergraph.getEdges());
+        this.tableAliases = tableAliases;
         this.setColumnToVariableMapping(hypergraph.getColumnToVariableMapping());
         this.weights = new HashSet<>();
         this.statistics = statistics;
-
     }
 
     public Set<BagWeight> getWeights() {
@@ -56,10 +60,16 @@ public class WeightedHypergraph extends Hypergraph {
     }
 
     private void determineWeightsForBagSize(int bagSize) {
+        if (tableAliases == null) {
+            throw new IllegalStateException("Table aliases are not set");
+        }
+
         Iterator it = new Combinations(getEdges().size(), bagSize).iterator();
+
         while (it.hasNext()) {
             int[] combination = (int[]) it.next();
             Set<Hyperedge> bag = new HashSet<>();
+
             for (int i = 0; i < combination.length; i++) {
                 Hyperedge edge = orderedEdges.get(combination[i]);
                 bag.add(edge);
@@ -80,8 +90,9 @@ public class WeightedHypergraph extends Hypergraph {
                 // First, start with the common vals of one edge
                 Iterator<Hyperedge> edgeIterator = bag.iterator();
                 Hyperedge firstEdge = edgeIterator.next();
+                String realTableName = tableAliases.get(firstEdge.getName());
                 String firstEdgeColumnName = getInverseEquivalenceMapping().get(attribute).get(firstEdge.getName()).get(0);
-                Map<String, Map<String, Double>> firstEdgeMostCommonFrequencies = statistics.get(firstEdge.getName())
+                Map<String, Map<String, Double>> firstEdgeMostCommonFrequencies = statistics.get(realTableName)
                         .getMostCommonFrequencies();
                 Set<String> sharedCommonValues = new HashSet<>();
                 if (!firstEdgeMostCommonFrequencies.isEmpty()) {
@@ -89,10 +100,9 @@ public class WeightedHypergraph extends Hypergraph {
                 }
 
                 for (Hyperedge edge : bag) {
-                    String tableName = edge.getName();
-                    TableStatistics tableStats = statistics.get(tableName);
+                    TableStatistics tableStats = statistics.get(tableAliases.get(edge.getName()));
                     // TODO for simplicity the case of multiple equal columns in the same table is not considered
-                    String columnName = getInverseEquivalenceMapping().get(attribute).get(tableName).get(0);
+                    String columnName = getInverseEquivalenceMapping().get(attribute).get(edge.getName()).get(0);
                     Map<String, Double> mostCommonFrequencies = tableStats.getMostCommonFrequencies().get(columnName);
                     if (mostCommonFrequencies != null) {
                         Set<String> commonVals = mostCommonFrequencies.keySet();
@@ -105,10 +115,9 @@ public class WeightedHypergraph extends Hypergraph {
                     //System.out.println("shared common value: " + value);
                     List<Double> frequencies = new LinkedList<>();
                     for (Hyperedge edge : bag) {
-                        //System.out.println("value to frequency map: " + statistics.get(edge.getName()).getMostCommonFrequencies() + ", attribute: " + attribute);
-//                        System.out.println("value to frequency: " + statistics.get(edge.getName()).getMostCommonFrequencies().get(attribute));
                         String columnName = getInverseEquivalenceMapping().get(attribute).get(edge.getName()).get(0);
-                        Map<String, Double> valueToFrequencyMap = statistics.get(edge.getName()).getMostCommonFrequencies().get(columnName);
+                        Map<String, Double> valueToFrequencyMap = statistics.get(tableAliases.get(edge.getName()))
+                                .getMostCommonFrequencies().get(columnName);
                         if (valueToFrequencyMap != null) {
                             Double frequency = valueToFrequencyMap.get(value);
                             if (frequency != null) {
@@ -134,7 +143,7 @@ public class WeightedHypergraph extends Hypergraph {
 
             // Multiply the join selectivity with the row count of the cross product
             for (Hyperedge edge : bag) {
-                weight *= statistics.get(edge.getName()).getRowCount();
+                weight *= statistics.get(tableAliases.get(edge.getName())).getRowCount();
                 //System.out.println("edge: " + edge + ", row count: " + statistics.get(edge.getName()).getRowCount() + ", weight: " + weight);
             }
             //System.out.println("total selectivity: " + weight + ", row estimate: " + weight);
@@ -297,7 +306,7 @@ public class WeightedHypergraph extends Hypergraph {
     @Override
     public String toString() {
         return "WeightedHypergraph{" +
-                "vertices=" + getNodes() +
+                "vertices=" + getVertices() +
                 ", edges=" + getEdges() +
                 ", weights=" + weights +
                 ", statistics=" + statistics +

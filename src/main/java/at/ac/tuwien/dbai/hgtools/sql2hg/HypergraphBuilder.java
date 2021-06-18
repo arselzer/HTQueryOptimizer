@@ -13,7 +13,7 @@ import at.ac.tuwien.dbai.hgtools.hypergraph.Hypergraph;
 
 public class HypergraphBuilder {
 
-	public static final String SEP = "_";
+	public static final String SEP = ".";
 
 	private static String getFullName(String table, String col) {
 		return table.equals("") ? col : table + SEP + col;

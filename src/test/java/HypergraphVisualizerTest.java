@@ -10,7 +10,7 @@ class HypergraphVisualizerTest {
     @Test
     void toLaTeX() {
         Hypergraph hg = new Hypergraph();
-        hg.setNodes(Set.of("a", "b", "c", "d", "e", "f", "g", "h"));
+        hg.setVertices(Set.of("a", "b", "c", "d", "e", "f", "g", "h"));
         hg.setEdges(Set.of(new Hyperedge("e1", Set.of("a", "b", "c")),
                 new Hyperedge("e2", Set.of("c", "d", "e")),
                 new Hyperedge("e3", Set.of("f", "g")),
@@ -22,7 +22,7 @@ class HypergraphVisualizerTest {
     @Test
     void toFile() throws IOException, InterruptedException {
         Hypergraph hg = new Hypergraph();
-        hg.setNodes(Set.of("a", "b", "c", "d", "e", "f", "g", "h"));
+        hg.setVertices(Set.of("a", "b", "c", "d", "e", "f", "g", "h"));
         hg.setEdges(Set.of(new Hyperedge("e1", Set.of("a", "b", "c")),
                 new Hyperedge("e2", Set.of("c", "d", "e")),
                 new Hyperedge("e3", Set.of("f", "g")),
@@ -38,7 +38,7 @@ class HypergraphVisualizerTest {
     @Test
     void displayLargeGraph() throws IOException, InterruptedException {
         Hypergraph hg = new Hypergraph();
-        hg.setNodes(Set.of("a", "b", "c", "d", "e", "f", "g", "h"));
+        hg.setVertices(Set.of("a", "b", "c", "d", "e", "f", "g", "h"));
         hg.setEdges(Set.of(new Hyperedge("e1", Set.of("a", "b")),
                 new Hyperedge("e2", Set.of("c", "d")),
                 new Hyperedge("e3", Set.of("f", "g")),

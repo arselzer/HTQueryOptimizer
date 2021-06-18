@@ -43,12 +43,11 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
 
         if (useStatistics) {
             Map<String, TableStatistics> statisticsMap = new HashMap<>();
-            for (String tableName : sqlQuery.getTables()) {
+            for (String tableName : sqlQuery.getRealTables()) {
                 statisticsMap.put(tableName, extractTableStatistics(tableName));
             }
             sqlQuery.setStatistics(statisticsMap);
         }
-
         ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution(booleanQuery);
 
         // Save hypergraph and join tree for benchmarks and analysis
@@ -61,6 +60,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
             for (List<String> layer : queryExecution.getSqlStatements()) {
                 layer.parallelStream().forEach(query -> {
                     System.out.println("-- executing query: \n" + query);
+                    System.out.println("query: " + query);
                     try {
                         Connection conn = connectionPool.getConnection();
                         PreparedStatement ps = conn.prepareStatement(query);

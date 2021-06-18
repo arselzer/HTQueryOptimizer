@@ -38,8 +38,8 @@ public class SQLQuery {
     private Map<String, Column> columnByNameMap;
     // List of columns to project in the end (or *)
     private List<String> projectColumns;
-    // A set of all involved tables
-    private Set<String> tables;
+    // A set of all involved (alias) tables
+    private Set<String> aliasTables;
     // Table aliases
     private Map<String, String> tableAliases;
     // Column aliases
@@ -121,11 +121,14 @@ public class SQLQuery {
             SQLQueryParser queryParser = new SQLQueryParser(stmt, dbSchema);
             projectColumns = queryParser.getProjectColumns();
             tableAliases = queryParser.getAliases();
-            tables = queryParser.getTables();
+            System.out.println("project columns: " + projectColumns);
+            System.out.println("table aliases: " + tableAliases);
+            aliasTables = queryParser.getTables();
+            System.out.println("tables: " + aliasTables);
 
             // Fill all column aliases: e.g. renamed.a -> original.a
             columnAliases = new HashMap<>();
-            for (String aliasTableName : tables) {
+            for (String aliasTableName : aliasTables) {
                 String realTableName = tableAliases.get(aliasTableName);
 
                 Table realTable = dbSchema.getTableByName(realTableName);
@@ -155,6 +158,7 @@ public class SQLQuery {
     }
 
     public ParallelQueryExecution toParallelExecution(boolean bcq) throws QueryConversionException {
+        System.out.println("toParallelExecution");
         List<List<String>> resultQueryStages = new LinkedList<>();
 
         Hypergraph hg;
@@ -187,7 +191,7 @@ public class SQLQuery {
         // Check if there is a select * or select [specific columns]
         if (projectColumns.size() == 1 && projectColumns.get(0).equals("*")) {
             // Go through all hypergraph vertices
-            for (String node : hg.getNodes()) {
+            for (String node : hg.getVertices()) {
                 // Look up the column name for the vertex name - get any actual column
                 // from any table associated - the type has to be equal anyway
                 Map<String, List<String>> nodeCols = hg.getInverseEquivalenceMapping().get(node);
@@ -510,7 +514,7 @@ public class SQLQuery {
         // Check if there is a select * or select [specific columns]
         if (projectColumns.size() == 1 && projectColumns.get(0).equals("*")) {
             // Go through all hypergraph vertices
-            for (String node : hg.getNodes()) {
+            for (String node : hg.getVertices()) {
                 // Look up the column name for the vertex name - get any actual column
                 // from any table associated - the type has to be equal anyway
                 Map<String, List<String>> nodeCols = hg.getInverseEquivalenceMapping().get(node);
@@ -829,7 +833,7 @@ public class SQLQuery {
     }
 
     public WeightedHypergraph toWeightedHypergraph() throws QueryConversionException {
-        WeightedHypergraph weightedHypergraph = new WeightedHypergraph(toHypergraph(), statistics);
+        WeightedHypergraph weightedHypergraph = new WeightedHypergraph(toHypergraph(), statistics, tableAliases);
 
         return weightedHypergraph;
     }
@@ -846,7 +850,15 @@ public class SQLQuery {
         return joinTree;
     }
 
-    public Set<String> getTables() {
-        return tables;
+    public Set<String> getAliasTables() {
+        return aliasTables;
+    }
+
+    public Set<String> getRealTables() {
+        return aliasTables.stream().map(this::getRealTable).collect(Collectors.toSet());
+    }
+
+    public String getRealTable(String aliasName) {
+        return tableAliases.get(aliasName);
     }
 }

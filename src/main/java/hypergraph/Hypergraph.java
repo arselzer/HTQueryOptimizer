@@ -23,10 +23,12 @@ import java.util.stream.Collectors;
 
 public class Hypergraph {
     private Set<Hyperedge> edges = new HashSet<>();
-    private Set<String> nodes = new HashSet<>();
+    private Set<String> vertices = new HashSet<>();
     private Map<String, Hyperedge> edgesByName = new HashMap<>();
     // Maps column -> variable
     private Map<String, String> columnToVariableMapping = new HashMap<>();
+    // Maps column -> column
+    private Map<String, String> tableAliasMapping = new HashMap<>();
     // Maps variable -> (table -> [column])
     private Map<String, Map<String, List<String>>> inverseEquivalenceMapping = new HashMap<>();
     // Maps variable -> [column] (table.colname)
@@ -38,8 +40,8 @@ public class Hypergraph {
 
     }
 
-    public Hypergraph(Set<String> nodes, Set<Hyperedge> edges) {
-        this.nodes = nodes;
+    public Hypergraph(Set<String> vertices, Set<Hyperedge> edges) {
+        this.vertices = vertices;
         this.edges = edges;
         populateEdgesByNameMap();
     }
@@ -353,16 +355,16 @@ public class Hypergraph {
         return edgesByName.get(name);
     }
 
-    public Set<String> getNodes() {
-        return nodes;
+    public Set<String> getVertices() {
+        return vertices;
     }
 
-    public void setNodes(Set<String> nodes) {
-        this.nodes = nodes;
+    public void setVertices(Set<String> vertices) {
+        this.vertices = vertices;
     }
 
     public void addNode(String node) {
-        this.nodes.add(node);
+        this.vertices.add(node);
     }
 
     public Map<String, String> getColumnToVariableMapping() {
@@ -393,6 +395,18 @@ public class Hypergraph {
         }
     }
 
+    public void setTableAliasMapping(Map<String, String> tableAliasMapping) {
+        this.tableAliasMapping = tableAliasMapping;
+    }
+
+    public boolean isAlias(String vertex) {
+        return tableAliasMapping.containsKey(vertex);
+    }
+
+    public String getAlias(String vertex) {
+        return tableAliasMapping.get(vertex);
+    }
+
     public Map<String, Map<String, List<String>>> getInverseEquivalenceMapping() {
         return inverseEquivalenceMapping;
     }
@@ -405,7 +419,7 @@ public class Hypergraph {
     public String toString() {
         return "Hypergraph{" +
                 "edges=" + edges +
-                ", nodes=" + nodes +
+                ", nodes=" + vertices +
                 '}';
     }
 }
