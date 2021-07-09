@@ -1,6 +1,6 @@
-SELECT MIN(cn.name) AS movie_company,
-       MIN(mi_idx.info) AS rating,
-       MIN(t.title) AS complete_euro_dark_movie
+SELECT cn.name,
+       mi_idx.info,
+       t.title
 FROM complete_cast AS cc,
      comp_cast_type AS cct1,
      comp_cast_type AS cct2,
@@ -15,32 +15,7 @@ FROM complete_cast AS cc,
      movie_info_idx AS mi_idx,
      movie_keyword AS mk,
      title AS t
-WHERE cct1.kind = 'crew'
-  AND cct2.kind != 'complete+verified'
-  AND cn.country_code != '[us]'
-  AND it1.info = 'countries'
-  AND it2.info = 'rating'
-  AND k.keyword IN ('murder',
-                    'murder-in-title',
-                    'blood',
-                    'violence')
-  AND kt.kind IN ('movie',
-                  'episode')
-  AND mc.note NOT LIKE '%(USA)%'
-  AND mc.note LIKE '%(200%)%'
-  AND mi.info IN ('Sweden',
-                  'Norway',
-                  'Germany',
-                  'Denmark',
-                  'Swedish',
-                  'Danish',
-                  'Norwegian',
-                  'German',
-                  'USA',
-                  'American')
-  AND mi_idx.info < '8.5'
-  AND t.production_year > 2000
-  AND kt.id = t.kind_id
+WHERE kt.id = t.kind_id
   AND t.id = mi.movie_id
   AND t.id = mk.movie_id
   AND t.id = mi_idx.movie_id

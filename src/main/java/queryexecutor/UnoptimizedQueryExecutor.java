@@ -35,18 +35,29 @@ public class UnoptimizedQueryExecutor implements QueryExecutor {
         return executeBoolean(preparedStatement.toString());
     }
 
-    @Override
-    public ResultSet execute(String query) throws SQLException, QueryConversionException {
-        PreparedStatement ps = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE,
+    public ResultSet execute(String query, boolean analyze) throws SQLException, QueryConversionException {
+        PreparedStatement ps = connection.prepareStatement(
+                (analyze ? "EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) " : "") + query,
+                ResultSet.TYPE_SCROLL_INSENSITIVE,
                 ResultSet.CONCUR_READ_ONLY);
 
         return execute(ps);
     }
 
     @Override
-    public ResultSet executeBoolean(String query) throws SQLException, QueryConversionException, TableNotFoundException {
-        String booleanQuery = "SELECT * FROM (" + query.replaceFirst(";\\s*$", "") + ") sq LIMIT 1;";
+    public ResultSet execute(String query) throws SQLException, QueryConversionException {
+        return execute(query, false);
+    }
+
+    public ResultSet executeBoolean(String query, boolean analyze) throws SQLException, QueryConversionException, TableNotFoundException {
+        String booleanQuery = (analyze ? "EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) " : "")
+                + "SELECT * FROM (" + query.replaceFirst(";\\s*$", "") + ") sq LIMIT 1;";
 
         return execute(booleanQuery);
+    }
+
+    @Override
+    public ResultSet executeBoolean(String query) throws SQLException, QueryConversionException, TableNotFoundException {
+        return executeBoolean(query, false);
     }
 }
