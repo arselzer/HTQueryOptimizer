@@ -1,7 +1,7 @@
-SELECT MIN(chn.name) AS character_name,
-       MIN(mi_idx.info) AS rating,
-       MIN(n.name) AS playing_actor,
-       MIN(t.title) AS complete_hero_movie
+SELECT chn.name,
+       mi_idx.info,
+       n.name,
+       t.title
 FROM complete_cast AS cc,
      comp_cast_type AS cct1,
      comp_cast_type AS cct2,
@@ -14,26 +14,7 @@ FROM complete_cast AS cc,
      movie_keyword AS mk,
      name AS n,
      title AS t
-WHERE cct1.kind = 'cast'
-  AND cct2.kind LIKE '%complete%'
-  AND chn.name IS NOT NULL
-  AND (chn.name LIKE '%man%'
-       OR chn.name LIKE '%Man%')
-  AND it2.info = 'rating'
-  AND k.keyword IN ('superhero',
-                    'marvel-comics',
-                    'based-on-comic',
-                    'tv-special',
-                    'fight',
-                    'violence',
-                    'magnet',
-                    'web',
-                    'claw',
-                    'laser')
-  AND kt.kind = 'movie'
-  AND mi_idx.info > '7.0'
-  AND t.production_year > 2000
-  AND kt.id = t.kind_id
+WHERE kt.id = t.kind_id
   AND t.id = mk.movie_id
   AND t.id = ci.movie_id
   AND t.id = cc.movie_id

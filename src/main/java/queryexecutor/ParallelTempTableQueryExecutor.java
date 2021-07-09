@@ -87,7 +87,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         }
 
         PreparedStatement psSelect = connection.prepareStatement(
-                String.format(booleanQuery ? "SELECT * FROM %s LIMIT 1;" : "SELECT * FROM %s;",
+                String.format(
+                         booleanQuery ? "SELECT * FROM %s LIMIT 1;" : "SELECT * FROM %s;",
                         queryExecution.getFinalSelectName()),
                 ResultSet.TYPE_SCROLL_INSENSITIVE,
                 ResultSet.CONCUR_READ_ONLY);

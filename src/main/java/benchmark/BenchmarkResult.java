@@ -25,6 +25,8 @@ public class BenchmarkResult {
     private String query;
     private String generatedQuery;
 
+    private String analyzeJSON;
+
     BenchmarkResult(BenchmarkConf conf) {
         this.conf = conf;
     }
@@ -149,6 +151,13 @@ public class BenchmarkResult {
         this.generatedQuery = generatedQuery;
     }
 
+    public String getAnalyzeJSON() {
+        return analyzeJSON;
+    }
+
+    public void setAnalyzeJSON(String analyzeJSON) {
+        this.analyzeJSON = analyzeJSON;
+    }
 
     @Override
     public String toString() {

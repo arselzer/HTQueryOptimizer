@@ -41,6 +41,7 @@ public class Benchmark {
     private boolean booleanQuery = false;
     private boolean useStatistics = true;
     private boolean keepTables = false;
+    private boolean analyzeQuery = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -77,6 +78,7 @@ public class Benchmark {
         Option booleanQuery = new Option(null, "boolean", false, "run the queries as boolean queries (checking whether there is a result only)");
         Option unweighted = new Option(null, "unweighted", false, "use statistics (i.e. weighted hypergraphs) for query optimization");
         Option keepTables = new Option(null, "keep-tables", false, "don't drop the tables and insert new data");
+        Option analyzeQuery = new Option(null, "analyze", false, "analyze query");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -90,6 +92,7 @@ public class Benchmark {
         options.addOption(booleanQuery);
         options.addOption(unweighted);
         options.addOption(keepTables);
+        options.addOption(analyzeQuery);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -161,6 +164,9 @@ public class Benchmark {
             if (cmd.hasOption("keep-tables")) {
                 benchmark.setKeepTables(true);
             }
+            if (cmd.hasOption("analyze")) {
+                benchmark.setAnalyzeQuery(true);
+            }
 
             benchmark.run();
 
@@ -221,6 +227,13 @@ public class Benchmark {
                     weightsWriter.write(((WeightedHypergraph) res.getHypergraph()).toWeightsFile());
                     weightsWriter.close();
                 }
+
+                if (benchmark.analyzeQuery) {
+                    File analyzeJSONFile = new File(subResultsDir + "/analyze.json");
+                    PrintWriter analyzeJsonWriter = new PrintWriter(analyzeJSONFile);
+                    analyzeJsonWriter.write(res.getAnalyzeJSON());
+                    analyzeJsonWriter.close();
+                }
             }
 
             Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
@@ -270,6 +283,10 @@ public class Benchmark {
 
     public void setKeepTables(boolean keepTables) {
         this.keepTables = keepTables;
+    }
+
+    public void setAnalyzeQuery(boolean analyzeQuery) {
+        this.analyzeQuery = analyzeQuery;
     }
 
     private void dropAllTables(Connection conn) throws SQLException {
@@ -326,7 +343,7 @@ public class Benchmark {
             insertData(conf);
         }
 
-        QueryExecutor originalQE = null;
+        UnoptimizedQueryExecutor originalQE = null;
         TempTableQueryExecutor optimizedQE = null;
 
         try {
@@ -408,7 +425,7 @@ public class Benchmark {
         result.setJoinTree(optimizedQE.getJoinTree());
         result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
 
-        /** Execute original query **/
+        /** Execute original (unoptimized) query **/
 
         if (!keepTables) {
             dropAllTables(conn);
@@ -424,35 +441,46 @@ public class Benchmark {
             conn.prepareStatement("vacuum analyze;").execute();
             long startTimeUnoptimized = System.currentTimeMillis();
             if (conf.isBooleanQuery()) {
-                originalRS = originalQE.executeBoolean(query);
+                originalRS = originalQE.executeBoolean(query, analyzeQuery);
             }
             else {
-                originalRS = originalQE.execute(query);
+                originalRS = originalQE.execute(query, analyzeQuery);
             }
             result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
 
-            ResultSetMetaData metaData = originalRS.getMetaData();
-            int colCount = metaData.getColumnCount();
-            result.setUnoptimizedColumns(colCount);
+            if (!analyzeQuery) {
+                ResultSetMetaData metaData = originalRS.getMetaData();
+                int colCount = metaData.getColumnCount();
+                result.setUnoptimizedColumns(colCount);
 
-            int originalCount = 0;
-            if (!checkCorrectness) {
-                originalRS.last();
-                originalCount = originalRS.getRow();
-            } else {
-                while (originalRS.next()) {
-                    String row = "";
-                    for (int i = 1; i <= colCount; i++) {
-                        row += originalRS.getString(i) + ",";
+                int originalCount = 0;
+                if (!checkCorrectness) {
+                    originalRS.last();
+                    originalCount = originalRS.getRow();
+                } else {
+                    while (originalRS.next()) {
+                        String row = "";
+                        for (int i = 1; i <= colCount; i++) {
+                            row += originalRS.getString(i) + ",";
+                        }
+                        originalRowCount.putIfAbsent(row, 1);
+                        originalRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
+
+                        originalCount++;
                     }
-                    originalRowCount.putIfAbsent(row, 1);
-                    originalRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
-
-                    originalCount++;
                 }
-            }
 
-            result.setUnoptimizedRows(originalCount);
+                result.setUnoptimizedRows(originalCount);
+            }
+            else {
+                String analyzeJSON = "";
+
+                while (originalRS.next()) {
+                    analyzeJSON += originalRS.getString(1);
+                }
+
+                result.setAnalyzeJSON(analyzeJSON);
+            }
 
             originalRS.close();
         } catch (SQLException e) {
