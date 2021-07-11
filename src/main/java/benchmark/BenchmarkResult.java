@@ -2,6 +2,9 @@ package benchmark;
 
 import hypergraph.Hypergraph;
 import query.JoinTreeNode;
+import queryexecutor.ExecutionStatistics;
+
+import java.util.List;
 
 public class BenchmarkResult {
     private BenchmarkConf conf;
@@ -26,6 +29,8 @@ public class BenchmarkResult {
     private String generatedQuery;
 
     private String analyzeJSON;
+
+    private List<ExecutionStatistics> executionStatistics;
 
     BenchmarkResult(BenchmarkConf conf) {
         this.conf = conf;
@@ -157,6 +162,14 @@ public class BenchmarkResult {
 
     public void setAnalyzeJSON(String analyzeJSON) {
         this.analyzeJSON = analyzeJSON;
+    }
+
+    public List<ExecutionStatistics> getExecutionStatistics() {
+        return executionStatistics;
+    }
+
+    public void setExecutionStatistics(List<ExecutionStatistics> executionStatistics) {
+        this.executionStatistics = executionStatistics;
     }
 
     @Override
