@@ -11,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +39,12 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
 
     @Override
     public ResultSet execute(String queryStr, boolean booleanQuery) throws SQLException, QueryConversionException, TableNotFoundException {
+        StatisticsResultSet statisticsResultSet = executeWithStatistics(queryStr, booleanQuery);
+
+        return statisticsResultSet.getResultSet();
+    }
+
+    public StatisticsResultSet executeWithStatistics(String queryStr, boolean booleanQuery) throws SQLException, QueryConversionException, TableNotFoundException {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
@@ -54,10 +61,15 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         this.hypergraph = sqlQuery.getHypergraph();
         this.joinTree = sqlQuery.getJoinTree();
 
-        long startTime = System.currentTimeMillis();
+        long totalStartTime = System.currentTimeMillis();
+
+        List<ExecutionStatistics> statisticsList = new LinkedList<>();
 
         try {
+            int layerCount = 0;
             for (List<String> layer : queryExecution.getSqlStatements()) {
+                long startTime = System.currentTimeMillis();
+
                 layer.parallelStream().forEach(query -> {
                     System.out.println("-- executing query: \n" + query);
                     System.out.println("query: " + query);
@@ -73,6 +85,10 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                     }
                 });
                 System.out.println("-- time elapsed: " + (System.currentTimeMillis() - startTime));
+                long timeDifference = System.currentTimeMillis() - startTime;
+
+                statisticsList.add(new ExecutionStatistics("layer-" + layerCount, layer, timeDifference));
+                layerCount++;
             }
         }
         catch (RuntimeException e) {
@@ -88,7 +104,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
 
         PreparedStatement psSelect = connection.prepareStatement(
                 String.format(
-                         booleanQuery ? "SELECT * FROM %s LIMIT 1;" : "SELECT * FROM %s;",
+                        booleanQuery ? "SELECT * FROM %s LIMIT 1;" : "SELECT * FROM %s;",
                         queryExecution.getFinalSelectName()),
                 ResultSet.TYPE_SCROLL_INSENSITIVE,
                 ResultSet.CONCUR_READ_ONLY);
@@ -98,7 +114,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         psSelect.closeOnCompletion();
         ResultSet rs = psSelect.executeQuery();
 
-        queryRunningTime = System.currentTimeMillis() - startTime;
+        queryRunningTime = System.currentTimeMillis() - totalStartTime;
 
         System.out.println("total time elapsed: " + queryRunningTime);
 
@@ -107,6 +123,6 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
             connection.prepareStatement(dropStatement).execute();
         }
 
-        return rs;
+        return new StatisticsResultSet(rs, statisticsList);
     }
 }

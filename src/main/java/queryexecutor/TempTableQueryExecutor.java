@@ -80,6 +80,12 @@ public class TempTableQueryExecutor implements QueryExecutor {
     }
 
     public ResultSet execute(String queryStr, boolean booleanQuery) throws SQLException, QueryConversionException, TableNotFoundException {
+        StatisticsResultSet statisticsResultSet = executeWithStatistics(queryStr, booleanQuery);
+
+        return statisticsResultSet.getResultSet();
+    }
+
+    public StatisticsResultSet executeWithStatistics(String queryStr, boolean booleanQuery) throws SQLException, QueryConversionException, TableNotFoundException {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
@@ -90,6 +96,8 @@ public class TempTableQueryExecutor implements QueryExecutor {
             }
             sqlQuery.setStatistics(statisticsMap);
         }
+
+        List<ExecutionStatistics> statisticsList = new LinkedList<>();
 
         String functionName = SQLQuery.generateFunctionName();
         String functionStr = sqlQuery.toFunction(functionName);
@@ -116,6 +124,8 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
             queryRunningTime = System.currentTimeMillis() - startTime;
 
+            statisticsList.add(new ExecutionStatistics("query", List.of(functionStr), queryRunningTime));
+
             System.out.println("total time elapsed: " + queryRunningTime);
 
             //PreparedStatement psSelectFromView = connection.prepareStatement(String.format("SELECT * FROM %s", finalTableName));
@@ -129,7 +139,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
             //enableMergeJoin();
             // TODO disabling merge join alters global db state ? - maybe isolate it if possible
 
-            return rs;
+            return new StatisticsResultSet(rs, statisticsList);
         }
     }
 

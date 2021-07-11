@@ -234,6 +234,17 @@ public class Benchmark {
                     analyzeJsonWriter.write(res.getAnalyzeJSON());
                     analyzeJsonWriter.close();
                 }
+
+                String runtimeStatistics = "name,runtime\n";
+
+                for (ExecutionStatistics stats : res.getExecutionStatistics()) {
+                    runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "\n";
+                }
+
+                File statisticsFile = new File(subResultsDir + "/stages-runtimes.csv");
+                PrintWriter statisticsWriter = new PrintWriter(statisticsFile);
+                statisticsWriter.write(runtimeStatistics);
+                statisticsWriter.close();
             }
 
             Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
@@ -375,19 +386,23 @@ public class Benchmark {
 
         HashMap<String, Integer> optimizedRowCount = new HashMap<>();
 
+        StatisticsResultSet optimizedRSWithStatistics = null;
         ResultSet optimizedRS = null;
         try {
             conn.prepareStatement("vacuum analyze;").execute();
 
             long startTimeOptimized = System.currentTimeMillis();
             if (conf.isBooleanQuery()) {
-                optimizedRS = optimizedQE.executeBoolean(query);
+                optimizedRSWithStatistics = optimizedQE.executeWithStatistics(query, true);
             }
             else {
-                optimizedRS = optimizedQE.execute(query);
+                optimizedRSWithStatistics = optimizedQE.executeWithStatistics(query, false);
             }
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
+            result.setExecutionStatistics(optimizedRSWithStatistics.getStatistics());
+
+            optimizedRS = optimizedRSWithStatistics.getResultSet();
 
             ResultSetMetaData metaData = optimizedRS.getMetaData();
             int colCount = metaData.getColumnCount();
