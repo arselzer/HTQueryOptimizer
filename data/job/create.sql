@@ -1,8 +1,5 @@
-DROP TABLE IF EXISTS aka_name, aka_title, cast_info, char_name, comp_cast_type, company_name, company_type,
-    complete_cast, info_type, keyword, kind_type, link_type, movie_companies, movie_info, movie_info_idx,
-    movie_keyword, movie_link, name, person_info, role_type, title CASCADE;
 
-CREATE TABLE aka_name (
+CREATE TABLE _aka_name (
     id integer NOT NULL PRIMARY KEY,
     person_id integer NOT NULL,
     name text NOT NULL,
@@ -13,7 +10,7 @@ CREATE TABLE aka_name (
     md5sum character varying(32)
 );
 
-CREATE TABLE aka_title (
+CREATE TABLE _aka_title (
     id integer NOT NULL PRIMARY KEY,
     movie_id integer NOT NULL,
     title text NOT NULL,
@@ -28,7 +25,7 @@ CREATE TABLE aka_title (
     md5sum character varying(32)
 );
 
-CREATE TABLE cast_info (
+CREATE TABLE _cast_info (
     id integer NOT NULL PRIMARY KEY,
     person_id integer NOT NULL,
     movie_id integer NOT NULL,
@@ -38,7 +35,7 @@ CREATE TABLE cast_info (
     role_id integer NOT NULL
 );
 
-CREATE TABLE char_name (
+CREATE TABLE _char_name (
     id integer NOT NULL PRIMARY KEY,
     name text NOT NULL,
     imdb_index character varying(12),
@@ -48,12 +45,12 @@ CREATE TABLE char_name (
     md5sum character varying(32)
 );
 
-CREATE TABLE comp_cast_type (
+CREATE TABLE _comp_cast_type (
     id integer NOT NULL PRIMARY KEY,
     kind character varying(32) NOT NULL
 );
 
-CREATE TABLE company_name (
+CREATE TABLE _company_name (
     id integer NOT NULL PRIMARY KEY,
     name text NOT NULL,
     country_code character varying(255),
@@ -63,40 +60,40 @@ CREATE TABLE company_name (
     md5sum character varying(32)
 );
 
-CREATE TABLE company_type (
+CREATE TABLE _company_type (
     id integer NOT NULL PRIMARY KEY,
     kind character varying(32) NOT NULL
 );
 
-CREATE TABLE complete_cast (
+CREATE TABLE _complete_cast (
     id integer NOT NULL PRIMARY KEY,
     movie_id integer,
     subject_id integer NOT NULL,
     status_id integer NOT NULL
 );
 
-CREATE TABLE info_type (
+CREATE TABLE _info_type (
     id integer NOT NULL PRIMARY KEY,
     info character varying(32) NOT NULL
 );
 
-CREATE TABLE keyword (
+CREATE TABLE _keyword (
     id integer NOT NULL PRIMARY KEY,
     keyword text NOT NULL,
     phonetic_code character varying(5)
 );
 
-CREATE TABLE kind_type (
+CREATE TABLE _kind_type (
     id integer NOT NULL PRIMARY KEY,
     kind character varying(15) NOT NULL
 );
 
-CREATE TABLE link_type (
+CREATE TABLE _link_type (
     id integer NOT NULL PRIMARY KEY,
     link character varying(32) NOT NULL
 );
 
-CREATE TABLE movie_companies (
+CREATE TABLE _movie_companies (
     id integer NOT NULL PRIMARY KEY,
     movie_id integer NOT NULL,
     company_id integer NOT NULL,
@@ -104,7 +101,7 @@ CREATE TABLE movie_companies (
     note text
 );
 
-CREATE TABLE movie_info (
+CREATE TABLE _movie_info (
     id integer NOT NULL PRIMARY KEY,
     movie_id integer NOT NULL,
     info_type_id integer NOT NULL,
@@ -112,7 +109,7 @@ CREATE TABLE movie_info (
     note text
 );
 
-CREATE TABLE movie_info_idx (
+CREATE TABLE _movie_info_idx (
     id integer NOT NULL PRIMARY KEY,
     movie_id integer NOT NULL,
     info_type_id integer NOT NULL,
@@ -120,20 +117,20 @@ CREATE TABLE movie_info_idx (
     note text
 );
 
-CREATE TABLE movie_keyword (
+CREATE TABLE _movie_keyword (
     id integer NOT NULL PRIMARY KEY,
     movie_id integer NOT NULL,
     keyword_id integer NOT NULL
 );
 
-CREATE TABLE movie_link (
+CREATE TABLE _movie_link (
     id integer NOT NULL PRIMARY KEY,
     movie_id integer NOT NULL,
     linked_movie_id integer NOT NULL,
     link_type_id integer NOT NULL
 );
 
-CREATE TABLE name (
+CREATE TABLE _name (
     id integer NOT NULL PRIMARY KEY,
     name text NOT NULL,
     imdb_index character varying(12),
@@ -145,7 +142,7 @@ CREATE TABLE name (
     md5sum character varying(32)
 );
 
-CREATE TABLE person_info (
+CREATE TABLE _person_info (
     id integer NOT NULL PRIMARY KEY,
     person_id integer NOT NULL,
     info_type_id integer NOT NULL,
@@ -153,12 +150,12 @@ CREATE TABLE person_info (
     note text
 );
 
-CREATE TABLE role_type (
+CREATE TABLE _role_type (
     id integer NOT NULL PRIMARY KEY,
     role character varying(32) NOT NULL
 );
 
-CREATE TABLE title (
+CREATE TABLE _title (
     id integer NOT NULL PRIMARY KEY,
     title text NOT NULL,
     imdb_index character varying(12),

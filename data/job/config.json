@@ -1,0 +1,17 @@
+{
+  "*": {
+    "dbSizeMin": 1,
+    "dbSizeMax": 30,
+    "step": 5
+  },
+  "28a-simplified.sql": {
+    "dbSizeMin": 5,
+    "dbSizeMax": 30,
+    "step": 5
+  },
+  "29a-simplified.sql": {
+    "dbSizeMin": 10,
+    "dbSizeMax": 100,
+    "step": 5
+  }
+}
