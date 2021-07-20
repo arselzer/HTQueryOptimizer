@@ -42,6 +42,7 @@ public class Benchmark {
     private boolean useStatistics = true;
     private boolean keepTables = false;
     private boolean analyzeQuery = false;
+    private boolean insertData = true;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -79,6 +80,7 @@ public class Benchmark {
         Option unweighted = new Option(null, "unweighted", false, "use statistics (i.e. weighted hypergraphs) for query optimization");
         Option keepTables = new Option(null, "keep-tables", false, "don't drop the tables and insert new data");
         Option analyzeQuery = new Option(null, "analyze", false, "analyze query");
+        Option noCreate = new Option(null, "no-create", false, "don't insert data");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -93,6 +95,7 @@ public class Benchmark {
         options.addOption(unweighted);
         options.addOption(keepTables);
         options.addOption(analyzeQuery);
+        options.addOption(noCreate);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -166,6 +169,10 @@ public class Benchmark {
             }
             if (cmd.hasOption("analyze")) {
                 benchmark.setAnalyzeQuery(true);
+            }
+
+            if (cmd.hasOption("no-create")) {
+                benchmark.setInsertData(false);
             }
 
             benchmark.run();
@@ -321,6 +328,10 @@ public class Benchmark {
 
     public void setAnalyzeQuery(boolean analyzeQuery) {
         this.analyzeQuery = analyzeQuery;
+    }
+
+    public void setInsertData(boolean insertData) {
+        this.insertData = insertData;
     }
 
     private void dropAllTables(Connection conn) throws SQLException {
@@ -484,6 +495,9 @@ public class Benchmark {
 
         if (!keepTables) {
             dropAllTables(conn);
+        }
+
+        if (insertData) {
             insertData(conf);
         }
 
@@ -619,8 +633,8 @@ public class Benchmark {
                                 sizeStep = dbGenConfig.getStep();
                             }
 
-                            for (int size = minDBSize; size <= maxDBSize; size++) {
-                                for (int run = 1; run <= runs; run += sizeStep) {
+                            for (int size = minDBSize; size <= maxDBSize; size += sizeStep) {
+                                for (int run = 1; run <= runs; run++) {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
                                                 detkdecompOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics));
