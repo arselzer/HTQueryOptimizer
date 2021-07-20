@@ -2,6 +2,7 @@ package queryexecutor;
 
 import exceptions.QueryConversionException;
 import exceptions.TableNotFoundException;
+import query.JoinTreeNode;
 import query.ParallelQueryExecution;
 import query.SQLQuery;
 import schema.TableStatistics;
@@ -45,6 +46,10 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     }
 
     public StatisticsResultSet executeWithStatistics(String queryStr, boolean booleanQuery) throws SQLException, QueryConversionException, TableNotFoundException {
+        return executeWithStatistics(queryStr, booleanQuery, false);
+    }
+
+    public StatisticsResultSet executeWithStatistics(String queryStr, boolean booleanQuery, boolean analyze) throws SQLException, QueryConversionException, TableNotFoundException {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
@@ -57,6 +62,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         }
         ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution(booleanQuery);
 
+        this.generatedFunction = "";
+
         // Save hypergraph and join tree for benchmarks and analysis
         this.hypergraph = sqlQuery.getHypergraph();
         this.joinTree = sqlQuery.getJoinTree();
@@ -68,26 +75,52 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         try {
             int layerCount = 0;
             for (List<String> layer : queryExecution.getSqlStatements()) {
+                List<String> analyzeJSONs = new LinkedList<>();
+                List<String> analyzeJSONQueryStrings = new LinkedList<>();
                 long startTime = System.currentTimeMillis();
 
                 layer.parallelStream().forEach(query -> {
+                    this.generatedFunction += query + "\n";
                     System.out.println("-- executing query: \n" + query);
-                    System.out.println("query: " + query);
                     try {
                         Connection conn = connectionPool.getConnection();
-                        PreparedStatement ps = conn.prepareStatement(query);
-                        ps.execute();
+
+                        if (analyze) {
+                            // If a view is created, query execution is deferred and no query plan is made
+                            if (!query.startsWith("CREATE VIEW")) {
+                                PreparedStatement ps = conn.prepareStatement("EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) " + query);
+                                ResultSet rs = ps.executeQuery();
+
+                                String analyzeJSONString = "";
+                                while (rs.next()) {
+                                    analyzeJSONString += rs.getString(1);
+                                }
+                                analyzeJSONs.add(analyzeJSONString);
+                                analyzeJSONQueryStrings.add(query);
+                            }
+                            else {
+                                PreparedStatement ps = conn.prepareStatement(query);
+                                ps.execute();
+                            }
+                        }
+                        else {
+                            PreparedStatement ps = conn.prepareStatement(query);
+                            ps.execute();
+                        }
                         connectionPool.returnConnection(conn);
                     } catch (SQLException e) {
                         throw new RuntimeException(e);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+
+
                 });
                 System.out.println("-- time elapsed: " + (System.currentTimeMillis() - startTime));
                 long timeDifference = System.currentTimeMillis() - startTime;
 
-                statisticsList.add(new ExecutionStatistics("layer-" + layerCount, layer, timeDifference));
+                statisticsList.add(new AnalyzeExecutionStatistics("layer-" + layerCount,
+                        layer, timeDifference, analyzeJSONs, analyzeJSONQueryStrings));
                 layerCount++;
             }
         }

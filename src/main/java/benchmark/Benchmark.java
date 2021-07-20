@@ -233,6 +233,29 @@ public class Benchmark {
                     PrintWriter analyzeJsonWriter = new PrintWriter(analyzeJSONFile);
                     analyzeJsonWriter.write(res.getAnalyzeJSON());
                     analyzeJsonWriter.close();
+
+                    for (ExecutionStatistics executionStatistics : res.getExecutionStatistics()) {
+                        AnalyzeExecutionStatistics analyzeExecutionStatistics = (AnalyzeExecutionStatistics) executionStatistics;
+
+                        File stageDir = new File(subResultsDir + "/stage-" + executionStatistics.getQueryName());
+                        stageDir.mkdirs();
+
+                        int i = 1;
+                        System.out.println(analyzeExecutionStatistics.getAnalyzeJSONs());
+                        for (String analyzeJSON : analyzeExecutionStatistics.getAnalyzeJSONs()) {
+
+                            File analyzeOptimizedJSONFile = new File(stageDir+ "/analyze-" + i + ".json");
+                            PrintWriter analyzeOptimizedJsonWriter = new PrintWriter(analyzeOptimizedJSONFile);
+                            analyzeOptimizedJsonWriter.write(analyzeJSON);
+                            analyzeOptimizedJsonWriter.close();
+
+                            File analyzeOptimizedQueryStringFile = new File(stageDir+ "/analyze-" + i + ".sql");
+                            PrintWriter analyzeOptimizedQueryStringWriter = new PrintWriter(analyzeOptimizedQueryStringFile);
+                            analyzeOptimizedQueryStringWriter.write(analyzeExecutionStatistics.getQueryStrings().get(i-1));
+                            analyzeOptimizedQueryStringWriter.close();
+                            i++;
+                        }
+                    }
                 }
 
                 String runtimeStatistics = "name,runtime\n";
@@ -392,11 +415,28 @@ public class Benchmark {
             conn.prepareStatement("vacuum analyze;").execute();
 
             long startTimeOptimized = System.currentTimeMillis();
-            if (conf.isBooleanQuery()) {
-                optimizedRSWithStatistics = optimizedQE.executeWithStatistics(query, true);
+            if (!analyzeQuery) {
+                if (conf.isBooleanQuery()) {
+                    optimizedRSWithStatistics = optimizedQE.executeWithStatistics(query, true);
+                } else {
+                    optimizedRSWithStatistics = optimizedQE.executeWithStatistics(query, false);
+                }
             }
             else {
-                optimizedRSWithStatistics = optimizedQE.executeWithStatistics(query, false);
+                if (conf.isBooleanQuery()) {
+                    optimizedRSWithStatistics = ((ParallelTempTableQueryExecutor) optimizedQE)
+                            .executeWithStatistics(query, true, true);
+                } else {
+                    optimizedRSWithStatistics = ((ParallelTempTableQueryExecutor)optimizedQE)
+                            .executeWithStatistics(query, false, true);
+                }
+
+                result.setExecutionStatistics(optimizedRSWithStatistics.getStatistics());
+
+                List<AnalyzeExecutionStatistics> analyzeExecutionStatistics = new LinkedList<>();
+                for (ExecutionStatistics executionStatistics : optimizedRSWithStatistics.getStatistics()) {
+                    analyzeExecutionStatistics.add((AnalyzeExecutionStatistics) executionStatistics);
+                }
             }
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
@@ -538,6 +578,7 @@ public class Benchmark {
 
             int defaultMinDBSize = 1;
             int defaultMaxDBSize = 1;
+            int defaultSizeStep = 1;
             Map<String, DBGenConfig> dbGenSizeMap = new HashMap<>();
 
             File confFile = new File(dbRootDir + "/" + dbName + "/config.json");
@@ -554,6 +595,7 @@ public class Benchmark {
                 if (dbGenSizeMap.containsKey("*")) {
                     defaultMinDBSize = dbGenSizeMap.get("*").getDbSizeMin();
                     defaultMaxDBSize = dbGenSizeMap.get("*").getDbSizeMax();
+                    defaultSizeStep = dbGenSizeMap.get("*").getStep();
                 }
             }
 
@@ -567,16 +609,18 @@ public class Benchmark {
                         if (queries == null || queries.contains(fileName)) {
                             int minDBSize = defaultMinDBSize;
                             int maxDBSize = defaultMaxDBSize;
+                            int sizeStep = defaultSizeStep;
 
                             // Set the specific db size for the query if specified
                             if (dbGenSizeMap.containsKey(fileName)) {
                                 DBGenConfig dbGenConfig = dbGenSizeMap.get(fileName);
                                 minDBSize = dbGenConfig.getDbSizeMin();
                                 maxDBSize = dbGenConfig.getDbSizeMax();
+                                sizeStep = dbGenConfig.getStep();
                             }
 
                             for (int size = minDBSize; size <= maxDBSize; size++) {
-                                for (int run = 1; run <= runs; run++) {
+                                for (int run = 1; run <= runs; run += sizeStep) {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
                                                 detkdecompOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics));
