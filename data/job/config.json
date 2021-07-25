@@ -6,11 +6,11 @@
   },
   "28a-simplified.sql": {
     "dbSizeMin": 5,
-    "dbSizeMax": 30,
+    "dbSizeMax": 100,
     "step": 5
   },
   "29a-simplified.sql": {
-    "dbSizeMin": 10,
+    "dbSizeMin": 5,
     "dbSizeMax": 100,
     "step": 5
   }

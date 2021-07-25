@@ -119,12 +119,36 @@ public class SQLQuery {
             stmt = CCJSqlParserUtil.parse(query);
 
             SQLQueryParser queryParser = new SQLQueryParser(stmt, dbSchema);
-            projectColumns = queryParser.getProjectColumns();
+
             tableAliases = queryParser.getAliases();
-            System.out.println("project columns: " + projectColumns);
-            System.out.println("table aliases: " + tableAliases);
+
+            // Make sure that the project columns are fully quantified
+            projectColumns = new LinkedList<>();
+            for (String column: queryParser.getProjectColumns()) {
+                if (!column.contains(".")) {
+                    boolean relationFound = false;
+                    for (Table table : dbSchema.getTables()) {
+                        for (Column col : table.getColumns()) {
+                            if (col.getName().equals(column)) {
+                                relationFound = true;
+                            }
+                        }
+                        if (relationFound) {
+                            projectColumns.add(table.getName() + "." + column);
+                            break;
+                        }
+                    }
+
+                    if (!relationFound) {
+                        throw new RuntimeException("There is no relation with a column named " + column);
+                    }
+                }
+                else {
+                    projectColumns.add(column);
+                }
+            }
+
             aliasTables = queryParser.getTables();
-            System.out.println("tables: " + aliasTables);
 
             // Fill all column aliases: e.g. renamed.a -> original.a
             columnAliases = new HashMap<>();
@@ -207,6 +231,9 @@ public class SQLQuery {
             for (String projectCol : projectColumns) {
                 Column realColumn = columnByNameMap.get(columnAliases.get(projectCol));
                 String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
+                System.out.println("projectCol: " + projectCol);
+                System.out.println(columnAliases);
+                System.out.println("realColumn:" + realColumn);
                 Column newColumn = new Column(hyperedge, realColumn.getType());
                 // Check if the same column isn't already part of the output.
                 // The same variable might have been specified in multiple columns

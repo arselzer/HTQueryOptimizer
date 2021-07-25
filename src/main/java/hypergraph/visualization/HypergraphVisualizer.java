@@ -8,7 +8,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class HypergraphVisualizer {
-    private static int NUMBER_INSTANCES = 1000;
+    private static int NUMBER_INSTANCES = 800;
     List<VisualizationInstance> candidates = new LinkedList<>();
     VisualizationInstance bestInstance = null;
     private Hypergraph hg;

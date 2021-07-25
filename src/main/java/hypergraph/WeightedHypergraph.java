@@ -129,7 +129,7 @@ public class WeightedHypergraph extends Hypergraph {
                     }
                     if (!frequencies.isEmpty()) {
                         //System.out.println("frequencies: " + frequencies);
-                        columnSelectivity += frequencies.stream().reduce(1.0, (a,b) -> a * b);
+                        columnSelectivity += frequencies.stream().reduce(1.0, (a, b) -> a * b);
                     }
                 }
                 if (sharedCommonValues.isEmpty()) {
@@ -147,6 +147,11 @@ public class WeightedHypergraph extends Hypergraph {
                 //System.out.println("edge: " + edge + ", row count: " + statistics.get(edge.getName()).getRowCount() + ", weight: " + weight);
             }
             //System.out.println("total selectivity: " + weight + ", row estimate: " + weight);
+
+            // Make the weight negative if the query is acyclic
+            if (bagSize == 1) {
+                weight *= -1;
+            }
 
             weights.add(new BagWeight(bag, weight));
         }
