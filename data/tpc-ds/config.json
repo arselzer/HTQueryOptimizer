@@ -1,0 +1,12 @@
+{
+  "*": {
+    "dbSizeMin": 1,
+    "dbSizeMax": 1,
+    "step": 1
+  },
+  "query24.sql": {
+    "dbSizeMin": 1,
+    "dbSizeMax": 10,
+    "step": 1
+  }
+}

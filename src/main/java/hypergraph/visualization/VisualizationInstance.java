@@ -15,7 +15,7 @@ public class VisualizationInstance {
     private static double MAX_Y = 20.0;
     private static double MIN_NODE_DISTANCE = 1.0;
     private static double NEW_POINT_RADIUS = 6;
-    private static int MAX_POINT_TRIES = 10000;
+    private static int MAX_POINT_TRIES = 1000;
     Set<String> nodeNames = new HashSet<>();
     Set<Node2D> nodes = new HashSet<>();
     HashMap<String, Node2D> nodesByName = new HashMap<>();

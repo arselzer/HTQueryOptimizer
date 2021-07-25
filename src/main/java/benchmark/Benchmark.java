@@ -385,6 +385,9 @@ public class Benchmark {
 
         if (!keepTables) {
             dropAllTables(conn);
+        }
+
+        if (insertData) {
             insertData(conf);
         }
 
