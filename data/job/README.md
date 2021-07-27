@@ -19,3 +19,7 @@ The following queries have a hypertree-width of 2:
 * 26a
 * 28a
 * 29a
+
+## Running - Examples
+
+`java -Xmx22G -cp "target/HTQueryOptimizer-1.0-SNAPSHOT.jar" "benchmark.Benchmark" --keep-tables -boolean -parallel -d job -q 29a-simplified.sql -t 1000`

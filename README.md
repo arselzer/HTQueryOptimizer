@@ -48,9 +48,10 @@ form of the results in a detailed form.
 ## Usage
 
 ```
-java -cp {jar} "benchmark.Benchmark" [--boolean] [-c] [-d <arg>]
-       [-h] [-m <arg>] [-p] [-q <arg>] [-r <arg>] [-t <arg>] [--threads
-       <arg>] [--unweighted]
+java -cp {jar} "benchmark.Benchmark" [--analyze] [--boolean] [-c]
+       [-d <arg>] [-h] [--keep-tables] [-m <arg>] [--no-create] [-p] [-q
+       <arg>] [-r <arg>] [-t <arg>] [--threads <arg>] [--unweighted]
+    --analyze         analyze query
     --boolean         run the queries as boolean queries (checking whether
                       there is a result only)
  -c,--check           check if the rows are equivalent in the original and
@@ -60,8 +61,10 @@ java -cp {jar} "benchmark.Benchmark" [--boolean] [-c] [-d <arg>]
                       `select * from ...` queries
  -d,--db <arg>        the database(s) to use, default: all
  -h,--help            show this
+    --keep-tables     don't drop the tables and insert new data
  -m,--methods <arg>   the algorithms used, e.g. `-a
                       BALANCEDGO,DETKDECOMP`, default: BALANCEDGO
+    --no-create       don't insert data
  -p,--parallel        execute the query in parallel
  -q,--queries <arg>   the queries to benchmark, default: all
  -r,--runs <arg>      the number of repetitions of each run, default: 1
@@ -70,4 +73,5 @@ java -cp {jar} "benchmark.Benchmark" [--boolean] [-c] [-d <arg>]
     --threads <arg>   the number of threads used for parallel execution
     --unweighted      use statistics (i.e. weighted hypergraphs) for query
                       optimization
+
 ```

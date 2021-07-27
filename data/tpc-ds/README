@@ -1,0 +1,1 @@
+ `java -Xmx22G -cp "target/HTQueryOptimizer-1.0-SNAPSHOT.jar" "benchmark.Benchmark" --keep-tables --no-create -parallel -d tpc-ds -q query24.sql -t 1000`
