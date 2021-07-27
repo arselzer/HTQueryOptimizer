@@ -469,7 +469,7 @@ public class SQLQuery {
 
             // Create one view for the root node
             topStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(joinTree, 3));
-            topStatement += String.format("AS SELECT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
+            topStatement += String.format("AS SELECT DISTINCT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
             dropStatements.dropView(getNodeIdentifier(joinTree, 3));
 
             resultQueryStages.add(List.of(topStatement));
