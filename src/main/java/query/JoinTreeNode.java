@@ -43,27 +43,46 @@ public class JoinTreeNode {
                 HashSet<String> remainingAttributes = new HashSet<>(node.getAttributes());
 
                 HashSet<String> toKeep = new HashSet<>(projectColumns);
-                // Add all variables occuring in predecessor nodes
+                // Add all attributes occuring in predecessor nodes
                 if (node.getPredecessor() != null) {
-                    toKeep.addAll(node.getPredecessor().getAttributes());
-                }
-                // Add all variables occuring in successor nodes
-                for (JoinTreeNode successor : node.getSuccessors()) {
-                    toKeep.addAll(successor.getAttributes());
-                }
-                // Add all variables needed for in-node joins
-                Set<String> joinVariables = new HashSet<>(hg.getEdgeByName(node.getTables().get(0)).getNodes());
-                for (int i = 1; i < node.getTables().size(); i++) {
-                    Set<String> newVars = new HashSet<>(hg.getEdgeByName(node.getTables().get(i)).getNodes());
-                    //System.out.println("joinVariables: " + joinVariables + ", newVars: " + newVars);
-                    for (String var: newVars) {
-                        if (joinVariables.contains(var)) {
-                            toKeep.add(var);
+                    for (String table : node.getTables()) {
+                        for (String predecessorTable : node.getPredecessor().getTables()) {
+                            if (!table.equals(predecessorTable)) {
+                                Set<String> semiJoinAttributes = new HashSet<>(hg.getEdgeByName(table).getNodes());
+                                semiJoinAttributes.retainAll(hg.getEdgeByName(predecessorTable).getNodes());
+//                                System.out.println(hg.getEdges());
+//                                System.out.println(table);
+//                                System.out.println(hg.getEdgeByName(table).getNodes());
+//                                System.out.println(hg.getEdgeByName(predecessorTable).getNodes());
+//                                System.out.println("semijoin  attrs: " + semiJoinAttributes);
+                                toKeep.addAll(semiJoinAttributes);
+                            }
                         }
                     }
-                    joinVariables.addAll(newVars);
                 }
-                //System.out.println(toKeep);
+                // Add all attributes occuring in successor nodes
+                for (JoinTreeNode successor : node.getSuccessors()) {
+                    for (String table : node.getTables()) {
+                        for (String predecessorTable : successor.getTables()) {
+                            if (!table.equals(predecessorTable)) {
+                                Set<String> semiJoinAttributes = new HashSet<>(hg.getEdgeByName(table).getNodes());
+                                semiJoinAttributes.retainAll(hg.getEdgeByName(predecessorTable).getNodes());
+                                toKeep.addAll(semiJoinAttributes);
+                            }
+                        }
+                    }
+                }
+                // Add all attributes needed for in-node joins
+                Set<String> joinAttributes = new HashSet<>(hg.getEdgeByName(node.getTables().get(0)).getNodes());
+                for (int i = 1; i < node.getTables().size(); i++) {
+                    Set<String> newAttributes = new HashSet<>(hg.getEdgeByName(node.getTables().get(i)).getNodes());
+                    for (String attr: newAttributes) {
+                        if (joinAttributes.contains(attr)) {
+                            toKeep.add(attr);
+                        }
+                    }
+                    joinAttributes.addAll(newAttributes);
+                }
 
                 remainingAttributes.retainAll(toKeep);
                 node.setAttributes(new LinkedList<>(remainingAttributes));

@@ -5,8 +5,8 @@
     "step": 1
   },
   "query24.sql": {
-    "dbSizeMin": 1,
-    "dbSizeMax": 10,
+    "dbSizeMin": 2,
+    "dbSizeMax": 2,
     "step": 1
   }
 }
