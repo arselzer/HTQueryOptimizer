@@ -19,6 +19,8 @@ import java.util.Map;
 public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     private ConnectionPool connectionPool;
 
+    private long[] stageRuntimes = new long[] {-1,-1,-1,-1};
+
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics) throws SQLException {
         /**
          * We need the connection pool because connections are processed on a
@@ -74,54 +76,61 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
 
         try {
             int layerCount = 0;
-            for (List<String> layer : queryExecution.getSqlStatements()) {
-                List<String> analyzeJSONs = new LinkedList<>();
-                List<String> analyzeJSONQueryStrings = new LinkedList<>();
-                long startTime = System.currentTimeMillis();
+            int stageIndex = 0;
+            for (List<List<String>> stage : queryExecution.getSqlStatements()) {
+                long stageStartTime = System.currentTimeMillis();
 
-                layer.parallelStream().forEach(query -> {
-                    this.generatedFunction += query + "\n";
-                    System.out.println("-- executing query: \n" + query);
-                    try {
-                        Connection conn = connectionPool.getConnection();
+                for (List<String> layer : stage) {
+                    List<String> analyzeJSONs = new LinkedList<>();
+                    List<String> analyzeJSONQueryStrings = new LinkedList<>();
+                    long startTime = System.currentTimeMillis();
 
-                        if (analyze) {
-                            // If a view is created, query execution is deferred and no query plan is made
-                            if (!query.startsWith("CREATE VIEW")) {
-                                PreparedStatement ps = conn.prepareStatement("EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) " + query);
-                                ResultSet rs = ps.executeQuery();
+                    layer.parallelStream().forEach(query -> {
+                        this.generatedFunction += query + "\n";
+                        System.out.println("-- executing query: \n" + query);
+                        try {
+                            Connection conn = connectionPool.getConnection();
 
-                                String analyzeJSONString = "";
-                                while (rs.next()) {
-                                    analyzeJSONString += rs.getString(1);
+                            if (analyze) {
+                                // If a view is created, query execution is deferred and no query plan is made
+                                if (!query.startsWith("CREATE VIEW")) {
+                                    PreparedStatement ps = conn.prepareStatement("EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) " + query);
+                                    ResultSet rs = ps.executeQuery();
+
+                                    String analyzeJSONString = "";
+                                    while (rs.next()) {
+                                        analyzeJSONString += rs.getString(1);
+                                    }
+                                    analyzeJSONs.add(analyzeJSONString);
+                                    analyzeJSONQueryStrings.add(query);
+                                } else {
+                                    PreparedStatement ps = conn.prepareStatement(query);
+                                    ps.execute();
                                 }
-                                analyzeJSONs.add(analyzeJSONString);
-                                analyzeJSONQueryStrings.add(query);
-                            }
-                            else {
+                            } else {
                                 PreparedStatement ps = conn.prepareStatement(query);
                                 ps.execute();
                             }
+                            connectionPool.returnConnection(conn);
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
-                        else {
-                            PreparedStatement ps = conn.prepareStatement(query);
-                            ps.execute();
-                        }
-                        connectionPool.returnConnection(conn);
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
 
 
-                });
-                System.out.println("-- time elapsed: " + (System.currentTimeMillis() - startTime));
-                long timeDifference = System.currentTimeMillis() - startTime;
+                    });
+                    System.out.println("-- time elapsed: " + (System.currentTimeMillis() - startTime));
+                    long timeDifference = System.currentTimeMillis() - startTime;
 
-                statisticsList.add(new AnalyzeExecutionStatistics("layer-" + layerCount,
-                        layer, timeDifference, analyzeJSONs, analyzeJSONQueryStrings));
-                layerCount++;
+                    statisticsList.add(new AnalyzeExecutionStatistics("layer-" + layerCount,
+                            layer, timeDifference, analyzeJSONs, analyzeJSONQueryStrings));
+                    layerCount++;
+                }
+
+                long stageTime = System.currentTimeMillis() - stageStartTime;
+                stageRuntimes[stageIndex] = stageTime;
+                stageIndex++;
             }
         }
         catch (RuntimeException e) {
@@ -145,7 +154,10 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
             psSelect.setQueryTimeout(timeout);
         }
         psSelect.closeOnCompletion();
+        long stage4StartTime = System.currentTimeMillis();
         ResultSet rs = psSelect.executeQuery();
+        long stage4Time = System.currentTimeMillis() - stage4StartTime;
+        stageRuntimes[3] = stage4Time;
 
         queryRunningTime = System.currentTimeMillis() - totalStartTime;
 
@@ -157,5 +169,9 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         }
 
         return new StatisticsResultSet(rs, statisticsList);
+    }
+
+    public long[] getStageRuntimes() {
+        return stageRuntimes;
     }
 }

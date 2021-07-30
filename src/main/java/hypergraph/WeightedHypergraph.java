@@ -64,14 +64,11 @@ public class WeightedHypergraph extends Hypergraph {
             throw new IllegalStateException("Table aliases are not set");
         }
 
-        Iterator it = new Combinations(getEdges().size(), bagSize).iterator();
-
-        while (it.hasNext()) {
-            int[] combination = (int[]) it.next();
+        for (int[] combination : new Combinations(getEdges().size(), bagSize)) {
             Set<Hyperedge> bag = new HashSet<>();
 
-            for (int i = 0; i < combination.length; i++) {
-                Hyperedge edge = orderedEdges.get(combination[i]);
+            for (int edgeIdx : combination) {
+                Hyperedge edge = orderedEdges.get(edgeIdx);
                 bag.add(edge);
             }
             // Keep only the attributes occurring in all relations

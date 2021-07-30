@@ -50,6 +50,9 @@ public class SQLQuery {
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
 
+    private long joinTreeGenerationRuntime;
+    private long hypergraphGenerationRuntime;
+
     public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException, TableNotFoundException {
         this.query = query;
         this.schema = dbSchema.toSchema();
@@ -183,7 +186,7 @@ public class SQLQuery {
 
     public ParallelQueryExecution toParallelExecution(boolean bcq) throws QueryConversionException {
         System.out.println("toParallelExecution");
-        List<List<String>> resultQueryStages = new LinkedList<>();
+        List<List<List<String>>> resultQueryStages = new LinkedList<>();
 
         Hypergraph hg;
         if (statistics == null) {
@@ -192,7 +195,9 @@ public class SQLQuery {
         else {
             try {
                 // Fails when columns are "joined" inside the table
+                long startTime = System.currentTimeMillis();
                 hg = toWeightedHypergraph();
+                this.hypergraphGenerationRuntime = System.currentTimeMillis() - startTime;
             }
             catch (IllegalArgumentException e) {
                 throw new QueryConversionException(e.getMessage(), e);
@@ -201,7 +206,9 @@ public class SQLQuery {
         this.hypergraph = hg;
 
         try {
+            long startTime = System.currentTimeMillis();
             joinTree = hg.toJoinTree(decompositionOptions);
+            this.joinTreeGenerationRuntime = System.currentTimeMillis() - startTime;
         } catch (JoinTreeGenerationException e) {
             throw new QueryConversionException("Error generating join tree: " + e.getMessage());
         }
@@ -338,7 +345,7 @@ public class SQLQuery {
             }
         }
 
-        resultQueryStages.add(stage1);
+        resultQueryStages.add(List.of(stage1));
 
         /**
          * Stage 2 - semi joins upwards
@@ -347,6 +354,7 @@ public class SQLQuery {
          * Join the tables in the node
          */
 
+        List<List<String>> stage2 = new LinkedList<>();
         for (int i = joinLayers.size() - 2; i >= 0; i--) {
             Set<JoinTreeNode> layer = joinLayers.get(i);
 
@@ -399,7 +407,7 @@ public class SQLQuery {
 
                 layerStatements.add(sqlStatement);
             }
-            resultQueryStages.add(layerStatements);
+            stage2.add(layerStatements);
         }
 
         List<String> aliasViews = new LinkedList<>();
@@ -412,7 +420,10 @@ public class SQLQuery {
             dropStatements.dropView(getNodeIdentifier(node, 2));
         }
 
-        resultQueryStages.add(aliasViews);
+        stage2.add(aliasViews);
+        resultQueryStages.add(stage2);
+
+        List<List<String>> stage3 = new LinkedList<>();
 
         if (!bcq) {
             // Stage 3 - semi joins downwards
@@ -462,7 +473,7 @@ public class SQLQuery {
                     }
                     layerStatements.add(sqlStatement);
                 }
-                resultQueryStages.add(layerStatements);
+                stage3.add(layerStatements);
             }
 
             String topStatement = "";
@@ -472,12 +483,11 @@ public class SQLQuery {
             topStatement += String.format("AS SELECT DISTINCT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
             dropStatements.dropView(getNodeIdentifier(joinTree, 3));
 
-            resultQueryStages.add(List.of(topStatement));
+            stage3.add(List.of(topStatement));
 
+            resultQueryStages.add(stage3);
 
             // Stage 4 - join everything
-
-            //fnStr += "-- STAGE 4\n";
 
             List<String> allStage3Tables = new LinkedList<>();
             for (Set<JoinTreeNode> layer : joinLayers) {
@@ -491,7 +501,7 @@ public class SQLQuery {
             finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
             dropStatements.dropView(finalTableName);
 
-            resultQueryStages.add(List.of(finalQuery));
+            resultQueryStages.add(List.of(List.of(finalQuery)));
         }
         else {
             // If only a BCQ is needed, create a VIEW alias of the last join tree node
@@ -501,7 +511,7 @@ public class SQLQuery {
             String finalQuery = String.format("CREATE VIEW %s AS SELECT * FROM %s\n",
                     finalTableName, getNodeIdentifier(topNode, 2));
             dropStatements.dropView(finalTableName);
-            resultQueryStages.add(List.of(finalQuery));
+            resultQueryStages.add(List.of(List.of(finalQuery)));
         }
 
         return new ParallelQueryExecution(resultQueryStages, dropStatements, resultColumns, finalTableName);
@@ -887,5 +897,13 @@ public class SQLQuery {
 
     public String getRealTable(String aliasName) {
         return tableAliases.get(aliasName);
+    }
+
+    public long getJoinTreeGenerationRuntime() {
+        return joinTreeGenerationRuntime;
+    }
+
+    public long getHypergraphGenerationRuntime() {
+        return hypergraphGenerationRuntime;
     }
 }

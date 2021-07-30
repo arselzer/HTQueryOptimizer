@@ -10,7 +10,10 @@ public class BenchmarkResult {
     private BenchmarkConf conf;
     private long unoptimizedRuntime;
     private long optimizedTotalRuntime;
+    private long joinTreeComputationRuntime;
+    private long hypergraphComputationRuntime;
     private long optimizedQueryRuntime;
+    private long[] stageRuntimes;
 
     private boolean optimizedQueryTimeout = false;
     private boolean unoptimizedQueryTimeout = false;
@@ -170,6 +173,30 @@ public class BenchmarkResult {
 
     public void setExecutionStatistics(List<ExecutionStatistics> executionStatistics) {
         this.executionStatistics = executionStatistics;
+    }
+
+    public long getJoinTreeComputationRuntime() {
+        return joinTreeComputationRuntime;
+    }
+
+    public void setJoinTreeComputationRuntime(long joinTreeComputationRuntime) {
+        this.joinTreeComputationRuntime = joinTreeComputationRuntime;
+    }
+
+    public long getHypergraphComputationRuntime() {
+        return hypergraphComputationRuntime;
+    }
+
+    public void setHypergraphComputationRuntime(long hypergraphComputationRuntime) {
+        this.hypergraphComputationRuntime = hypergraphComputationRuntime;
+    }
+
+    public long[] getStageRuntimes() {
+        return stageRuntimes;
+    }
+
+    public void setStageRuntimes(long[] stageRuntimes) {
+        this.stageRuntimes = stageRuntimes;
     }
 
     @Override

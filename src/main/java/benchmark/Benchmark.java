@@ -423,6 +423,8 @@ public class Benchmark {
 
         HashMap<String, Integer> optimizedRowCount = new HashMap<>();
 
+        result.setStageRuntimes(new long[] {-1,-1,-1,-1});
+
         StatisticsResultSet optimizedRSWithStatistics = null;
         ResultSet optimizedRS = null;
         try {
@@ -452,8 +454,14 @@ public class Benchmark {
                     analyzeExecutionStatistics.add((AnalyzeExecutionStatistics) executionStatistics);
                 }
             }
+            if (optimizedQE instanceof ParallelTempTableQueryExecutor) {
+                result.setStageRuntimes(((ParallelTempTableQueryExecutor) optimizedQE).getStageRuntimes());
+            }
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
+            result.setHypergraphComputationRuntime(optimizedQE.getQuery().getHypergraphGenerationRuntime());
+            result.setJoinTreeComputationRuntime(optimizedQE.getQuery().getJoinTreeGenerationRuntime());
+            //result.setStage1Runtime(optimizedQE.getQuery().get);
             result.setExecutionStatistics(optimizedRSWithStatistics.getStatistics());
 
             optimizedRS = optimizedRSWithStatistics.getResultSet();
