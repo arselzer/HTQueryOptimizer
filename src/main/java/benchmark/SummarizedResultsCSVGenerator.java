@@ -14,6 +14,12 @@ public class SummarizedResultsCSVGenerator {
             "origRuntime",
             "optQueryRuntime",
             "optTotalRuntime",
+            "stage1Runtime",
+            "stage2Runtime",
+            "stage3Runtime",
+            "stage4Runtime",
+            "hypergraphComputationRuntime",
+            "joinTreeComputationRuntime",
             "origRows",
             "optRows",
             "origCols",
@@ -60,6 +66,12 @@ public class SummarizedResultsCSVGenerator {
                 result.getUnoptimizedRuntime() + "," +
                 result.getOptimizedQueryRuntime() + "," +
                 result.getOptimizedTotalRuntime() + "," +
+                result.getStageRuntimes()[0] + "," +
+                result.getStageRuntimes()[1] + "," +
+                result.getStageRuntimes()[2] + "," +
+                result.getStageRuntimes()[3] + "," +
+                result.getHypergraphComputationRuntime() + "," +
+                result.getJoinTreeComputationRuntime() + "," +
                 result.getUnoptimizedRows() + "," +
                 result.getOptimizedRows() + "," +
                 result.getUnoptimizedColumns() + "," +

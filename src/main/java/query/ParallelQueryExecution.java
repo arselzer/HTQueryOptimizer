@@ -5,23 +5,23 @@ import schema.Column;
 import java.util.List;
 
 public class ParallelQueryExecution {
-    private List<List<String>> sqlStatements;
+    private List<List<List<String>>> sqlStatements;
     private DropStatements dropStatements;
     private List<Column> resultColumns;
     private String finalSelectName;
 
-    public ParallelQueryExecution(List<List<String>> sqlStatements, DropStatements dropStatements, List<Column> resultColumns, String finalSelectName) {
+    public ParallelQueryExecution(List<List<List<String>>> sqlStatements, DropStatements dropStatements, List<Column> resultColumns, String finalSelectName) {
         this.sqlStatements = sqlStatements;
         this.dropStatements = dropStatements;
         this.resultColumns = resultColumns;
         this.finalSelectName = finalSelectName;
     }
 
-    public List<List<String>> getSqlStatements() {
+    public List<List<List<String>>> getSqlStatements() {
         return sqlStatements;
     }
 
-    public void setSqlStatements(List<List<String>> sqlStatements) {
+    public void setSqlStatements(List<List<List<String>>> sqlStatements) {
         this.sqlStatements = sqlStatements;
     }
 
