@@ -43,6 +43,7 @@ public class Benchmark {
     private boolean keepTables = false;
     private boolean analyzeQuery = false;
     private boolean insertData = true;
+    private boolean noReinsert = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -81,6 +82,7 @@ public class Benchmark {
         Option keepTables = new Option(null, "keep-tables", false, "don't drop the tables and insert new data");
         Option analyzeQuery = new Option(null, "analyze", false, "analyze query");
         Option noCreate = new Option(null, "no-create", false, "don't insert data");
+        Option noReinsert = new Option(null, "no-reinsert", false, "don't re-insert the data after the first run");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -96,6 +98,7 @@ public class Benchmark {
         options.addOption(keepTables);
         options.addOption(analyzeQuery);
         options.addOption(noCreate);
+        options.addOption(noReinsert);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -170,9 +173,11 @@ public class Benchmark {
             if (cmd.hasOption("analyze")) {
                 benchmark.setAnalyzeQuery(true);
             }
-
             if (cmd.hasOption("no-create")) {
                 benchmark.setInsertData(false);
+            }
+            if (cmd.hasOption("no-reinsert")) {
+                benchmark.setNoReinsert(true);
             }
 
             benchmark.run();
@@ -332,6 +337,10 @@ public class Benchmark {
 
     public void setInsertData(boolean insertData) {
         this.insertData = insertData;
+    }
+
+    public void setNoReinsert(boolean noReinsert) {
+        this.noReinsert = noReinsert;
     }
 
     private void dropAllTables(Connection conn) throws SQLException {
@@ -504,12 +513,14 @@ public class Benchmark {
 
         /** Execute original (unoptimized) query **/
 
-        if (!keepTables) {
-            dropAllTables(conn);
-        }
+        if (!noReinsert) {
+            if (!keepTables) {
+                dropAllTables(conn);
+            }
 
-        if (insertData) {
-            insertData(conf);
+            if (insertData) {
+                insertData(conf);
+            }
         }
 
         System.gc();
