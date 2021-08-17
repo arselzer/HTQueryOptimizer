@@ -238,9 +238,6 @@ public class SQLQuery {
             for (String projectCol : projectColumns) {
                 Column realColumn = columnByNameMap.get(columnAliases.get(projectCol));
                 String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
-                System.out.println("projectCol: " + projectCol);
-                System.out.println(columnAliases);
-                System.out.println("realColumn:" + realColumn);
                 Column newColumn = new Column(hyperedge, realColumn.getType());
                 // Check if the same column isn't already part of the output.
                 // The same variable might have been specified in multiple columns
@@ -250,8 +247,6 @@ public class SQLQuery {
                 // TODO support non-fully qualified columns
             }
         }
-
-        System.out.println("Output columns: " + resultColumns);
 
         // Transform project column names to hypergraph variable names
         joinTree.projectAllColumns(resultColumns.stream()

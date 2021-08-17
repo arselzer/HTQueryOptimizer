@@ -78,6 +78,11 @@ public class WeightedHypergraph extends Hypergraph {
                 commonAttributes.retainAll(edge.getNodes());
             }
 
+            if (bagSize == 1) {
+                // If the bag contains one hyperedge, there are no common attributes
+                commonAttributes.clear();
+            }
+
             //System.out.println("bag: " + bag);
 
             Double weight = 1.0;
@@ -137,6 +142,8 @@ public class WeightedHypergraph extends Hypergraph {
                 weight *= columnSelectivity;
                 //System.out.println("column selectivity: " + columnSelectivity);
             }
+            System.out.println(bag);
+            System.out.println(weight);
 
             // Multiply the join selectivity with the row count of the cross product
             for (Hyperedge edge : bag) {
