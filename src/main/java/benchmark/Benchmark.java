@@ -44,6 +44,7 @@ public class Benchmark {
     private boolean analyzeQuery = false;
     private boolean insertData = true;
     private boolean noReinsert = false;
+    private boolean dropTables = true;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -83,6 +84,7 @@ public class Benchmark {
         Option analyzeQuery = new Option(null, "analyze", false, "analyze query");
         Option noCreate = new Option(null, "no-create", false, "don't insert data");
         Option noReinsert = new Option(null, "no-reinsert", false, "don't re-insert the data after the first run");
+        Option noDrop = new Option(null, "no-drop", false, "don't drop temporary tables");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -99,6 +101,7 @@ public class Benchmark {
         options.addOption(analyzeQuery);
         options.addOption(noCreate);
         options.addOption(noReinsert);
+        options.addOption(noDrop);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -178,6 +181,9 @@ public class Benchmark {
             }
             if (cmd.hasOption("no-reinsert")) {
                 benchmark.setNoReinsert(true);
+            }
+            if (cmd.hasOption("no-drop")) {
+                benchmark.setDropTables(false);
             }
 
             benchmark.run();
@@ -272,8 +278,10 @@ public class Benchmark {
 
                 String runtimeStatistics = "name,runtime\n";
 
-                for (ExecutionStatistics stats : res.getExecutionStatistics()) {
-                    runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "\n";
+                if (res.getExecutionStatistics() != null) {
+                    for (ExecutionStatistics stats : res.getExecutionStatistics()) {
+                        runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "\n";
+                    }
                 }
 
                 File statisticsFile = new File(subResultsDir + "/stages-runtimes.csv");
@@ -343,6 +351,10 @@ public class Benchmark {
         this.noReinsert = noReinsert;
     }
 
+    public void setDropTables(boolean dropTables) {
+        this.dropTables = dropTables;
+    }
+
     private void dropAllTables(Connection conn) throws SQLException {
         // Taken from: https://stackoverflow.com/questions/3327312/how-can-i-drop-all-the-tables-in-a-postgresql-database
         System.out.println("Dropping all tables");
@@ -407,7 +419,7 @@ public class Benchmark {
             originalQE = new UnoptimizedQueryExecutor(conn);
 
             if (conf.isParallel()) {
-                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics);
+                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true, dropTables);
             }
             else {
                 optimizedQE = new TempTableQueryExecutor(connPool, useStatistics);
@@ -468,6 +480,7 @@ public class Benchmark {
             }
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
+            result.setDropTime(optimizedQE.getDropTime());
             result.setHypergraphComputationRuntime(optimizedQE.getQuery().getHypergraphGenerationRuntime());
             result.setJoinTreeComputationRuntime(optimizedQE.getQuery().getJoinTreeGenerationRuntime());
             //result.setStage1Runtime(optimizedQE.getQuery().get);

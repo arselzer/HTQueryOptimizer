@@ -14,6 +14,7 @@ public class SummarizedResultsCSVGenerator {
             "origRuntime",
             "optQueryRuntime",
             "optTotalRuntime",
+            "dropTime",
             "stage1Runtime",
             "stage2Runtime",
             "stage3Runtime",
@@ -66,6 +67,7 @@ public class SummarizedResultsCSVGenerator {
                 result.getUnoptimizedRuntime() + "," +
                 result.getOptimizedQueryRuntime() + "," +
                 result.getOptimizedTotalRuntime() + "," +
+                result.getDropTime() + "," +
                 result.getStageRuntimes()[0] + "," +
                 result.getStageRuntimes()[1] + "," +
                 result.getStageRuntimes()[2] + "," +
