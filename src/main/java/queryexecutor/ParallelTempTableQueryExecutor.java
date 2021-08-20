@@ -2,7 +2,6 @@ package queryexecutor;
 
 import exceptions.QueryConversionException;
 import exceptions.TableNotFoundException;
-import query.JoinTreeNode;
 import query.ParallelQueryExecution;
 import query.SQLQuery;
 import schema.TableStatistics;
@@ -15,13 +14,19 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     private ConnectionPool connectionPool;
+    private boolean enableEarlyTermination = true;
+    private boolean dropTables = true;
 
     private long[] stageRuntimes = new long[] {-1,-1,-1,-1};
 
-    public ParallelTempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics) throws SQLException {
+    public ParallelTempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics,
+                                          boolean enableEarlyTermination, boolean dropTables) throws SQLException {
         /**
          * We need the connection pool because connections are processed on a
          * single core in postgres: https://stackoverflow.com/questions/32629988/query-parallelization-for-single-connection-in-postgres
@@ -29,6 +34,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         // TODO refactor constructors
         super(connectionPool, useStatistics);
         this.connectionPool = connectionPool;
+        this.enableEarlyTermination = enableEarlyTermination;
+        this.dropTables = dropTables;
     }
 
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {
@@ -74,6 +81,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
 
         List<ExecutionStatistics> statisticsList = new LinkedList<>();
 
+        AtomicBoolean emptyResult = new AtomicBoolean(false);
+
         try {
             int layerCount = 0;
             int stageIndex = 0;
@@ -85,41 +94,71 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                     List<String> analyzeJSONQueryStrings = new LinkedList<>();
                     long startTime = System.currentTimeMillis();
 
-                    layer.parallelStream().forEach(query -> {
-                        this.generatedFunction += query + "\n";
-                        System.out.println("-- executing query: \n" + query);
-                        try {
-                            Connection conn = connectionPool.getConnection();
+                    if (emptyResult.get()) {
+                        break;
+                    }
 
-                            if (analyze) {
-                                // If a view is created, query execution is deferred and no query plan is made
-                                if (!query.startsWith("CREATE VIEW")) {
-                                    PreparedStatement ps = conn.prepareStatement("EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) " + query);
-                                    ResultSet rs = ps.executeQuery();
+                    try {
+                        layer.parallelStream().forEach(query -> {
+                            this.generatedFunction += query + "\n";
+                            System.out.println("-- executing query: \n" + query);
+                            try {
+                                Connection conn = connectionPool.getConnection();
 
-                                    String analyzeJSONString = "";
-                                    while (rs.next()) {
-                                        analyzeJSONString += rs.getString(1);
+                                if (analyze) {
+                                    // If a view is created, query execution is deferred and no query plan is made
+                                    if (!query.startsWith("CREATE VIEW")) {
+                                        PreparedStatement ps = conn.prepareStatement("EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) " + query);
+                                        ResultSet rs = ps.executeQuery();
+
+                                        String analyzeJSONString = "";
+                                        while (rs.next()) {
+                                            analyzeJSONString += rs.getString(1);
+                                        }
+                                        analyzeJSONs.add(analyzeJSONString);
+                                        analyzeJSONQueryStrings.add(query);
+                                    } else {
+                                        PreparedStatement ps = conn.prepareStatement(query);
+                                        ps.execute();
                                     }
-                                    analyzeJSONs.add(analyzeJSONString);
-                                    analyzeJSONQueryStrings.add(query);
                                 } else {
                                     PreparedStatement ps = conn.prepareStatement(query);
                                     ps.execute();
+
+                                    if (enableEarlyTermination && query.startsWith("CREATE UNLOGGED TABLE")) {
+                                        Matcher matcher = Pattern.compile("CREATE\\s+UNLOGGED\\s+TABLE\\s+(.*)\\s+").matcher(query);
+                                        matcher.find();
+                                        String tableName = matcher.group(1);
+                                        System.out.println("tableName: " + tableName);
+                                        PreparedStatement getCountStmt = connection.prepareStatement(String.format("SELECT count(*) as n_rows FROM %s;", tableName));
+
+                                        ResultSet rsCount = getCountStmt.executeQuery();
+                                        rsCount.next();
+                                        int rowCount = rsCount.getInt("n_rows");
+                                        rsCount.close();
+                                        getCountStmt.close();
+
+                                        if (rowCount == 0) {
+                                            emptyResult.set(true);
+                                            System.out.println("result is empty!");
+                                            throw new StopParallelStreamException();
+                                        }
+                                    }
                                 }
-                            } else {
-                                PreparedStatement ps = conn.prepareStatement(query);
-                                ps.execute();
+                                connectionPool.returnConnection(conn);
+                            } catch (SQLException e) {
+                                throw new RuntimeException(e);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
                             }
-                            connectionPool.returnConnection(conn);
-                        } catch (SQLException e) {
-                            throw new RuntimeException(e);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
 
 
-                    });
+                        });
+                    }
+                    catch (StopParallelStreamException e) {
+                        System.out.println("Stopped parallel execution");
+                    }
+
                     System.out.println("-- time elapsed: " + (System.currentTimeMillis() - startTime));
                     long timeDifference = System.currentTimeMillis() - startTime;
 
@@ -155,7 +194,18 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         }
         psSelect.closeOnCompletion();
         long stage4StartTime = System.currentTimeMillis();
-        ResultSet rs = psSelect.executeQuery();
+
+        ResultSet rs;
+        if (emptyResult.get()) {
+            // TODO find a nicer solution?
+            PreparedStatement noRowsStmt = connection.prepareStatement(String.format("SELECT 1 LIMIT 0;"),ResultSet.TYPE_SCROLL_INSENSITIVE,
+                    ResultSet.CONCUR_READ_ONLY);
+            rs = noRowsStmt.executeQuery();
+        }
+        else {
+            rs = psSelect.executeQuery();
+        }
+
         long stage4Time = System.currentTimeMillis() - stage4StartTime;
         stageRuntimes[3] = stage4Time;
 
@@ -163,10 +213,16 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
 
         System.out.println("total time elapsed: " + queryRunningTime);
 
-        // Remove temp views / tables
-        for (String dropStatement : queryExecution.getDropStatements().toList()) {
-            connection.prepareStatement(dropStatement).execute();
+        long dropStartTime = System.currentTimeMillis();
+
+        if (dropTables) {
+            // Remove temp views / tables
+            for (String dropStatement : queryExecution.getDropStatements().toList()) {
+                connection.prepareStatement(dropStatement).execute();
+            }
         }
+
+        dropTime = System.currentTimeMillis() - dropStartTime;
 
         return new StatisticsResultSet(rs, statisticsList);
     }

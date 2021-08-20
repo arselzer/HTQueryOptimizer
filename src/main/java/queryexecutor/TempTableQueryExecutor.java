@@ -21,6 +21,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
     protected SQLQuery sqlQuery;
 
     protected long queryRunningTime;
+    protected long dropTime;
     protected Hypergraph hypergraph;
     protected JoinTreeNode joinTree;
     protected String generatedFunction;
@@ -154,6 +155,10 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
     public long getQueryRunningTime() {
         return queryRunningTime;
+    }
+
+    public long getDropTime() {
+        return dropTime;
     }
 
     public Hypergraph getHypergraph() {

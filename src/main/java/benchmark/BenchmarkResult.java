@@ -13,6 +13,7 @@ public class BenchmarkResult {
     private long joinTreeComputationRuntime;
     private long hypergraphComputationRuntime;
     private long optimizedQueryRuntime;
+    private long dropTime;
     private long[] stageRuntimes;
 
     private boolean optimizedQueryTimeout = false;
@@ -69,6 +70,14 @@ public class BenchmarkResult {
 
     public void setOptimizedQueryRuntime(long optimizedQueryRuntime) {
         this.optimizedQueryRuntime = optimizedQueryRuntime;
+    }
+
+    public long getDropTime() {
+        return dropTime;
+    }
+
+    public void setDropTime(long dropTime) {
+        this.dropTime = dropTime;
     }
 
     public Hypergraph getHypergraph() {
