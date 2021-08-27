@@ -14,6 +14,7 @@ public class BenchmarkResult {
     private long hypergraphComputationRuntime;
     private long optimizedQueryRuntime;
     private long dropTime;
+    private long totalPreprocessingTime;
     private long[] stageRuntimes;
 
     private boolean optimizedQueryTimeout = false;
@@ -198,6 +199,14 @@ public class BenchmarkResult {
 
     public void setHypergraphComputationRuntime(long hypergraphComputationRuntime) {
         this.hypergraphComputationRuntime = hypergraphComputationRuntime;
+    }
+
+    public long getTotalPreprocessingTime() {
+        return totalPreprocessingTime;
+    }
+
+    public void setTotalPreprocessingTime(long totalPreprocessingTime) {
+        this.totalPreprocessingTime = totalPreprocessingTime;
     }
 
     public long[] getStageRuntimes() {

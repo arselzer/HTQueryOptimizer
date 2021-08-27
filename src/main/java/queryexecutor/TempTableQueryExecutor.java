@@ -22,6 +22,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
     protected long queryRunningTime;
     protected long dropTime;
+    protected long totalPreprocessingTime;
     protected Hypergraph hypergraph;
     protected JoinTreeNode joinTree;
     protected String generatedFunction;
@@ -155,6 +156,10 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
     public long getQueryRunningTime() {
         return queryRunningTime;
+    }
+
+    public long getTotalPreprocessingTime() {
+        return totalPreprocessingTime;
     }
 
     public long getDropTime() {

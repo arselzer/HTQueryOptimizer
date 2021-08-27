@@ -18,5 +18,15 @@
     "dbSizeMin": 70,
     "dbSizeMax": 90,
     "step": 10
+  },
+  "28a-simplified.sql": {
+    "dbSizeMin": 40,
+    "dbSizeMax": 60,
+    "step": 10
+  },
+  "30a-simplified.sql": {
+    "dbSizeMin": 40,
+    "dbSizeMax": 60,
+    "step": 10
   }
 }

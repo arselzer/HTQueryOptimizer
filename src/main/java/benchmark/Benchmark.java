@@ -481,6 +481,7 @@ public class Benchmark {
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
             result.setDropTime(optimizedQE.getDropTime());
+            result.setTotalPreprocessingTime(optimizedQE.getTotalPreprocessingTime());
             result.setHypergraphComputationRuntime(optimizedQE.getQuery().getHypergraphGenerationRuntime());
             result.setJoinTreeComputationRuntime(optimizedQE.getQuery().getJoinTreeGenerationRuntime());
             //result.setStage1Runtime(optimizedQE.getQuery().get);
