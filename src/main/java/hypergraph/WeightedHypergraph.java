@@ -191,6 +191,10 @@ public class WeightedHypergraph extends Hypergraph {
         return tree;
     }
 
+    public JoinTreeNode toAcyclicJoinTree(DecompositionOptions options) {
+        return null;
+    }
+
     // TODO refactor copy paste
     @Override
     public JoinTreeNode toJoinTree(int hypertreeWidth, DecompositionOptions options) throws JoinTreeGenerationException {

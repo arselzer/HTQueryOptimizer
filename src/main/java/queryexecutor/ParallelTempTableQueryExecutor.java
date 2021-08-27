@@ -10,10 +10,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -59,6 +57,9 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     }
 
     public StatisticsResultSet executeWithStatistics(String queryStr, boolean booleanQuery, boolean analyze) throws SQLException, QueryConversionException, TableNotFoundException {
+
+        long preprocessingStartTime = System.currentTimeMillis();
+
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
 
@@ -70,6 +71,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
             sqlQuery.setStatistics(statisticsMap);
         }
         ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution(booleanQuery);
+
+        this.totalPreprocessingTime = System.currentTimeMillis() - preprocessingStartTime;
 
         this.generatedFunction = "";
 
@@ -97,7 +100,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                     if (emptyResult.get()) {
                         break;
                     }
-
+                    Set<PreparedStatement> runningQueries = ConcurrentHashMap.newKeySet();
                     try {
                         layer.parallelStream().forEach(query -> {
                             this.generatedFunction += query + "\n";
@@ -123,7 +126,9 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                                     }
                                 } else {
                                     PreparedStatement ps = conn.prepareStatement(query);
+                                    runningQueries.add(ps);
                                     ps.execute();
+                                    runningQueries.remove(ps);
 
                                     if (enableEarlyTermination && query.startsWith("CREATE UNLOGGED TABLE")) {
                                         Matcher matcher = Pattern.compile("CREATE\\s+UNLOGGED\\s+TABLE\\s+(.*)\\s+").matcher(query);
@@ -156,7 +161,11 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                         });
                     }
                     catch (StopParallelStreamException e) {
-                        System.out.println("Stopped parallel execution");
+                        System.out.println("Stopped parallel execution - cancelling active queries");
+                        for (PreparedStatement ps : runningQueries) {
+                            System.out.println("Cancelling query");
+                            //ps.cancel();
+                        }
                     }
 
                     System.out.println("-- time elapsed: " + (System.currentTimeMillis() - startTime));
@@ -183,6 +192,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
             throw new SQLException(e);
         }
 
+        long stage4StartTime = System.currentTimeMillis();
+
         PreparedStatement psSelect = connection.prepareStatement(
                 String.format(
                         booleanQuery ? "SELECT * FROM %s LIMIT 1;" : "SELECT * FROM %s;",
@@ -193,12 +204,12 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
             psSelect.setQueryTimeout(timeout);
         }
         psSelect.closeOnCompletion();
-        long stage4StartTime = System.currentTimeMillis();
 
         ResultSet rs;
         if (emptyResult.get()) {
             // TODO find a nicer solution?
-            PreparedStatement noRowsStmt = connection.prepareStatement(String.format("SELECT 1 LIMIT 0;"),ResultSet.TYPE_SCROLL_INSENSITIVE,
+            PreparedStatement noRowsStmt = connection.prepareStatement(String.format("SELECT 1 LIMIT 0;"),
+                    ResultSet.TYPE_SCROLL_INSENSITIVE,
                     ResultSet.CONCUR_READ_ONLY);
             rs = noRowsStmt.executeQuery();
         }

@@ -90,10 +90,39 @@ public class JoinTreeNode {
         }
     }
 
+    public List<Set<JoinTreeNode>> getLayers() {
+        int height = getHeight();
+        System.out.println(height);
+        List<Set<JoinTreeNode>> layers = new ArrayList<>(height);
+
+        for (int i = 0; i < height; i++) {
+            layers.add(new HashSet<>());
+        }
+
+        layers.get(height - 1).add(this);
+
+        Queue<JoinTreeNode> queue = new LinkedList<>(this.getSuccessors());
+
+        // Perform a search for the deepest leave nodes
+        while (!queue.isEmpty()) {
+            JoinTreeNode node = queue.poll();
+            int nodeHeight = node.getHeight();
+
+            layers.get(nodeHeight - 1).add(node);
+
+            for (JoinTreeNode successor : node.successors) {
+                queue.offer(successor);
+            }
+        }
+
+        Collections.reverse(layers);
+        return layers;
+    }
+
     /**
      * @return the tree converted into layers of equal depth from 0 to depth
      */
-    public List<Set<JoinTreeNode>> getLayers() {
+    public List<Set<JoinTreeNode>> _getLayers() {
         LinkedList<Set<JoinTreeNode>> layers = new LinkedList<>();
         layers.add(Set.of(this));
         layers.add(new HashSet<>(successors));

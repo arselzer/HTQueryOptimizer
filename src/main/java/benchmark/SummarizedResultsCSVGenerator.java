@@ -19,6 +19,7 @@ public class SummarizedResultsCSVGenerator {
             "stage2Runtime",
             "stage3Runtime",
             "stage4Runtime",
+            "totalPreprocessingTime",
             "hypergraphComputationRuntime",
             "joinTreeComputationRuntime",
             "origRows",
@@ -72,6 +73,7 @@ public class SummarizedResultsCSVGenerator {
                 result.getStageRuntimes()[1] + "," +
                 result.getStageRuntimes()[2] + "," +
                 result.getStageRuntimes()[3] + "," +
+                result.getTotalPreprocessingTime() + "," +
                 result.getHypergraphComputationRuntime() + "," +
                 result.getJoinTreeComputationRuntime() + "," +
                 result.getUnoptimizedRows() + "," +
@@ -102,7 +104,6 @@ public class SummarizedResultsCSVGenerator {
                 (jt == null ? "" : jt.getEdgeBagSizeStatistics().getSum()) + "," +
                 (jt == null ? "" : jt.getEdgeBagSizeStatistics().getStandardDeviation()) +
                 "\n";
-
     }
 
     public String getCSV() {
