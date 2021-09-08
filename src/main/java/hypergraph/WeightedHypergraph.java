@@ -12,6 +12,10 @@ import org.apache.commons.math3.util.Combinations;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,11 +23,14 @@ import java.util.stream.Collectors;
 
 public class WeightedHypergraph extends Hypergraph {
     private Set<BagWeight> weights;
+    private Set<SemiJoinWeight> semiJoinWeights = new HashSet<>();
     private Map<String, TableStatistics> statistics;
     // Table aliases are required to find the real table names to access the statistics
     private Map<String, String> tableAliases;
     // Keep an ordered list of hyperedges for index access when using the combinations iterator
     List<Hyperedge> orderedEdges = new LinkedList<>(getEdges());
+
+    private Connection connection;
 
     public WeightedHypergraph() {
         super();
@@ -33,6 +40,7 @@ public class WeightedHypergraph extends Hypergraph {
     public WeightedHypergraph(Set<String> nodes, Set<Hyperedge> edges, Map<String, String> tableAliases) {
         super(nodes, edges);
         this.weights = new HashSet<>();
+        this.semiJoinWeights = new HashSet<>();
         this.tableAliases = tableAliases;
     }
 
@@ -60,6 +68,83 @@ public class WeightedHypergraph extends Hypergraph {
     }
 
     private void determineWeightsForBagSize(int bagSize) {
+        determineWeightsForBagSize(bagSize, false);
+    }
+
+    private void determineSemiJoinWeights() throws SQLException {
+        for (int[] combination : new Combinations(getEdges().size(), 2)) {
+            Set<Hyperedge> bag = new HashSet<>();
+
+            for (int edgeIdx : combination) {
+                Hyperedge edge = orderedEdges.get(edgeIdx);
+                bag.add(edge);
+            }
+            // Keep only the attributes occurring in all relations
+            Set<String> commonAttributes = new HashSet<>();
+            commonAttributes.addAll(bag.iterator().next().getNodes());
+            for (Hyperedge edge : bag) {
+                commonAttributes.retainAll(edge.getNodes());
+            }
+
+            System.out.println(combination);
+            System.out.println(commonAttributes);
+
+            if (!commonAttributes.isEmpty()) {
+
+                Hyperedge edge1 = orderedEdges.get(combination[0]);
+                Hyperedge edge2 = orderedEdges.get(combination[1]);
+                String edge1Name = orderedEdges.get(combination[0]).getName();
+                String edge2Name = orderedEdges.get(combination[1]).getName();
+                String table1Name = tableAliases.get(edge1Name);
+                String table2Name = tableAliases.get(edge2Name);
+
+                System.out.println("table names: " + table1Name + " " + table2Name);
+
+                String joinConditions = commonAttributes.stream().map(attr -> {
+                    return table1Name + "." + getInverseEquivalenceMapping().get(attr).get(edge1Name).get(0)
+                            + " = " + getInverseEquivalenceMapping().get(attr).get(edge2Name).get(0);
+                }).collect(Collectors.joining(" AND "));
+
+                System.out.println(joinConditions);
+
+                PreparedStatement explainSemiJoin1Statement = connection.prepareStatement(String.format(
+                        "EXPLAIN SELECT * FROM %s WHERE EXISTS (SELECT 1 FROM %s WHERE %s);",
+                        table1Name, table2Name, joinConditions));
+
+                PreparedStatement explainSemiJoin2Statement = connection.prepareStatement(String.format(
+                        "EXPLAIN SELECT * FROM %s WHERE EXISTS (SELECT 1 FROM %s WHERE %s);",
+                        table2Name, table1Name, joinConditions));
+
+                ResultSet rs1 = explainSemiJoin1Statement.executeQuery();
+                ResultSet rs2 = explainSemiJoin2Statement.executeQuery();
+                rs1.next();
+                rs2.next();
+
+                String explain1 = rs1.getString(1);
+                String explain2 = rs2.getString(1);
+
+                Pattern explainRowsPattern = Pattern.compile(" rows=(\\d+) ");
+                Matcher matcher1 = explainRowsPattern.matcher(explain1);
+                matcher1.find();
+                String rows1Str = matcher1.group(1);
+                Matcher matcher2 = explainRowsPattern.matcher(explain2);
+                matcher2.find();
+                String rows2Str = matcher2.group(1);
+
+                double rows1 = Double.parseDouble(rows1Str);
+                double rows2 = Double.parseDouble(rows2Str);
+
+                semiJoinWeights.add(new SemiJoinWeight(List.of(edge1, edge2), rows1));
+                semiJoinWeights.add(new SemiJoinWeight(List.of(edge2, edge1), rows2));
+            }
+        }
+    }
+
+    public void useConnection(Connection connection) {
+        this.connection = connection;
+    }
+
+    private void determineWeightsForBagSize(int bagSize, boolean computeSelectivity) {
         if (tableAliases == null) {
             throw new IllegalStateException("Table aliases are not set");
         }
@@ -84,6 +169,7 @@ public class WeightedHypergraph extends Hypergraph {
             }
 
             //System.out.println("bag: " + bag);
+            System.out.println("commonAttributes: " + commonAttributes);
 
             Double weight = 1.0;
             for (String attribute : commonAttributes) {
@@ -106,6 +192,7 @@ public class WeightedHypergraph extends Hypergraph {
                     // TODO for simplicity the case of multiple equal columns in the same table is not considered
                     String columnName = getInverseEquivalenceMapping().get(attribute).get(edge.getName()).get(0);
                     Map<String, Double> mostCommonFrequencies = tableStats.getMostCommonFrequencies().get(columnName);
+                    System.out.println("most common freqs of " + edge + ": " + mostCommonFrequencies);
                     if (mostCommonFrequencies != null) {
                         Set<String> commonVals = mostCommonFrequencies.keySet();
                         sharedCommonValues.retainAll(commonVals);
@@ -134,6 +221,7 @@ public class WeightedHypergraph extends Hypergraph {
                         columnSelectivity += frequencies.stream().reduce(1.0, (a, b) -> a * b);
                     }
                 }
+                System.out.println("sharedCommonValues: " + sharedCommonValues);
                 if (sharedCommonValues.isEmpty()) {
                     // Cross product
                     columnSelectivity = 1.0;
@@ -146,15 +234,19 @@ public class WeightedHypergraph extends Hypergraph {
             System.out.println(weight);
 
             // Multiply the join selectivity with the row count of the cross product
-            for (Hyperedge edge : bag) {
-                weight *= statistics.get(tableAliases.get(edge.getName())).getRowCount();
-                //System.out.println("edge: " + edge + ", row count: " + statistics.get(edge.getName()).getRowCount() + ", weight: " + weight);
+            if (!computeSelectivity) {
+                for (Hyperedge edge : bag) {
+                    weight *= statistics.get(tableAliases.get(edge.getName())).getRowCount();
+                    //System.out.println("edge: " + edge + ", row count: " + statistics.get(edge.getName()).getRowCount() + ", weight: " + weight);
+                }
             }
             //System.out.println("total selectivity: " + weight + ", row estimate: " + weight);
 
             // Make the weight negative if the query is acyclic
-            if (bagSize == 1) {
-                weight *= -1;
+            if (!computeSelectivity) {
+                if (bagSize == 1) {
+                    weight *= -1;
+                }
             }
 
             weights.add(new BagWeight(bag, weight));
@@ -166,7 +258,12 @@ public class WeightedHypergraph extends Hypergraph {
         for (BagWeight weight : weights) {
             output += weight.getBag().stream()
                     .map(Hyperedge::getName)
-                    .collect(Collectors.joining(",")) + "," + String.format("%.3f", weight.getWeight()) + "\n";
+                    .collect(Collectors.joining(",")) + "," + String.format("%.4f", weight.getWeight()) + "\n";
+        }
+        for (SemiJoinWeight weight : semiJoinWeights) {
+            output += weight.getBag().stream()
+                    .map(Hyperedge::getName)
+                    .collect(Collectors.joining(",")) + "," + String.format("%.4f", weight.getWeight()) + "\n";
         }
         return output;
     }
@@ -181,17 +278,27 @@ public class WeightedHypergraph extends Hypergraph {
         // Try creating an acyclic join tree first
         int hypertreeWidth = 1;
 
+        return toAcyclicJoinTree(options); // todo remove
 
-        JoinTreeNode tree = toJoinTree(1, options);
-        while (tree == null) {
-            hypertreeWidth++;
-            tree = toJoinTree(hypertreeWidth, options);
-        }
-
-        return tree;
+//        JoinTreeNode tree = toJoinTree(1, options);
+//        while (tree == null) {
+//            hypertreeWidth++;
+//            tree = toJoinTree(hypertreeWidth, options);
+//        }
+//
+//        return tree;
     }
 
     public JoinTreeNode toAcyclicJoinTree(DecompositionOptions options) {
+        determineWeightsForBagSize(1);
+        try {
+            determineSemiJoinWeights();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+
+        System.out.println(toWeightsFile());
         return null;
     }
 
@@ -199,6 +306,10 @@ public class WeightedHypergraph extends Hypergraph {
     @Override
     public JoinTreeNode toJoinTree(int hypertreeWidth, DecompositionOptions options) throws JoinTreeGenerationException {
         System.out.println("Attempting to create hypertree of width " + hypertreeWidth);
+
+        if (hypertreeWidth == 1) {
+            //return toAcyclicJoinTree(options);
+        }
 
         determineWeightsForBagSize(hypertreeWidth);
 

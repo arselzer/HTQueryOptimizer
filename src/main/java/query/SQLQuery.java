@@ -21,6 +21,7 @@ import schema.DBSchema;
 import schema.Table;
 import schema.TableStatistics;
 
+import java.sql.Connection;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,8 +51,12 @@ public class SQLQuery {
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
 
+    private Connection connection;
+
     private long joinTreeGenerationRuntime;
     private long hypergraphGenerationRuntime;
+
+    private boolean createIndexes = false;
 
     public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException, TableNotFoundException {
         this.query = query;
@@ -354,6 +359,7 @@ public class SQLQuery {
             Set<JoinTreeNode> layer = joinLayers.get(i);
 
             List<String> layerStatements = new LinkedList<>();
+            List<String> layerCreateIndexStatements = new LinkedList<>();
             for (JoinTreeNode node : layer) {
                 List<String> semiJoins = new LinkedList<>();
                 for (JoinTreeNode child : node.getSuccessors()) {
@@ -392,6 +398,11 @@ public class SQLQuery {
                     sqlStatement += String.format("AS SELECT *\n");
                     sqlStatement += String.format("FROM %s\n", getNodeIdentifier(node, 1));
                     sqlStatement += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
+
+                    for (String attr : node.getAttributes()) {
+                        layerCreateIndexStatements.add(String.format("CREATE INDEX idx_%s_%s ON %s (%s)",
+                                getNodeIdentifier(node, 2), attr, getNodeIdentifier(node, 2), attr));
+                    }
                 } else {
                     // If there are no semi joins, just create a view to avoid unnecessary copying
                     sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 2));
@@ -403,6 +414,9 @@ public class SQLQuery {
                 layerStatements.add(sqlStatement);
             }
             stage2.add(layerStatements);
+            if (!layerCreateIndexStatements.isEmpty()) {
+                stage2.add(layerCreateIndexStatements);
+            }
         }
 
         List<String> aliasViews = new LinkedList<>();
@@ -866,6 +880,7 @@ public class SQLQuery {
 
     public WeightedHypergraph toWeightedHypergraph() throws QueryConversionException {
         WeightedHypergraph weightedHypergraph = new WeightedHypergraph(toHypergraph(), statistics, tableAliases);
+        weightedHypergraph.useConnection(connection);
 
         return weightedHypergraph;
     }
@@ -900,5 +915,13 @@ public class SQLQuery {
 
     public long getHypergraphGenerationRuntime() {
         return hypergraphGenerationRuntime;
+    }
+
+    public void setCreateIndexes(boolean createIndexes) {
+        this.createIndexes = createIndexes;
+    }
+
+    public void setConnection(Connection connection) {
+        this.connection = connection;
     }
 }
