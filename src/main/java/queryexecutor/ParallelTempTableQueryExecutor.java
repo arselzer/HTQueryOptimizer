@@ -20,11 +20,13 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     private ConnectionPool connectionPool;
     private boolean enableEarlyTermination = true;
     private boolean dropTables = true;
+    private boolean createIndexes = false;
 
     private long[] stageRuntimes = new long[] {-1,-1,-1,-1};
 
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics,
-                                          boolean enableEarlyTermination, boolean dropTables) throws SQLException {
+                                          boolean enableEarlyTermination, boolean dropTables,
+                                          boolean createIndexes) throws SQLException {
         /**
          * We need the connection pool because connections are processed on a
          * single core in postgres: https://stackoverflow.com/questions/32629988/query-parallelization-for-single-connection-in-postgres
@@ -34,6 +36,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         this.connectionPool = connectionPool;
         this.enableEarlyTermination = enableEarlyTermination;
         this.dropTables = dropTables;
+        this.createIndexes = createIndexes;
     }
 
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {
@@ -62,6 +65,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
 
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
+        sqlQuery.setCreateIndexes(createIndexes);
 
         if (useStatistics) {
             Map<String, TableStatistics> statisticsMap = new HashMap<>();
@@ -69,8 +73,11 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                 statisticsMap.put(tableName, extractTableStatistics(tableName));
             }
             sqlQuery.setStatistics(statisticsMap);
+            sqlQuery.setConnection(connection);
         }
         ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution(booleanQuery);
+
+        System.out.println(queryExecution.getSqlStatements());
 
         this.totalPreprocessingTime = System.currentTimeMillis() - preprocessingStartTime;
 

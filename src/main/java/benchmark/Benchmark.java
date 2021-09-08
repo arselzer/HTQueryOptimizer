@@ -45,6 +45,7 @@ public class Benchmark {
     private boolean insertData = true;
     private boolean noReinsert = false;
     private boolean dropTables = true;
+    private boolean createIndexes = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -85,6 +86,7 @@ public class Benchmark {
         Option noCreate = new Option(null, "no-create", false, "don't insert data");
         Option noReinsert = new Option(null, "no-reinsert", false, "don't re-insert the data after the first run");
         Option noDrop = new Option(null, "no-drop", false, "don't drop temporary tables");
+        Option useIndexes = new Option(null, "create-indexes", false, "create indexes on the temporary tables");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -102,6 +104,7 @@ public class Benchmark {
         options.addOption(noCreate);
         options.addOption(noReinsert);
         options.addOption(noDrop);
+        options.addOption(useIndexes);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -184,6 +187,9 @@ public class Benchmark {
             }
             if (cmd.hasOption("no-drop")) {
                 benchmark.setDropTables(false);
+            }
+            if (cmd.hasOption("create-indexes")) {
+                benchmark.setCreateIndexes(true);
             }
 
             benchmark.run();
@@ -355,6 +361,10 @@ public class Benchmark {
         this.dropTables = dropTables;
     }
 
+    public void setCreateIndexes(boolean createIndexes) {
+        this.createIndexes = createIndexes;
+    }
+
     private void dropAllTables(Connection conn) throws SQLException {
         // Taken from: https://stackoverflow.com/questions/3327312/how-can-i-drop-all-the-tables-in-a-postgresql-database
         System.out.println("Dropping all tables");
@@ -419,7 +429,7 @@ public class Benchmark {
             originalQE = new UnoptimizedQueryExecutor(conn);
 
             if (conf.isParallel()) {
-                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true, dropTables);
+                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true, dropTables, createIndexes);
             }
             else {
                 optimizedQE = new TempTableQueryExecutor(connPool, useStatistics);

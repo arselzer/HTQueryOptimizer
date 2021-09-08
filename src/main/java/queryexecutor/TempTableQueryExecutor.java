@@ -97,6 +97,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
                 statisticsMap.put(tableName, extractTableStatistics(tableName));
             }
             sqlQuery.setStatistics(statisticsMap);
+            sqlQuery.setConnection(connection);
         }
 
         List<ExecutionStatistics> statisticsList = new LinkedList<>();

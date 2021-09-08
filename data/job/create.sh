@@ -44,3 +44,6 @@ tablePath="${path}/tables"
 for table in $tableNames; do
   psql -U test -d testdb -c "create table ${table} as select * from _${table} TABLESAMPLE SYSTEM (${dbSize});"
   done
+
+psql -U test -d testdb -f "${path}/create-indexes.sql"
+
