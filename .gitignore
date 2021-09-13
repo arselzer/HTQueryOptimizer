@@ -7,3 +7,4 @@ benchmark-results-*
 dependency-reduced-pom.xml
 .ipynb_checkpoints
 graphics/
+jointree_search/

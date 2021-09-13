@@ -21,12 +21,13 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     private boolean enableEarlyTermination = true;
     private boolean dropTables = true;
     private boolean createIndexes = false;
+    private boolean depthOpt = false;
 
     private long[] stageRuntimes = new long[] {-1,-1,-1,-1};
 
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics,
                                           boolean enableEarlyTermination, boolean dropTables,
-                                          boolean createIndexes) throws SQLException {
+                                          boolean createIndexes, boolean depthOpt) throws SQLException {
         /**
          * We need the connection pool because connections are processed on a
          * single core in postgres: https://stackoverflow.com/questions/32629988/query-parallelization-for-single-connection-in-postgres
@@ -37,6 +38,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         this.enableEarlyTermination = enableEarlyTermination;
         this.dropTables = dropTables;
         this.createIndexes = createIndexes;
+        this.depthOpt = depthOpt;
     }
 
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {

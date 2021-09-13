@@ -16,6 +16,7 @@ public class BenchmarkConf {
     private Integer threadCount = null;
     private boolean booleanQuery = false;
     private boolean useStatistics = true;
+    private boolean isFirstRun = false;
 
     public BenchmarkConf(String db, String query, String suffix, DecompositionOptions decompositionOptions) {
         this.db = db;
@@ -26,7 +27,8 @@ public class BenchmarkConf {
 
     public BenchmarkConf(String db, String query, String suffix,
                          DecompositionOptions decompositionOptions, Integer timeout, Integer run, Integer dbSize,
-                         boolean parallel, Integer threadCount, boolean booleanQuery, boolean useStatistics) {
+                         boolean parallel, Integer threadCount, boolean booleanQuery, boolean useStatistics,
+                         boolean isFirstRun) {
         this.db = db;
         this.query = query;
         this.suffix = suffix;
@@ -38,6 +40,7 @@ public class BenchmarkConf {
         this.threadCount = threadCount;
         this.booleanQuery = booleanQuery;
         this.useStatistics = useStatistics;
+        this.isFirstRun = isFirstRun;
     }
 
     public String getDb() {
@@ -126,6 +129,14 @@ public class BenchmarkConf {
 
     public void setThreadCount(Integer threadCount) {
         this.threadCount = threadCount;
+    }
+
+    public boolean isFirstRun() {
+        return isFirstRun;
+    }
+
+    public void setFirstRun(boolean firstRun) {
+        isFirstRun = firstRun;
     }
 
     @Override

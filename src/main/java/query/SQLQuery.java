@@ -414,7 +414,7 @@ public class SQLQuery {
                 layerStatements.add(sqlStatement);
             }
             stage2.add(layerStatements);
-            if (!layerCreateIndexStatements.isEmpty()) {
+            if (!layerCreateIndexStatements.isEmpty() && createIndexes) {
                 stage2.add(layerCreateIndexStatements);
             }
         }

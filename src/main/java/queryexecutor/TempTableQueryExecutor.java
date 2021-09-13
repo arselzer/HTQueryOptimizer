@@ -29,6 +29,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
     protected Integer timeout = null;
     protected boolean useStatistics = true;
+    private Integer maxTreeDepth = null;
 
     public TempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics) throws SQLException {
         try {
@@ -189,6 +190,10 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
     private void disableMergeJoin() throws SQLException {
         connection.prepareStatement("SET enable_mergejoin = 1;").execute();
+    }
+
+    public void setMaxTreeDepth(Integer maxTreeDepth) {
+        this.maxTreeDepth = maxTreeDepth;
     }
 
     protected TableStatistics extractTableStatistics(String tableName) throws SQLException {

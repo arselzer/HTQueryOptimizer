@@ -2,9 +2,15 @@ package hypergraph;
 
 public class DecompositionOptions {
     private DecompAlgorithm algorithm;
+    private boolean depthOpt = false;
 
     public DecompositionOptions(DecompAlgorithm algorithm) {
         this.algorithm = algorithm;
+    }
+
+    public DecompositionOptions(DecompAlgorithm algorithm, boolean depthOpt) {
+        this.algorithm = algorithm;
+        this.depthOpt = depthOpt;
     }
 
     public DecompositionOptions() {
@@ -22,5 +28,13 @@ public class DecompositionOptions {
     public enum DecompAlgorithm {
         DETKDECOMP,
         BALANCEDGO
+    }
+
+    public boolean isDepthOpt() {
+        return depthOpt;
+    }
+
+    public void setDepthOpt(boolean depthOpt) {
+        this.depthOpt = depthOpt;
     }
 }
