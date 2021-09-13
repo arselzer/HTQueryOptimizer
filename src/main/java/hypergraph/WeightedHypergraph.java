@@ -68,7 +68,7 @@ public class WeightedHypergraph extends Hypergraph {
     }
 
     private void determineWeightsForBagSize(int bagSize) {
-        determineWeightsForBagSize(bagSize, false);
+        determineWeightsForBagSize(bagSize, false, false);
     }
 
     private void determineSemiJoinWeights() throws SQLException {
@@ -144,7 +144,7 @@ public class WeightedHypergraph extends Hypergraph {
         this.connection = connection;
     }
 
-    private void determineWeightsForBagSize(int bagSize, boolean computeSelectivity) {
+    private void determineWeightsForBagSize(int bagSize, boolean computeSelectivity, boolean negate) {
         if (tableAliases == null) {
             throw new IllegalStateException("Table aliases are not set");
         }
@@ -244,7 +244,7 @@ public class WeightedHypergraph extends Hypergraph {
 
             // Make the weight negative if the query is acyclic
             if (!computeSelectivity) {
-                if (bagSize == 1) {
+                if (bagSize == 1 && negate) {
                     weight *= -1;
                 }
             }
@@ -278,19 +278,19 @@ public class WeightedHypergraph extends Hypergraph {
         // Try creating an acyclic join tree first
         int hypertreeWidth = 1;
 
-        return toAcyclicJoinTree(options); // todo remove
+        //return toAcyclicJoinTree(options); // todo remove
 
-//        JoinTreeNode tree = toJoinTree(1, options);
-//        while (tree == null) {
-//            hypertreeWidth++;
-//            tree = toJoinTree(hypertreeWidth, options);
-//        }
-//
-//        return tree;
+        JoinTreeNode tree = toJoinTree(1, options);
+        while (tree == null) {
+            hypertreeWidth++;
+            tree = toJoinTree(hypertreeWidth, options);
+        }
+
+        return tree;
     }
 
-    public JoinTreeNode toAcyclicJoinTree(DecompositionOptions options) {
-        determineWeightsForBagSize(1);
+    public JoinTreeNode toAcyclicJoinTree(DecompositionOptions options) throws JoinTreeGenerationException {
+        determineWeightsForBagSize(1, false, false);
         try {
             determineSemiJoinWeights();
         } catch (SQLException e) {
@@ -298,8 +298,123 @@ public class WeightedHypergraph extends Hypergraph {
             return null;
         }
 
-        System.out.println(toWeightsFile());
-        return null;
+        // Write hypergraph out to a file
+        String fileContent = toDTL();
+        String weightFileContent = toWeightsFile();
+        File hgFile;
+        File weightsFile;
+        try {
+            hgFile = File.createTempFile("hypergraph", ".dtl");
+            weightsFile = File.createTempFile("weights", ".csv");
+            hgFile = Paths.get("hypergraph.dtl").toFile();
+            weightsFile = Paths.get("weights.csv").toFile();
+        } catch (IOException e) {
+            throw new JoinTreeGenerationException("Could not create temporary file: " + e.getMessage());
+        }
+
+        String htFileName = hgFile.getAbsolutePath().replace(".dtl", ".gml");
+
+        try {
+            PrintWriter hgFileWriter = new PrintWriter(hgFile);
+            hgFileWriter.write(fileContent);
+            hgFileWriter.close();
+
+            PrintWriter weightFileWriter = new PrintWriter(weightsFile);
+            weightFileWriter.write(weightFileContent);
+            weightFileWriter.close();
+        } catch (FileNotFoundException e) {
+            throw new JoinTreeGenerationException("Error writing to file: " + e.getMessage());
+        }
+
+        // Call the decomposition process
+
+            try {
+                Process process;
+                if (options.isDepthOpt()) {
+                    process = new ProcessBuilder("python3",
+                            "jointree_search/jointree_gen/main.py", hgFile.getAbsolutePath(), weightsFile.getAbsolutePath(),
+                            htFileName, "--depth").start();
+                }
+                else {
+                    process = new ProcessBuilder("python3",
+                            "jointree_search/jointree_gen/main.py", hgFile.getAbsolutePath(), weightsFile.getAbsolutePath(),
+                            htFileName).start();
+                }
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+                String output = br.lines().collect(Collectors.joining());
+
+                System.out.println(output);
+
+                if (output.contains("RecursionError")) {
+                    return null;
+                }
+            } catch (IOException e) {
+                throw new JoinTreeGenerationException("Error executing python");
+            }
+
+        decompositionTree = new SimpleDirectedGraph<>(DefaultEdge.class);
+
+        VertexProvider<HypertreeNode> vp = new VertexProvider<>() {
+            private Pattern edgePattern = Pattern.compile("^\\s*\\{(.*)\\}\\s*[\\{\\(](.*)[\\}\\)]");
+
+            @Override
+            public HypertreeNode buildVertex(String id, Map<String, Attribute> map) {
+                String label = map.get("label").getValue();
+                Matcher edgeMatcher = edgePattern.matcher(label);
+                if (edgeMatcher.find()) {
+                    String[] edges = edgeMatcher.group(1).split(",");
+                    List<String> edgesList = new LinkedList<>();
+                    // Remove whitespace from hyperedges
+                    for (String edge : edges) {
+                        edgesList.add(edge.trim());
+                    }
+
+                    String[] variables = edgeMatcher.group(2).split(",");
+
+                    List<String> variablesList = new LinkedList<>();
+                    // Remove whitespace from hyperedges
+                    for (String var : variables) {
+                        variablesList.add(var.trim());
+                    }
+
+                    return new HypertreeNode(id, edgesList, variablesList);
+                } else {
+                    // In case there is an empty list ...
+                    return null;
+                }
+            }
+        };
+
+        EdgeProvider<HypertreeNode, DefaultEdge> ep = (from, to, label, map) -> decompositionTree.addEdge(from, to);
+
+        // Import the GML file
+        try {
+            GmlImporter<HypertreeNode, DefaultEdge> importer = new GmlImporter<>(vp, ep);
+
+            importer.importGraph(decompositionTree, new File(htFileName));
+
+            Iterator<HypertreeNode> it = new BreadthFirstIterator<>(decompositionTree);
+
+            HypertreeNode root = null;
+            for (HypertreeNode n : decompositionTree.vertexSet()) {
+                // In the case of detkdecomp n.id == 0 can also be checked
+                if (decompositionTree.inDegreeOf(n) == 0) {
+                    root = n;
+                }
+            }
+
+            hgFile.delete();
+            Files.delete(Paths.get(htFileName));
+
+            System.out.println("join tree from gml " + hypertreeToJoinTree(root));
+            return hypertreeToJoinTree(root);
+        } catch (ImportException e) {
+            throw new JoinTreeGenerationException("Error importing hypertree file: " + e.getMessage());
+        } catch (IOException e) {
+            throw new JoinTreeGenerationException("Error deleting temporary files: " + e.getMessage());
+        }
     }
 
     // TODO refactor copy paste
@@ -308,7 +423,7 @@ public class WeightedHypergraph extends Hypergraph {
         System.out.println("Attempting to create hypertree of width " + hypertreeWidth);
 
         if (hypertreeWidth == 1) {
-            //return toAcyclicJoinTree(options);
+            return toAcyclicJoinTree(options);
         }
 
         determineWeightsForBagSize(hypertreeWidth);

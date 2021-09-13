@@ -46,6 +46,7 @@ public class Benchmark {
     private boolean noReinsert = false;
     private boolean dropTables = true;
     private boolean createIndexes = false;
+    private boolean depthOpt = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -87,6 +88,7 @@ public class Benchmark {
         Option noReinsert = new Option(null, "no-reinsert", false, "don't re-insert the data after the first run");
         Option noDrop = new Option(null, "no-drop", false, "don't drop temporary tables");
         Option useIndexes = new Option(null, "create-indexes", false, "create indexes on the temporary tables");
+        Option depthOpt = new Option(null, "depth-opt", false, "the maximum depth of the generated join trees for acyclic queries");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -105,6 +107,7 @@ public class Benchmark {
         options.addOption(noReinsert);
         options.addOption(noDrop);
         options.addOption(useIndexes);
+        options.addOption(depthOpt);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -131,238 +134,75 @@ public class Benchmark {
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-        try {
-            Benchmark benchmark;
-            if (cmd.hasOption("db")) {
-                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url, cmd.getOptionValue("db"));
-            } else {
-                benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url);
-            }
-            if (cmd.hasOption("runs")) {
-                benchmark.setRuns(Integer.parseInt(cmd.getOptionValue("runs")));
-            }
-            if (cmd.hasOption("methods")) {
-                String[] decompMethods = cmd.getOptionValue("methods").split(",");
-                benchmark.setDecompAlgorithms(Arrays.stream(decompMethods).
-                        map(DecompositionOptions.DecompAlgorithm::valueOf)
-                        .collect(Collectors.toList()));
-            }
-            if (cmd.hasOption("queries")) {
-                String[] queries = cmd.getOptionValue("queries").split(",");
-                benchmark.setQueries(Set.of(queries));
-            }
-            if (cmd.hasOption("timeout")) {
-                benchmark.setQueryTimeout(Integer.parseInt(cmd.getOptionValue("timeout")));
-            }
-            if (cmd.hasOption("check")) {
-                benchmark.setCheckCorrectness(true);
-            }
-            if (cmd.hasOption("parallel")) {
-                benchmark.setRunparallel(true);
-            }
-            if (cmd.hasOption("threads")) {
-                Integer threadCount = Integer.parseInt(cmd.getOptionValue("threads"));
-                if (threadCount < 1) {
-                    throw new IllegalArgumentException("The thread count has to be at least 1");
-                }
-                benchmark.setThreadCount(threadCount);
-            }
-            if (cmd.hasOption("boolean")) {
-                benchmark.setBooleanQuery(true);
-            }
-            if (cmd.hasOption("unweighted")) {
-                benchmark.setUseStatistics(false);
-            }
-            if (cmd.hasOption("keep-tables")) {
-                benchmark.setKeepTables(true);
-            }
-            if (cmd.hasOption("analyze")) {
-                benchmark.setAnalyzeQuery(true);
-            }
-            if (cmd.hasOption("no-create")) {
-                benchmark.setInsertData(false);
-            }
-            if (cmd.hasOption("no-reinsert")) {
-                benchmark.setNoReinsert(true);
-            }
-            if (cmd.hasOption("no-drop")) {
-                benchmark.setDropTables(false);
-            }
-            if (cmd.hasOption("create-indexes")) {
-                benchmark.setCreateIndexes(true);
-            }
-
-            benchmark.run();
-
-            File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
-            resultsDirectory.mkdirs();
-
-            SummarizedResultsCSVGenerator csvGenerator = new SummarizedResultsCSVGenerator();
-
-            for (BenchmarkResult res : benchmark.getResults()) {
-                csvGenerator.addResult(res);
-
-                BenchmarkConf conf = res.getConf();
-
-                File subResultsDir = new File(resultsDirectory.getAbsolutePath() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
-                subResultsDir.mkdirs();
-
-                File hypergraphFile = new File(subResultsDir + "/hypergraph.dtl");
-
-                // Write hypergraph
-                if (res.getHypergraph() != null) {
-                    PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
-                    hypergraphWriter.write(res.getHypergraph().toDTL());
-                    hypergraphWriter.close();
-
-                    // Write graph rendering
-                    res.getHypergraph().toPDF(Paths.get(subResultsDir + "/hypergraph.pdf"));
-                }
-
-                // Write out the java data structure
-                File resultTxtFile = new File(subResultsDir + "/result.txt");
-                PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
-                resultStringWriter.write(res.toString());
-                resultStringWriter.close();
-
-                // Write out the original query
-                File queryFile = new File(subResultsDir + "/query.sql");
-                PrintWriter queryWriter = new PrintWriter(queryFile);
-                queryWriter.write(res.getQuery());
-                queryWriter.close();
-
-                if (res.getGeneratedQuery() != null) {
-                    // Write out the optimized generated query
-                    File generatedQueryFile = new File(subResultsDir + "/generated.sql");
-                    PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
-                    generatedQueryWriter.write(res.getGeneratedQuery());
-                    generatedQueryWriter.close();
-                }
-
-                // Write out the serialized results as json
-                File resultJsonFile = new File(subResultsDir + "/result.json");
-                PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
-                resultJsonWriter.write(gson.toJson(res));
-                resultJsonWriter.close();
-
-                if (res.getHypergraph() instanceof WeightedHypergraph) {
-                    File hgWeightsFile = new File(subResultsDir + "/hg-weights.csv");
-                    PrintWriter weightsWriter = new PrintWriter(hgWeightsFile);
-                    weightsWriter.write(((WeightedHypergraph) res.getHypergraph()).toWeightsFile());
-                    weightsWriter.close();
-                }
-
-                if (benchmark.analyzeQuery) {
-                    File analyzeJSONFile = new File(subResultsDir + "/analyze.json");
-                    PrintWriter analyzeJsonWriter = new PrintWriter(analyzeJSONFile);
-                    analyzeJsonWriter.write(res.getAnalyzeJSON());
-                    analyzeJsonWriter.close();
-
-                    for (ExecutionStatistics executionStatistics : res.getExecutionStatistics()) {
-                        AnalyzeExecutionStatistics analyzeExecutionStatistics = (AnalyzeExecutionStatistics) executionStatistics;
-
-                        File stageDir = new File(subResultsDir + "/stage-" + executionStatistics.getQueryName());
-                        stageDir.mkdirs();
-
-                        int i = 1;
-                        System.out.println(analyzeExecutionStatistics.getAnalyzeJSONs());
-                        for (String analyzeJSON : analyzeExecutionStatistics.getAnalyzeJSONs()) {
-
-                            File analyzeOptimizedJSONFile = new File(stageDir+ "/analyze-" + i + ".json");
-                            PrintWriter analyzeOptimizedJsonWriter = new PrintWriter(analyzeOptimizedJSONFile);
-                            analyzeOptimizedJsonWriter.write(analyzeJSON);
-                            analyzeOptimizedJsonWriter.close();
-
-                            File analyzeOptimizedQueryStringFile = new File(stageDir+ "/analyze-" + i + ".sql");
-                            PrintWriter analyzeOptimizedQueryStringWriter = new PrintWriter(analyzeOptimizedQueryStringFile);
-                            analyzeOptimizedQueryStringWriter.write(analyzeExecutionStatistics.getQueryStrings().get(i-1));
-                            analyzeOptimizedQueryStringWriter.close();
-                            i++;
-                        }
-                    }
-                }
-
-                String runtimeStatistics = "name,runtime\n";
-
-                if (res.getExecutionStatistics() != null) {
-                    for (ExecutionStatistics stats : res.getExecutionStatistics()) {
-                        runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "\n";
-                    }
-                }
-
-                File statisticsFile = new File(subResultsDir + "/stages-runtimes.csv");
-                PrintWriter statisticsWriter = new PrintWriter(statisticsFile);
-                statisticsWriter.write(runtimeStatistics);
-                statisticsWriter.close();
-            }
-
-            Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
-
-        } catch (FileNotFoundException e) {
-            System.out.printf("File not found exception: %s\n", e.getMessage());
-        } catch (InterruptedException | IOException e) {
-            e.printStackTrace();
+        Benchmark benchmark;
+        if (cmd.hasOption("db")) {
+            benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url, cmd.getOptionValue("db"));
+        } else {
+            benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url);
         }
-    }
+        if (cmd.hasOption("runs")) {
+            benchmark.setRuns(Integer.parseInt(cmd.getOptionValue("runs")));
+        }
+        if (cmd.hasOption("methods")) {
+            String[] decompMethods = cmd.getOptionValue("methods").split(",");
+            benchmark.setDecompAlgorithms(Arrays.stream(decompMethods).
+                    map(DecompositionOptions.DecompAlgorithm::valueOf)
+                    .collect(Collectors.toList()));
+        }
+        if (cmd.hasOption("queries")) {
+            String[] queries = cmd.getOptionValue("queries").split(",");
+            benchmark.setQueries(Set.of(queries));
+        }
+        if (cmd.hasOption("timeout")) {
+            benchmark.setQueryTimeout(Integer.parseInt(cmd.getOptionValue("timeout")));
+        }
+        if (cmd.hasOption("check")) {
+            benchmark.setCheckCorrectness(true);
+        }
+        if (cmd.hasOption("parallel")) {
+            benchmark.setRunparallel(true);
+        }
+        if (cmd.hasOption("threads")) {
+            Integer threadCount = Integer.parseInt(cmd.getOptionValue("threads"));
+            if (threadCount < 1) {
+                throw new IllegalArgumentException("The thread count has to be at least 1");
+            }
+            benchmark.setThreadCount(threadCount);
+        }
+        if (cmd.hasOption("boolean")) {
+            benchmark.setBooleanQuery(true);
+        }
+        if (cmd.hasOption("unweighted")) {
+            benchmark.setUseStatistics(false);
+        }
+        if (cmd.hasOption("keep-tables")) {
+            benchmark.setKeepTables(true);
+        }
+        if (cmd.hasOption("analyze")) {
+            benchmark.setAnalyzeQuery(true);
+        }
+        if (cmd.hasOption("no-create")) {
+            benchmark.setInsertData(false);
+        }
+        if (cmd.hasOption("no-reinsert")) {
+            benchmark.setNoReinsert(true);
+        }
+        if (cmd.hasOption("no-drop")) {
+            benchmark.setDropTables(false);
+        }
+        if (cmd.hasOption("create-indexes")) {
+            benchmark.setCreateIndexes(true);
+        }
+        if (cmd.hasOption("depth-opt")) {
+            benchmark.setDepthOpt(true);
+        }
 
-    public void setDecompAlgorithms(List<DecompositionOptions.DecompAlgorithm> decompAlgos) {
-        decompAlgorithms = new HashSet<>(decompAlgos);
-    }
+        File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
+        resultsDirectory.mkdirs();
 
-    public void setQueries(Set<String> queries) {
-        this.queries = queries;
-    }
+        SummarizedResultsCSVGenerator csvGenerator = new SummarizedResultsCSVGenerator();
 
-    public void setRuns(int runs) {
-        this.runs = runs;
-    }
-
-    public void setQueryTimeout(int timeout) {
-        this.queryTimeout = timeout;
-    }
-
-    public void setCheckCorrectness(boolean checkCorrectness) {
-        this.checkCorrectness = checkCorrectness;
-    }
-
-    public void setRunparallel(boolean runparallel) {
-        this.runparallel = runparallel;
-    }
-
-    public void setThreadCount(Integer threadCount) {
-        this.threadCount = threadCount;
-    }
-
-    public void setUseStatistics(boolean useStatistics) {
-        this.useStatistics = useStatistics;
-    }
-
-    public void setBooleanQuery(boolean booleanQuery) {
-        this.booleanQuery = booleanQuery;
-    }
-
-    public void setKeepTables(boolean keepTables) {
-        this.keepTables = keepTables;
-    }
-
-    public void setAnalyzeQuery(boolean analyzeQuery) {
-        this.analyzeQuery = analyzeQuery;
-    }
-
-    public void setInsertData(boolean insertData) {
-        this.insertData = insertData;
-    }
-
-    public void setNoReinsert(boolean noReinsert) {
-        this.noReinsert = noReinsert;
-    }
-
-    public void setDropTables(boolean dropTables) {
-        this.dropTables = dropTables;
-    }
-
-    public void setCreateIndexes(boolean createIndexes) {
-        this.createIndexes = createIndexes;
+        benchmark.run(resultsDirectory, csvGenerator);
     }
 
     private void dropAllTables(Connection conn) throws SQLException {
@@ -393,7 +233,7 @@ public class Benchmark {
         System.out.println("Running insert script: " + String.join(" ", psqlOutput));
     }
 
-    private void benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
+    private BenchmarkResult benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
         BenchmarkResult result = new BenchmarkResult(conf);
@@ -403,8 +243,7 @@ public class Benchmark {
         ConnectionPool connPool;
         if (conf.getThreadCount() == null) {
             connPool = new ConnectionPool(dbURL, connectionProperties);
-        }
-        else {
+        } else {
             connPool = new ConnectionPool(dbURL, connectionProperties, conf.getThreadCount());
         }
         File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
@@ -414,12 +253,14 @@ public class Benchmark {
 
         Connection conn = DriverManager.getConnection(dbURL, connectionProperties);
 
-        if (!keepTables) {
-            dropAllTables(conn);
-        }
+        if (!(noReinsert && !conf.isFirstRun())) {
+            if (!keepTables) {
+                dropAllTables(conn);
+            }
 
-        if (insertData) {
-            insertData(conf);
+            if (insertData) {
+                insertData(conf);
+            }
         }
 
         UnoptimizedQueryExecutor originalQE = null;
@@ -429,7 +270,7 @@ public class Benchmark {
             originalQE = new UnoptimizedQueryExecutor(conn);
 
             if (conf.isParallel()) {
-                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true, dropTables, createIndexes);
+                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true, dropTables, createIndexes, depthOpt);
             }
             else {
                 optimizedQE = new TempTableQueryExecutor(connPool, useStatistics);
@@ -621,14 +462,14 @@ public class Benchmark {
 
         result.setOptimizedResultCorrect(correctResult);
 
-        results.add(result);
+        return result;
     }
 
     private List<BenchmarkConf> generateBenchmarkConfigs() throws IOException {
         LinkedList<BenchmarkConf> confs = new LinkedList<>();
 
-        DecompositionOptions detkdecompOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.DETKDECOMP);
-        DecompositionOptions balancedGoOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.BALANCEDGO);
+        DecompositionOptions detkdecompOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.DETKDECOMP, depthOpt);
+        DecompositionOptions balancedGoOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.BALANCEDGO, depthOpt);
 
         File dataRootDir = new File(dbRootDir);
         File[] subdirs = dataRootDir.listFiles(File::isDirectory);
@@ -683,11 +524,13 @@ public class Benchmark {
                                 for (int run = 1; run <= runs; run++) {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
-                                                detkdecompOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics));
+                                                detkdecompOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics,
+                                                run == 1));
                                     }
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
-                                                balancedGoOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics));
+                                                balancedGoOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics,
+                                                run == 1));
                                     }
                                 }
                             }
@@ -700,18 +543,113 @@ public class Benchmark {
         return confs;
     }
 
-    public void run() {
+    public void run(File resultsDirectory, SummarizedResultsCSVGenerator csvGenerator) {
         try {
             List<BenchmarkConf> confs = generateBenchmarkConfigs();
 
             for (BenchmarkConf conf : confs) {
-                benchmark(conf);
+                BenchmarkResult res = benchmark(conf);
+
+                csvGenerator.addResult(res);
+
+                File subResultsDir = new File(resultsDirectory.getAbsolutePath() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
+                subResultsDir.mkdirs();
+
+                File hypergraphFile = new File(subResultsDir + "/hypergraph.dtl");
+
+                // Write hypergraph
+                if (res.getHypergraph() != null) {
+                    PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
+                    hypergraphWriter.write(res.getHypergraph().toDTL());
+                    hypergraphWriter.close();
+
+                    // Write graph rendering
+                    res.getHypergraph().toPDF(Paths.get(subResultsDir + "/hypergraph.pdf"));
+                }
+
+                // Write out the java data structure
+                File resultTxtFile = new File(subResultsDir + "/result.txt");
+                PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
+                resultStringWriter.write(res.toString());
+                resultStringWriter.close();
+
+                // Write out the original query
+                File queryFile = new File(subResultsDir + "/query.sql");
+                PrintWriter queryWriter = new PrintWriter(queryFile);
+                queryWriter.write(res.getQuery());
+                queryWriter.close();
+
+                if (res.getGeneratedQuery() != null) {
+                    // Write out the optimized generated query
+                    File generatedQueryFile = new File(subResultsDir + "/generated.sql");
+                    PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
+                    generatedQueryWriter.write(res.getGeneratedQuery());
+                    generatedQueryWriter.close();
+                }
+
+                // Write out the serialized results as json
+                File resultJsonFile = new File(subResultsDir + "/result.json");
+                PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
+                //resultJsonWriter.write(gson.toJson(res));
+                resultJsonWriter.close();
+
+                if (res.getHypergraph() instanceof WeightedHypergraph) {
+                    File hgWeightsFile = new File(subResultsDir + "/hg-weights.csv");
+                    PrintWriter weightsWriter = new PrintWriter(hgWeightsFile);
+                    weightsWriter.write(((WeightedHypergraph) res.getHypergraph()).toWeightsFile());
+                    weightsWriter.close();
+                }
+
+                if (analyzeQuery) {
+                    File analyzeJSONFile = new File(subResultsDir + "/analyze.json");
+                    PrintWriter analyzeJsonWriter = new PrintWriter(analyzeJSONFile);
+                    analyzeJsonWriter.write(res.getAnalyzeJSON());
+                    analyzeJsonWriter.close();
+
+                    for (ExecutionStatistics executionStatistics : res.getExecutionStatistics()) {
+                        AnalyzeExecutionStatistics analyzeExecutionStatistics = (AnalyzeExecutionStatistics) executionStatistics;
+
+                        File stageDir = new File(subResultsDir + "/stage-" + executionStatistics.getQueryName());
+                        stageDir.mkdirs();
+
+                        int i = 1;
+                        System.out.println(analyzeExecutionStatistics.getAnalyzeJSONs());
+                        for (String analyzeJSON : analyzeExecutionStatistics.getAnalyzeJSONs()) {
+
+                            File analyzeOptimizedJSONFile = new File(stageDir+ "/analyze-" + i + ".json");
+                            PrintWriter analyzeOptimizedJsonWriter = new PrintWriter(analyzeOptimizedJSONFile);
+                            analyzeOptimizedJsonWriter.write(analyzeJSON);
+                            analyzeOptimizedJsonWriter.close();
+
+                            File analyzeOptimizedQueryStringFile = new File(stageDir+ "/analyze-" + i + ".sql");
+                            PrintWriter analyzeOptimizedQueryStringWriter = new PrintWriter(analyzeOptimizedQueryStringFile);
+                            analyzeOptimizedQueryStringWriter.write(analyzeExecutionStatistics.getQueryStrings().get(i-1));
+                            analyzeOptimizedQueryStringWriter.close();
+                            i++;
+                        }
+                    }
+                }
+
+                String runtimeStatistics = "name,runtime\n";
+
+                if (res.getExecutionStatistics() != null) {
+                    for (ExecutionStatistics stats : res.getExecutionStatistics()) {
+                        runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "\n";
+                    }
+                }
+
+                File statisticsFile = new File(subResultsDir + "/stages-runtimes.csv");
+                PrintWriter statisticsWriter = new PrintWriter(statisticsFile);
+                statisticsWriter.write(runtimeStatistics);
+                statisticsWriter.close();
+
+                Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
 
                 // Do garbage collection because otherwise the benchmark crashes due to OOM ...
                 System.gc();
                 System.runFinalization();
             }
-        } catch (SQLException | IOException | QueryConversionException e) {
+        } catch (SQLException | IOException | QueryConversionException | InterruptedException e) {
             System.out.println("Error benchmarking: " + e.getMessage());
             e.printStackTrace();
         }
@@ -719,5 +657,70 @@ public class Benchmark {
 
     public List<BenchmarkResult> getResults() {
         return results;
+    }
+
+
+    public void setDecompAlgorithms(List<DecompositionOptions.DecompAlgorithm> decompAlgos) {
+        decompAlgorithms = new HashSet<>(decompAlgos);
+    }
+
+    public void setQueries(Set<String> queries) {
+        this.queries = queries;
+    }
+
+    public void setRuns(int runs) {
+        this.runs = runs;
+    }
+
+    public void setQueryTimeout(int timeout) {
+        this.queryTimeout = timeout;
+    }
+
+    public void setCheckCorrectness(boolean checkCorrectness) {
+        this.checkCorrectness = checkCorrectness;
+    }
+
+    public void setRunparallel(boolean runparallel) {
+        this.runparallel = runparallel;
+    }
+
+    public void setThreadCount(Integer threadCount) {
+        this.threadCount = threadCount;
+    }
+
+    public void setUseStatistics(boolean useStatistics) {
+        this.useStatistics = useStatistics;
+    }
+
+    public void setBooleanQuery(boolean booleanQuery) {
+        this.booleanQuery = booleanQuery;
+    }
+
+    public void setKeepTables(boolean keepTables) {
+        this.keepTables = keepTables;
+    }
+
+    public void setAnalyzeQuery(boolean analyzeQuery) {
+        this.analyzeQuery = analyzeQuery;
+    }
+
+    public void setInsertData(boolean insertData) {
+        this.insertData = insertData;
+    }
+
+    public void setNoReinsert(boolean noReinsert) {
+        this.noReinsert = noReinsert;
+    }
+
+    public void setDropTables(boolean dropTables) {
+        this.dropTables = dropTables;
+    }
+
+    public void setCreateIndexes(boolean createIndexes) {
+        this.createIndexes = createIndexes;
+    }
+
+    public void setDepthOpt(boolean depthOpt) {
+        this.depthOpt = depthOpt;
     }
 }
