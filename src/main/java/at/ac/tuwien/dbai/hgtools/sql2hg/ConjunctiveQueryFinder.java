@@ -15,12 +15,7 @@ import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.CreateFunctionalStatement;
 import net.sf.jsqlparser.statement.Statement;
-import net.sf.jsqlparser.statement.alter.sequence.AlterSequence;
-import net.sf.jsqlparser.statement.create.schema.CreateSchema;
-import net.sf.jsqlparser.statement.create.sequence.CreateSequence;
-import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.Join;
@@ -343,11 +338,6 @@ public class ConjunctiveQueryFinder extends QueryVisitorUnsupportedAdapter {
 	// StatementVisitor
 
 	@Override
-	public void visit(CreateSchema createSchema) {
-
-	}
-
-	@Override
 	public void visit(Select select) {
 		if (select.getWithItemsList() != null) {
 			for (WithItem withItem : select.getWithItemsList()) {
@@ -359,26 +349,6 @@ public class ConjunctiveQueryFinder extends QueryVisitorUnsupportedAdapter {
 		currentState = ParsingState.IN_SELECT;
 		select.getSelectBody().accept(this);
 		currentState = ParsingState.FINISHED;
-	}
-
-	@Override
-	public void visit(Grant grant) {
-
-	}
-
-	@Override
-	public void visit(CreateSequence createSequence) {
-
-	}
-
-	@Override
-	public void visit(AlterSequence alterSequence) {
-
-	}
-
-	@Override
-	public void visit(CreateFunctionalStatement createFunctionalStatement) {
-
 	}
 
 }

@@ -61,6 +61,9 @@ public class HypergraphBuilder {
 		String col2 = join.getPredicate2().getDefiningAttribute(join.getAttribute2());
 		String var1 = colToVar.get(col1);
 		String var2 = colToVar.get(col2);
+		System.out.println(colToVar);
+		System.out.println(col1 + "," + col2);
+		System.out.println(var1 + "," + var2);
 		vars.union(var1, var2);
 	}
 
@@ -100,6 +103,10 @@ public class HypergraphBuilder {
 			varToCol.computeIfAbsent(var, k -> new LinkedList<>()).add(col);
 		}
 		return varToCol;
+	}
+
+	public Map<String, String> getColToVarMapping() {
+		return colToVar;
 	}
 
 }

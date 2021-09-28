@@ -333,7 +333,7 @@ public class WeightedHypergraph extends Hypergraph {
                 if (options.isDepthOpt()) {
                     process = new ProcessBuilder("python3",
                             "jointree_search/jointree_gen/main.py", hgFile.getAbsolutePath(), weightsFile.getAbsolutePath(),
-                            htFileName, "--depth").start();
+                            htFileName, "--depth", "--new").start();
                 }
                 else {
                     process = new ProcessBuilder("python3",
@@ -422,7 +422,7 @@ public class WeightedHypergraph extends Hypergraph {
     public JoinTreeNode toJoinTree(int hypertreeWidth, DecompositionOptions options) throws JoinTreeGenerationException {
         System.out.println("Attempting to create hypertree of width " + hypertreeWidth);
 
-        if (hypertreeWidth == 1) {
+        if (hypertreeWidth == 1 && options.isDepthOpt()) {
             return toAcyclicJoinTree(options);
         }
 

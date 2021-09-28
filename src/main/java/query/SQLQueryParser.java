@@ -31,6 +31,8 @@ import net.sf.jsqlparser.statement.values.ValuesStatement;
 import schema.DBSchema;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectItemVisitor, ExpressionVisitor, FromItemVisitor {
     private DBSchema schema;
@@ -75,6 +77,15 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     @Override
     public void visit(PlainSelect plainSelect) {
         plainSelect.getSelectItems().forEach(selectItem -> selectItem.accept(this));
+        plainSelect.getSelectItems().forEach(selectItem -> {
+            System.out.println(selectItem.toString());
+            Pattern p = Pattern.compile("\\((.*)\\)");
+            Matcher m = p.matcher(selectItem.toString());
+            if (m.find()) {
+                System.out.println(m.group(1));
+                projectColumns.add(m.group(1));
+            }
+        });
         plainSelect.getFromItem().accept(this);
         plainSelect.getJoins().forEach(join -> join.getRightItem().accept(this));
     }
@@ -119,6 +130,7 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     @Override
     public void visit(ValuesStatement valuesStatement) {
         // ?
+        System.out.println("valuesStatement: " + valuesStatement);
     }
 
     @Override
@@ -415,7 +427,7 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
 
     @Override
     public void visit(AnalyticExpression analyticExpression) {
-
+        System.out.println("analytic:" + analyticExpression);
     }
 
     @Override
