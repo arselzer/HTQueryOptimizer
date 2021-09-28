@@ -47,6 +47,8 @@ public class Benchmark {
     private boolean dropTables = true;
     private boolean createIndexes = false;
     private boolean depthOpt = false;
+    private boolean acyclicOpt = true;
+    private String schemaFile = null;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -89,6 +91,9 @@ public class Benchmark {
         Option noDrop = new Option(null, "no-drop", false, "don't drop temporary tables");
         Option useIndexes = new Option(null, "create-indexes", false, "create indexes on the temporary tables");
         Option depthOpt = new Option(null, "depth-opt", false, "the maximum depth of the generated join trees for acyclic queries");
+        Option disableAcyclicTreeOpt = new Option(null, "no-acyclic-opt", false, "disable the join tree optimization and use BalancedGo");
+        Option schemaFile = new Option(null, "schema-file", true, "the schema file to use for parsing the query");
+        schemaFile.setType(String.class);
 
         options.addOption(help);
         options.addOption(setDb);
@@ -108,6 +113,8 @@ public class Benchmark {
         options.addOption(noDrop);
         options.addOption(useIndexes);
         options.addOption(depthOpt);
+        options.addOption(disableAcyclicTreeOpt);
+        options.addOption(schemaFile);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -196,6 +203,12 @@ public class Benchmark {
         if (cmd.hasOption("depth-opt")) {
             benchmark.setDepthOpt(true);
         }
+        if (cmd.hasOption("no-acyclic-opt")) {
+            benchmark.setAcyclicOpt(false);
+        }
+        if (cmd.hasOption("schema-file")) {
+            benchmark.setSchemaFile(cmd.getOptionValue("schema-file"));
+        }
 
         File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
         resultsDirectory.mkdirs();
@@ -270,7 +283,7 @@ public class Benchmark {
             originalQE = new UnoptimizedQueryExecutor(conn);
 
             if (conf.isParallel()) {
-                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true, dropTables, createIndexes, depthOpt);
+                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true, dropTables, createIndexes, depthOpt, schemaFile);
             }
             else {
                 optimizedQE = new TempTableQueryExecutor(connPool, useStatistics);
@@ -468,8 +481,10 @@ public class Benchmark {
     private List<BenchmarkConf> generateBenchmarkConfigs() throws IOException {
         LinkedList<BenchmarkConf> confs = new LinkedList<>();
 
-        DecompositionOptions detkdecompOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.DETKDECOMP, depthOpt);
-        DecompositionOptions balancedGoOptions = new DecompositionOptions(DecompositionOptions.DecompAlgorithm.BALANCEDGO, depthOpt);
+        DecompositionOptions detkdecompOptions = new DecompositionOptions(
+                DecompositionOptions.DecompAlgorithm.DETKDECOMP, depthOpt, acyclicOpt);
+        DecompositionOptions balancedGoOptions = new DecompositionOptions(
+                DecompositionOptions.DecompAlgorithm.BALANCEDGO, depthOpt, acyclicOpt);
 
         File dataRootDir = new File(dbRootDir);
         File[] subdirs = dataRootDir.listFiles(File::isDirectory);
@@ -722,5 +737,13 @@ public class Benchmark {
 
     public void setDepthOpt(boolean depthOpt) {
         this.depthOpt = depthOpt;
+    }
+
+    public void setAcyclicOpt(boolean acyclicOpt) {
+        this.acyclicOpt = acyclicOpt;
+    }
+
+    public void setSchemaFile(String schemaFile) {
+        this.schemaFile = schemaFile;
     }
 }

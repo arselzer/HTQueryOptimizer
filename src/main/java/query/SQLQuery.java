@@ -21,6 +21,8 @@ import schema.DBSchema;
 import schema.Table;
 import schema.TableStatistics;
 
+import java.io.*;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -57,6 +59,8 @@ public class SQLQuery {
     private long hypergraphGenerationRuntime;
 
     private boolean createIndexes = false;
+
+    private String schemaFile = null;
 
     public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException, TableNotFoundException {
         this.query = query;
@@ -156,6 +160,8 @@ public class SQLQuery {
                 }
             }
 
+            System.out.println("project columns: " + projectColumns);
+
             aliasTables = queryParser.getTables();
 
             // Fill all column aliases: e.g. renamed.a -> original.a
@@ -189,9 +195,53 @@ public class SQLQuery {
         return toParallelExecution(false);
     }
 
+    public static void deleteFolder(File folder) {
+        File[] files = folder.listFiles();
+        if(files!=null) { //some JVMs return null for empty dirs
+            for(File f: files) {
+                if(f.isDirectory()) {
+                    deleteFolder(f);
+                } else {
+                    f.delete();
+                }
+            }
+        }
+        folder.delete();
+    }
+
     public ParallelQueryExecution toParallelExecution(boolean bcq) throws QueryConversionException {
         System.out.println("toParallelExecution");
         List<List<List<String>>> resultQueryStages = new LinkedList<>();
+
+        List<String> finalProjectAggregates = new LinkedList<>();
+        Map<String, List<String>> whereFilters = new HashMap<>();
+        Map<String, String> newToOldHGMap = new HashMap<>();
+        System.out.println("schemaFile: " + schemaFile);
+        if (schemaFile != null) {
+            File sqlFile;
+            try {
+                sqlFile = new File("query.sql");
+
+                PrintWriter hgFileWriter = new PrintWriter(sqlFile);
+                hgFileWriter.write(query);
+                hgFileWriter.close();
+
+                Process process = new ProcessBuilder("java", "-jar", "hgtools.jar", "-convEval",
+                        "-sql", schemaFile, sqlFile.getAbsolutePath()).start();
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+                String output = br.lines().collect(Collectors.joining());
+
+                System.out.println("output:" + output);
+
+                //deleteFolder(new File("output"));
+
+                System.out.println("where filters: " + whereFilters);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
 
         Hypergraph hg;
         if (statistics == null) {
@@ -209,6 +259,73 @@ public class SQLQuery {
             }
         }
         this.hypergraph = hg;
+
+        List<String> mapLines = null;
+        try {
+            mapLines = Files.readAllLines(new File("output/query.map").toPath());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        Map<String, String> columnToVariabeMappingWithUnderscores = new HashMap<>();
+
+        for (String column : hypergraph.getColumnToVariableMapping().keySet()) {
+            columnToVariabeMappingWithUnderscores.put(column.replace(".", "_"), hypergraph.getColumnToVariableMapping().get(column));
+        }
+
+        for (String line : mapLines) {
+            String[] splits = line.split("=");
+
+            System.out.println(hypergraph.getColumnToVariableMapping());
+
+            newToOldHGMap.put(splits[0], columnToVariabeMappingWithUnderscores.get(splits[1].split(",")[0]));
+        }
+
+//        String replacedLine = line;
+//        for (String attribute: newToOldHGMap.keySet()) {
+//            replacedLine.replace(attribute, newToOldHGMap.get(attribute));
+//        }
+
+        try {
+            finalProjectAggregates = Files.readAllLines(new File("output/query.sel").toPath()).stream()
+                    .map(line -> {
+
+                        String replacedLine = line;
+                        for (String attribute: newToOldHGMap.keySet()) {
+                            System.out.println(attribute + " " + newToOldHGMap + replacedLine + " " + newToOldHGMap.get(attribute));
+                            replacedLine = replacedLine.replace(attribute, newToOldHGMap.get(attribute));
+                        }
+
+                        return replacedLine;
+            }).collect(Collectors.toList());
+
+            System.out.println("aggregates: " + finalProjectAggregates);
+
+            List<String> whereFilterLines = Files.readAllLines(new File("output/query.flt").toPath()).stream()
+                    .map(line -> {
+
+                        String replacedLine = line;
+                        for (String attribute: newToOldHGMap.keySet()) {
+                            replacedLine = replacedLine.replace(attribute, newToOldHGMap.get(attribute));
+                        }
+
+                        return replacedLine;
+                    }).collect(Collectors.toList());
+
+            for (String line : whereFilterLines) {
+                String[] splits = line.split(";");
+                if (whereFilters.containsKey(splits[0])) {
+                    whereFilters.get(splits[0]).add(splits[1]);
+                }
+                else {
+                    whereFilters.put(splits[0], new LinkedList<>(List.of(splits[1])));
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
 
         try {
             long startTime = System.currentTimeMillis();
@@ -288,15 +405,26 @@ public class SQLQuery {
                     // The alias may also be equivalent to the table if no renaming has occurred
                     String tableName = tableAliases.get(tableAliasName);
                     LinkedList<String> columnRewrites = new LinkedList<>();
+                    LinkedList<String> filteredColumnRewrites = new LinkedList<>();
 
                     Hyperedge he = hg.getEdgeByName(tableAliasName);
                     Set<String> tableVariables = new HashSet<>(node.getAttributes());
                     tableVariables.retainAll(he.getNodes());
+                    Set<String> tableVariablesIncludingFiltered = new HashSet<>(tableVariables);
+                    for (String whereFilterAttribute : whereFilters.keySet()) {
+                        if (he.getNodes().contains(whereFilterAttribute)) {
+                            tableVariablesIncludingFiltered.add(whereFilterAttribute);
+                        }
+                    }
 
                     for (String variableName : tableVariables) {
                         // Get only the first as any of the equivalent is sufficient
                         String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableAliasName).get(0);
                         columnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
+                    }
+                    for (String variableName : tableVariablesIncludingFiltered) {
+                        String columnIdentifier = hg.getInverseEquivalenceMapping().get(variableName).get(tableAliasName).get(0);
+                        filteredColumnRewrites.add(String.format("%s AS %s", columnIdentifier, variableName));
                     }
                     // TODO handle case of cross-product and no columns from that table selected
 
@@ -320,10 +448,31 @@ public class SQLQuery {
                                 tableName,
                                 String.join(" AND ", whereConditions),
                                 tableAliasName));
+                        // TODO also add support for where filters inside if block
                     } else {
-                        aliasedTables.add(String.format("(SELECT %s FROM %s) %s",
-                                String.join(", ", columnRewrites.size() > 0 ? columnRewrites : List.of("1")),
-                                tableName, tableAliasName));
+                        List<String> whereConditions = new LinkedList<>();
+
+                        System.out.println("attributes:  " + node.getAttributes());
+                        for (String attr : tableVariablesIncludingFiltered) {
+                            if (whereFilters.containsKey(attr)) {
+                                whereConditions.addAll(whereFilters.get(attr));
+                            }
+                        }
+                        System.out.println("where conditions: " + whereConditions);
+
+                        if (whereConditions.isEmpty()) {
+                            String baseViewQuery = String.format("(SELECT %s FROM %s) %s",
+                                    String.join(", ", columnRewrites.size() > 0 ? columnRewrites : List.of("1")),
+                                    tableName, tableAliasName);
+                            aliasedTables.add(baseViewQuery);
+                        }
+                        else {
+                            String baseViewQuery = String.format("(SELECT %s FROM %s) sq",
+                                    String.join(", ", filteredColumnRewrites.size() > 0 ? filteredColumnRewrites : List.of("1")),
+                                    tableName);
+                            aliasedTables.add(String.format("(SELECT * FROM %s WHERE %s) %s", baseViewQuery,
+                                    whereConditions.stream().collect(Collectors.joining(" AND ")), tableAliasName));
+                        }
                     }
                 }
 
@@ -506,7 +655,8 @@ public class SQLQuery {
             }
 
             String finalQuery = String.format("CREATE VIEW %s AS SELECT %s\n", finalTableName,
-                    resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
+                    schemaFile == null ? resultColumns.stream().map(Column::getName).collect(Collectors.joining(", "))
+                                        : String.join(", ", finalProjectAggregates));
             finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
             dropStatements.dropView(finalTableName);
 
@@ -845,6 +995,7 @@ public class SQLQuery {
             }
         }
         for (Equality join : hgFinder.getJoins()) {
+            System.out.println(join);
             hgBuilder.buildJoin(join);
         }
 
@@ -923,5 +1074,9 @@ public class SQLQuery {
 
     public void setConnection(Connection connection) {
         this.connection = connection;
+    }
+
+    public void setSchemaFile(String schemaFile) {
+        this.schemaFile = schemaFile;
     }
 }

@@ -22,6 +22,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     private boolean dropTables = true;
     private boolean createIndexes = false;
     private boolean depthOpt = false;
+    private String schemaFile = null;
 
     private long[] stageRuntimes = new long[] {-1,-1,-1,-1};
 
@@ -39,6 +40,13 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         this.dropTables = dropTables;
         this.createIndexes = createIndexes;
         this.depthOpt = depthOpt;
+    }
+
+    public ParallelTempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics,
+                                          boolean enableEarlyTermination, boolean dropTables,
+                                          boolean createIndexes, boolean depthOpt, String schemaFile) throws SQLException {
+        this(connectionPool, useStatistics, enableEarlyTermination, dropTables, createIndexes, depthOpt);
+        this.schemaFile = schemaFile;
     }
 
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {
@@ -68,6 +76,9 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
         sqlQuery.setCreateIndexes(createIndexes);
+        if (schemaFile != null) {
+            sqlQuery.setSchemaFile(schemaFile);
+        }
 
         if (useStatistics) {
             Map<String, TableStatistics> statisticsMap = new HashMap<>();

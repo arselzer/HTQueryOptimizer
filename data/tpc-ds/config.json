@@ -1,12 +1,6 @@
 {
   "*": {
-    "dbSizeMin": 1,
-    "dbSizeMax": 10,
+    "dbSizeMin": 35,
+    "dbSizeMax": 35,
     "step": 1
-  },
-  "query64.sql": {
-    "dbSizeMin": 1,
-    "dbSizeMax": 1,
-    "step": 1
-  }
-}
+  }}

@@ -3,14 +3,16 @@ package hypergraph;
 public class DecompositionOptions {
     private DecompAlgorithm algorithm;
     private boolean depthOpt = false;
+    private boolean acyclicOpt = true;
 
     public DecompositionOptions(DecompAlgorithm algorithm) {
         this.algorithm = algorithm;
     }
 
-    public DecompositionOptions(DecompAlgorithm algorithm, boolean depthOpt) {
+    public DecompositionOptions(DecompAlgorithm algorithm, boolean depthOpt, boolean acyclicOpt) {
         this.algorithm = algorithm;
         this.depthOpt = depthOpt;
+        this.acyclicOpt = acyclicOpt;
     }
 
     public DecompositionOptions() {

@@ -1,0 +1,2 @@
+MIN(X20) AS rating
+MIN(X1) AS movie_title

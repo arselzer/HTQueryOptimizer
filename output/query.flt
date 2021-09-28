@@ -1,0 +1,4 @@
+X13;X13 = 'rating'
+X15;X15 LIKE '%sequel%'
+X20;X20 > '2.0'
+X4;X4 > 1990

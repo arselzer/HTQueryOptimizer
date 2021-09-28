@@ -71,26 +71,20 @@ import net.sf.jsqlparser.expression.operators.relational.RegExpMySQLOperator;
 import net.sf.jsqlparser.expression.operators.relational.SimilarToExpression;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.Block;
-import net.sf.jsqlparser.statement.Commit;
-import net.sf.jsqlparser.statement.DeclareStatement;
-import net.sf.jsqlparser.statement.DescribeStatement;
-import net.sf.jsqlparser.statement.ExplainStatement;
-import net.sf.jsqlparser.statement.SetStatement;
-import net.sf.jsqlparser.statement.ShowColumnsStatement;
-import net.sf.jsqlparser.statement.ShowStatement;
-import net.sf.jsqlparser.statement.StatementVisitor;
-import net.sf.jsqlparser.statement.Statements;
-import net.sf.jsqlparser.statement.UseStatement;
+import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
+import net.sf.jsqlparser.statement.alter.sequence.AlterSequence;
 import net.sf.jsqlparser.statement.comment.Comment;
 import net.sf.jsqlparser.statement.create.index.CreateIndex;
+import net.sf.jsqlparser.statement.create.schema.CreateSchema;
+import net.sf.jsqlparser.statement.create.sequence.CreateSequence;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.create.view.AlterView;
 import net.sf.jsqlparser.statement.create.view.CreateView;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.drop.Drop;
 import net.sf.jsqlparser.statement.execute.Execute;
+import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
 import net.sf.jsqlparser.statement.replace.Replace;
@@ -115,13 +109,14 @@ import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 import net.sf.jsqlparser.statement.values.ValuesStatement;
 
-public abstract class QueryVisitorUnsupportedAdapter
+public class QueryVisitorUnsupportedAdapter
 		implements StatementVisitor, SelectVisitor, SelectItemVisitor, FromItemVisitor, ExpressionVisitor {
 
 	protected static final String NOT_SUPPORTED_YET = "Not supported yet.";
 
 	private static void throwException(Object obj) {
-		throw new UnsupportedOperationException("Visiting: " + obj + ". " + NOT_SUPPORTED_YET);
+		//throw new UnsupportedOperationException("Visiting: " + obj + ". " + NOT_SUPPORTED_YET);
+		System.err.println("Visiting: " + obj + ". " + NOT_SUPPORTED_YET);
 	}
 
 	@Override
@@ -182,6 +177,11 @@ public abstract class QueryVisitorUnsupportedAdapter
 	@Override
 	public void visit(CreateIndex createIndex) {
 		throwException(createIndex);
+	}
+
+	@Override
+	public void visit(CreateSchema createSchema) {
+
 	}
 
 	@Override
@@ -667,6 +667,26 @@ public abstract class QueryVisitorUnsupportedAdapter
 	@Override
 	public void visit(DeclareStatement aThis) {
 		throwException(aThis);
+	}
+
+	@Override
+	public void visit(Grant grant) {
+
+	}
+
+	@Override
+	public void visit(CreateSequence createSequence) {
+
+	}
+
+	@Override
+	public void visit(AlterSequence alterSequence) {
+
+	}
+
+	@Override
+	public void visit(CreateFunctionalStatement createFunctionalStatement) {
+
 	}
 
 }
