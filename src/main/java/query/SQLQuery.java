@@ -55,6 +55,8 @@ public class SQLQuery {
 
     private Connection connection;
 
+    GeneralQueryFinder hgFinder;
+
     private long joinTreeGenerationRuntime;
     private long hypergraphGenerationRuntime;
 
@@ -213,35 +215,34 @@ public class SQLQuery {
         System.out.println("toParallelExecution");
         List<List<List<String>>> resultQueryStages = new LinkedList<>();
 
-        List<String> finalProjectAggregates = new LinkedList<>();
-        Map<String, List<String>> whereFilters = new HashMap<>();
-        Map<String, String> newToOldHGMap = new HashMap<>();
+
+        //Map<String, String> newToOldHGMap = new HashMap<>();
         System.out.println("schemaFile: " + schemaFile);
-        if (schemaFile != null) {
-            File sqlFile;
-            try {
-                sqlFile = new File("query.sql");
-
-                PrintWriter hgFileWriter = new PrintWriter(sqlFile);
-                hgFileWriter.write(query);
-                hgFileWriter.close();
-
-                Process process = new ProcessBuilder("java", "-jar", "hgtools.jar", "-convEval",
-                        "-sql", schemaFile, sqlFile.getAbsolutePath()).start();
-
-                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-                String output = br.lines().collect(Collectors.joining());
-
-                System.out.println("output:" + output);
-
-                //deleteFolder(new File("output"));
-
-                System.out.println("where filters: " + whereFilters);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        }
+//        if (schemaFile != null) {
+//            File sqlFile;
+//            try {
+//                sqlFile = new File("query.sql");
+//
+//                PrintWriter hgFileWriter = new PrintWriter(sqlFile);
+//                hgFileWriter.write(query);
+//                hgFileWriter.close();
+//
+//                Process process = new ProcessBuilder("java", "-jar", "hgtools.jar", "-convEval",
+//                        "-sql", schemaFile, sqlFile.getAbsolutePath()).start();
+//
+//                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+//
+//                String output = br.lines().collect(Collectors.joining());
+//
+//                System.out.println("output:" + output);
+//
+//                //deleteFolder(new File("output"));
+//
+//                System.out.println("where filters: " + whereFilters);
+//            } catch (IOException ex) {
+//                ex.printStackTrace();
+//            }
+//        }
 
         Hypergraph hg;
         if (statistics == null) {
@@ -258,72 +259,37 @@ public class SQLQuery {
                 throw new QueryConversionException(e.getMessage(), e);
             }
         }
-        this.hypergraph = hg;
 
-        List<String> mapLines = null;
-        try {
-            mapLines = Files.readAllLines(new File("output/query.map").toPath());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        List<String> finalProjectAggregates = new LinkedList<>();
+        Map<String, List<String>> whereFilters = new HashMap<>();
 
-        Map<String, String> columnToVariabeMappingWithUnderscores = new HashMap<>();
-
-        for (String column : hypergraph.getColumnToVariableMapping().keySet()) {
-            columnToVariabeMappingWithUnderscores.put(column.replace(".", "_"), hypergraph.getColumnToVariableMapping().get(column));
-        }
-
-        for (String line : mapLines) {
-            String[] splits = line.split("=");
-
-            System.out.println(hypergraph.getColumnToVariableMapping());
-
-            newToOldHGMap.put(splits[0], columnToVariabeMappingWithUnderscores.get(splits[1].split(",")[0]));
-        }
-
-//        String replacedLine = line;
-//        for (String attribute: newToOldHGMap.keySet()) {
-//            replacedLine.replace(attribute, newToOldHGMap.get(attribute));
-//        }
-
-        try {
-            finalProjectAggregates = Files.readAllLines(new File("output/query.sel").toPath()).stream()
-                    .map(line -> {
-
-                        String replacedLine = line;
-                        for (String attribute: newToOldHGMap.keySet()) {
-                            System.out.println(attribute + " " + newToOldHGMap + replacedLine + " " + newToOldHGMap.get(attribute));
-                            replacedLine = replacedLine.replace(attribute, newToOldHGMap.get(attribute));
-                        }
-
-                        return replacedLine;
-            }).collect(Collectors.toList());
-
-            System.out.println("aggregates: " + finalProjectAggregates);
-
-            List<String> whereFilterLines = Files.readAllLines(new File("output/query.flt").toPath()).stream()
-                    .map(line -> {
-
-                        String replacedLine = line;
-                        for (String attribute: newToOldHGMap.keySet()) {
-                            replacedLine = replacedLine.replace(attribute, newToOldHGMap.get(attribute));
-                        }
-
-                        return replacedLine;
-                    }).collect(Collectors.toList());
-
-            for (String line : whereFilterLines) {
-                String[] splits = line.split(";");
-                if (whereFilters.containsKey(splits[0])) {
-                    whereFilters.get(splits[0]).add(splits[1]);
-                }
-                else {
-                    whereFilters.put(splits[0], new LinkedList<>(List.of(splits[1])));
+        finalProjectAggregates = hgFinder.getSelects().stream().map(aggregate -> {
+            String aggregateColumnName = aggregate.split(";")[0];
+            String replacedAggregate = aggregate.split(";")[1];
+            for (String columnName : hg.getColumnToVariableMapping().keySet()) {
+                if (aggregateColumnName.equals(columnName)) {
+                    replacedAggregate = replacedAggregate.replace(columnName, hg.getColumnToVariableMapping().get(columnName));
                 }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            return replacedAggregate;
+        }).collect(Collectors.toList());
+
+        for (String line : hgFinder.getFilters()) {
+            String[] splits = line.split(";");
+
+            String vertexName = hg.getColumnToVariableMapping().get(splits[0]);
+            String whereCondition = splits[splits.length - 1].replace(splits[0], vertexName);
+
+            if (whereFilters.containsKey(vertexName)) {
+                whereFilters.get(vertexName).add(whereCondition);
+            }
+            else {
+                whereFilters.put(vertexName, new LinkedList<>(List.of(whereCondition)));
+            }
         }
+
+        System.out.println("finalProjectAggregates: " + finalProjectAggregates);
+        System.out.println("whereFilters: " + whereFilters);
 
 
 
@@ -977,7 +943,7 @@ public class SQLQuery {
         }
 
         Select selectStmt = (Select) stmt;
-        ConjunctiveQueryFinder hgFinder = new ConjunctiveQueryFinder(schema);
+        hgFinder = new GeneralQueryFinder(schema);
         hgFinder.run(selectStmt);
 
         System.out.println("tables: " + hgFinder.getTables());

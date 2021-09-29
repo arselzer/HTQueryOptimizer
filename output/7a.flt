@@ -1,0 +1,8 @@
+X30;X30 LIKE '%a%'
+X27;X27 = 'mini biography'
+X20;X20 = 'features'
+X41;X41 BETWEEN 'A' AND 'F'
+X40;n.name;(X40 = 'm' OR (X40 = 'f' AND n.name LIKE 'B%'))
+n.gender;X37;(n.gender = 'm' OR (n.gender = 'f' AND X37 LIKE 'B%'))
+X25;X25 = 'Volker Boehm'
+X4;X4 BETWEEN 1980 AND 1995

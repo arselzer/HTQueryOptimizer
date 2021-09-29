@@ -1,2 +1,3 @@
-MIN(X20) AS rating
-MIN(X1) AS movie_title
+MIN(X20) AS movie_keyword
+MIN(X26) AS actor_name
+MIN(X1) AS marvel_movie
