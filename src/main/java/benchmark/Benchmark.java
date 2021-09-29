@@ -131,7 +131,7 @@ public class Benchmark {
             System.exit(0);
         }
 
-        String url = "jdbc:postgresql://localhost/testdb";
+        String url = "jdbc:postgresql://localhost/testdb?loggerLevel=TRACE&loggerFile=pgjdbc.log";
         String user = "test";
         String password = "test";
 

@@ -1,7 +1,7 @@
 {
   "*": {
-    "dbSizeMin": 5,
-    "dbSizeMax": 5,
+    "dbSizeMin": 100,
+    "dbSizeMax": 100,
     "step": 10
   }
 }

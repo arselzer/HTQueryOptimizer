@@ -1,0 +1,2 @@
+MIN(X37) AS of_person
+MIN(X1) AS biography_movie
