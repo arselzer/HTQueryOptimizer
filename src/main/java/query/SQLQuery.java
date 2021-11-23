@@ -63,6 +63,8 @@ public class SQLQuery {
     private boolean createIndexes = false;
 
     private String schemaFile = null;
+    List<String> finalProjectAggregates = new LinkedList<>();
+    Map<String, List<String>> whereFilters = new HashMap<>();
 
     public SQLQuery(String query, DBSchema dbSchema) throws QueryConversionException, TableNotFoundException {
         this.query = query;
@@ -215,34 +217,7 @@ public class SQLQuery {
         System.out.println("toParallelExecution");
         List<List<List<String>>> resultQueryStages = new LinkedList<>();
 
-
-        //Map<String, String> newToOldHGMap = new HashMap<>();
         System.out.println("schemaFile: " + schemaFile);
-//        if (schemaFile != null) {
-//            File sqlFile;
-//            try {
-//                sqlFile = new File("query.sql");
-//
-//                PrintWriter hgFileWriter = new PrintWriter(sqlFile);
-//                hgFileWriter.write(query);
-//                hgFileWriter.close();
-//
-//                Process process = new ProcessBuilder("java", "-jar", "hgtools.jar", "-convEval",
-//                        "-sql", schemaFile, sqlFile.getAbsolutePath()).start();
-//
-//                BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
-//
-//                String output = br.lines().collect(Collectors.joining());
-//
-//                System.out.println("output:" + output);
-//
-//                //deleteFolder(new File("output"));
-//
-//                System.out.println("where filters: " + whereFilters);
-//            } catch (IOException ex) {
-//                ex.printStackTrace();
-//            }
-//        }
 
         Hypergraph hg;
         if (statistics == null) {
@@ -253,45 +228,13 @@ public class SQLQuery {
                 // Fails when columns are "joined" inside the table
                 long startTime = System.currentTimeMillis();
                 hg = toWeightedHypergraph();
+
                 this.hypergraphGenerationRuntime = System.currentTimeMillis() - startTime;
             }
             catch (IllegalArgumentException e) {
                 throw new QueryConversionException(e.getMessage(), e);
             }
         }
-
-        List<String> finalProjectAggregates = new LinkedList<>();
-        Map<String, List<String>> whereFilters = new HashMap<>();
-
-        finalProjectAggregates = hgFinder.getSelects().stream().map(aggregate -> {
-            String aggregateColumnName = aggregate.split(";")[0];
-            String replacedAggregate = aggregate.split(";")[1];
-            for (String columnName : hg.getColumnToVariableMapping().keySet()) {
-                if (aggregateColumnName.equals(columnName)) {
-                    replacedAggregate = replacedAggregate.replace(columnName, hg.getColumnToVariableMapping().get(columnName));
-                }
-            }
-            return replacedAggregate;
-        }).collect(Collectors.toList());
-
-        for (String line : hgFinder.getFilters()) {
-            String[] splits = line.split(";");
-
-            String vertexName = hg.getColumnToVariableMapping().get(splits[0]);
-            String whereCondition = splits[splits.length - 1].replace(splits[0], vertexName);
-
-            if (whereFilters.containsKey(vertexName)) {
-                whereFilters.get(vertexName).add(whereCondition);
-            }
-            else {
-                whereFilters.put(vertexName, new LinkedList<>(List.of(whereCondition)));
-            }
-        }
-
-        System.out.println("finalProjectAggregates: " + finalProjectAggregates);
-        System.out.println("whereFilters: " + whereFilters);
-
-
 
         try {
             long startTime = System.currentTimeMillis();
@@ -431,8 +374,7 @@ public class SQLQuery {
                                     String.join(", ", columnRewrites.size() > 0 ? columnRewrites : List.of("1")),
                                     tableName, tableAliasName);
                             aliasedTables.add(baseViewQuery);
-                        }
-                        else {
+                        } else {
                             String baseViewQuery = String.format("(SELECT %s FROM %s) sq",
                                     String.join(", ", filteredColumnRewrites.size() > 0 ? filteredColumnRewrites : List.of("1")),
                                     tableName);
@@ -992,12 +934,41 @@ public class SQLQuery {
 
         result.setColumnToVariableMapping(equivalenceMapping);
 
+        finalProjectAggregates = hgFinder.getSelects().stream().map(aggregate -> {
+            String aggregateColumnName = aggregate.split(";")[0];
+            String replacedAggregate = aggregate.split(";")[1];
+            for (String columnName : result.getColumnToVariableMapping().keySet()) {
+                if (aggregateColumnName.equals(columnName)) {
+                    replacedAggregate = replacedAggregate.replace(columnName, result.getColumnToVariableMapping().get(columnName));
+                }
+            }
+            return replacedAggregate;
+        }).collect(Collectors.toList());
+
+        for (String line : hgFinder.getFilters()) {
+            String[] splits = line.split(";");
+
+            String vertexName = result.getColumnToVariableMapping().get(splits[0]);
+            String whereCondition = splits[splits.length - 1].replace(splits[0], vertexName);
+
+            if (whereFilters.containsKey(vertexName)) {
+                whereFilters.get(vertexName).add(whereCondition);
+            }
+            else {
+                whereFilters.put(vertexName, new LinkedList<>(List.of(whereCondition)));
+            }
+        }
+
+        System.out.println("finalProjectAggregates: " + finalProjectAggregates);
+        System.out.println("whereFilters: " + whereFilters);
+
         return result;
     }
 
     public WeightedHypergraph toWeightedHypergraph() throws QueryConversionException {
         WeightedHypergraph weightedHypergraph = new WeightedHypergraph(toHypergraph(), statistics, tableAliases);
         weightedHypergraph.useConnection(connection);
+        weightedHypergraph.setWhereFilters(whereFilters);
 
         return weightedHypergraph;
     }

@@ -35,6 +35,7 @@ public class SummarizedResultsCSVGenerator {
             "hgDegree",
             "hgVCDimension",
             "hgBIP",
+            "hgEdges",
             "treeHeight",
             "treeNodes",
             "treeWidth",
@@ -89,6 +90,7 @@ public class SummarizedResultsCSVGenerator {
                 (hg == null ? "" : hg.getDegree()) + "," +
                 (hg == null ? "" : hg.getVCDimension()) + "," +
                 (hg == null ? "" : hg.getBIP()) + "," +
+                (hg == null ? "" : hg.getEdges().size()) + "," +
                 (jt == null ? "" : jt.getHeight()) + "," +
                 (jt == null ? "" : jt.getNumberOfNodes()) + "," +
                 (jt == null ? "" : jt.getHypertreeWidth()) + "," +
