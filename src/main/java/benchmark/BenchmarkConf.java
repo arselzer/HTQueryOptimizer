@@ -17,6 +17,7 @@ public class BenchmarkConf {
     private boolean booleanQuery = false;
     private boolean useStatistics = true;
     private boolean isFirstRun = false;
+    private Integer joinTreeNo;
 
     public BenchmarkConf(String db, String query, String suffix, DecompositionOptions decompositionOptions) {
         this.db = db;
@@ -28,7 +29,7 @@ public class BenchmarkConf {
     public BenchmarkConf(String db, String query, String suffix,
                          DecompositionOptions decompositionOptions, Integer timeout, Integer run, Integer dbSize,
                          boolean parallel, Integer threadCount, boolean booleanQuery, boolean useStatistics,
-                         boolean isFirstRun) {
+                         boolean isFirstRun, Integer joinTreeNo) {
         this.db = db;
         this.query = query;
         this.suffix = suffix;
@@ -41,6 +42,7 @@ public class BenchmarkConf {
         this.booleanQuery = booleanQuery;
         this.useStatistics = useStatistics;
         this.isFirstRun = isFirstRun;
+        this.joinTreeNo = joinTreeNo;
     }
 
     public String getDb() {
@@ -137,6 +139,14 @@ public class BenchmarkConf {
 
     public void setFirstRun(boolean firstRun) {
         isFirstRun = firstRun;
+    }
+
+    public Integer getJoinTreeNo() {
+        return joinTreeNo;
+    }
+
+    public void setJoinTreeNo(Integer joinTreeNo) {
+        this.joinTreeNo = joinTreeNo;
     }
 
     @Override

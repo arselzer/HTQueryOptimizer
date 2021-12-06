@@ -22,7 +22,6 @@ import schema.Table;
 import schema.TableStatistics;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.sql.Connection;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -37,6 +36,7 @@ public class SQLQuery {
     private DBSchema dbSchema;
     private String queryIdentifier;
     private DecompositionOptions decompositionOptions;
+    private String tablespace = null;
     // Hypertree node -> column name
     private Map<String, Column> columnByNameMap;
     // List of columns to project in the end (or *)
@@ -62,7 +62,7 @@ public class SQLQuery {
 
     private boolean createIndexes = false;
 
-    private String schemaFile = null;
+    private boolean applyAggregates = false;
     List<String> finalProjectAggregates = new LinkedList<>();
     Map<String, List<String>> whereFilters = new HashMap<>();
 
@@ -213,11 +213,48 @@ public class SQLQuery {
         folder.delete();
     }
 
+    public List<ParallelQueryExecution> enumerateParallelExecutions(boolean bcq) throws QueryConversionException, IOException {
+        List<JoinTreeNode> joinTrees = new LinkedList<>();
+        List<ParallelQueryExecution> queryExecutions = new LinkedList<>();
+
+        Hypergraph hg;
+        if (statistics == null) {
+            hg = toHypergraph();
+        }
+        else {
+            try {
+                // Fails when columns are "joined" inside the table
+                long startTime = System.currentTimeMillis();
+                hg = toWeightedHypergraph();
+
+                this.hypergraphGenerationRuntime = System.currentTimeMillis() - startTime;
+            }
+            catch (IllegalArgumentException e) {
+                throw new QueryConversionException(e.getMessage(), e);
+            }
+        }
+
+        try {
+            long startTime = System.currentTimeMillis();
+            joinTrees = hg.enumerateJoinTrees(decompositionOptions);
+            this.joinTreeGenerationRuntime = System.currentTimeMillis() - startTime;
+        } catch (JoinTreeGenerationException e) {
+            throw new QueryConversionException("Error generating join tree: " + e.getMessage());
+        }
+
+        List<ParallelQueryExecution> executions = new LinkedList<>();
+
+        for (JoinTreeNode joinTreeNode : joinTrees) {
+            queryExecutions.add(toParallelExecution(hg, joinTreeNode, bcq));
+        }
+
+        return queryExecutions;
+    }
+
     public ParallelQueryExecution toParallelExecution(boolean bcq) throws QueryConversionException {
         System.out.println("toParallelExecution");
-        List<List<List<String>>> resultQueryStages = new LinkedList<>();
 
-        System.out.println("schemaFile: " + schemaFile);
+        System.out.println("schemaFile: " + applyAggregates);
 
         Hypergraph hg;
         if (statistics == null) {
@@ -244,6 +281,11 @@ public class SQLQuery {
             throw new QueryConversionException("Error generating join tree: " + e.getMessage());
         }
 
+        return toParallelExecution(hg, joinTree, bcq);
+    }
+
+    public ParallelQueryExecution toParallelExecution(Hypergraph hg, JoinTreeNode joinTree, boolean bcq) throws QueryConversionException {
+        List<List<List<String>>> resultQueryStages = new LinkedList<>();
         String finalTableName = "htqo_" + UUID.randomUUID().toString().replace("-", "");
 
         DropStatements dropStatements = new DropStatements();
@@ -390,7 +432,9 @@ public class SQLQuery {
                     sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 1));
                     dropStatements.dropView(getNodeIdentifier(node, 1));
                 } else {
-                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", getNodeIdentifier(node, 1));
+                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s %s\n",
+                            getNodeIdentifier(node, 1),
+                            tablespace == null ? "" : String.format("TABLESPACE %s", tablespace));
                     dropStatements.dropTable(getNodeIdentifier(node, 1));
                 }
 
@@ -450,7 +494,9 @@ public class SQLQuery {
                 String sqlStatement = "";
 
                 if (!semiJoins.isEmpty()) {
-                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", getNodeIdentifier(node, 2));
+                    sqlStatement += String.format("CREATE UNLOGGED TABLE %s %s\n",
+                            getNodeIdentifier(node, 2),
+                            tablespace == null ? "" : String.format("TABLESPACE %s", tablespace));
                     dropStatements.dropTable(getNodeIdentifier(node, 2));
                     sqlStatement += String.format("AS SELECT *\n");
                     sqlStatement += String.format("FROM %s\n", getNodeIdentifier(node, 1));
@@ -523,7 +569,9 @@ public class SQLQuery {
                     String sqlStatement = "";
 
                     if (!semiJoinConditions.isEmpty()) {
-                        sqlStatement += String.format("CREATE UNLOGGED TABLE %s\n", getNodeIdentifier(node, 3));
+                        sqlStatement += String.format("CREATE UNLOGGED TABLE %s %s\n",
+                                getNodeIdentifier(node, 3),
+                                tablespace == null ? "" : String.format("TABLESPACE %s", tablespace));
                         dropStatements.dropTable(getNodeIdentifier(node, 3));
                     } else {
                         sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 3));
@@ -563,7 +611,7 @@ public class SQLQuery {
             }
 
             String finalQuery = String.format("CREATE VIEW %s AS SELECT %s\n", finalTableName,
-                    schemaFile == null ? resultColumns.stream().map(Column::getName).collect(Collectors.joining(", "))
+                    applyAggregates ? resultColumns.stream().map(Column::getName).collect(Collectors.joining(", "))
                                         : String.join(", ", finalProjectAggregates));
             finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
             dropStatements.dropView(finalTableName);
@@ -723,7 +771,8 @@ public class SQLQuery {
                     fnStr += String.format("CREATE VIEW %s\n", node.getIdentifier(1));
                     dropStatements.dropView(node.getIdentifier(1));
                 } else {
-                    fnStr += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(1));
+                    fnStr += String.format("CREATE UNLOGGED TABLE %s %s\n", node.getIdentifier(1),
+                            tablespace == null ? "" : String.format("TABLESPACE %s", tablespace));
                     dropStatements.dropTable(node.getIdentifier(1));
                 }
 
@@ -775,7 +824,8 @@ public class SQLQuery {
                 }
 
                 if (!semiJoins.isEmpty()) {
-                    fnStr += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(2));
+                    fnStr += String.format("CREATE UNLOGGED TABLE %s %s\n", node.getIdentifier(2),
+                            tablespace == null ? "" : String.format("TABLESPACE %s", tablespace));
                     dropStatements.dropTable(node.getIdentifier(2));
                     fnStr += String.format("AS SELECT *\n");
                     fnStr += String.format("FROM %s\n", node.getIdentifier(1));
@@ -827,7 +877,8 @@ public class SQLQuery {
                 }
 
                 if (!semiJoinConditions.isEmpty()) {
-                    fnStr += String.format("CREATE UNLOGGED TABLE %s\n", node.getIdentifier(3));
+                    fnStr += String.format("CREATE UNLOGGED TABLE %s %s\n", node.getIdentifier(3),
+                            tablespace == null ? "" : String.format("TABLESPACE %s", tablespace));
                     dropStatements.dropTable(node.getIdentifier(3));
                 } else {
                     fnStr += String.format("CREATE VIEW %s\n", node.getIdentifier(3));
@@ -1013,7 +1064,11 @@ public class SQLQuery {
         this.connection = connection;
     }
 
-    public void setSchemaFile(String schemaFile) {
-        this.schemaFile = schemaFile;
+    public void setApplyAggregates(boolean applyAggregates) {
+        this.applyAggregates = applyAggregates;
+    }
+
+    public void setTablespace(String tablespace) {
+        this.tablespace = tablespace;
     }
 }

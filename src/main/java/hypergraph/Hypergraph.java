@@ -146,6 +146,118 @@ public class Hypergraph {
      * @return
      * @throws JoinTreeGenerationException
      */
+
+    public List<JoinTreeNode> enumerateJoinTrees(DecompositionOptions options) throws JoinTreeGenerationException, IOException {
+        List<JoinTreeNode> joinTrees = new LinkedList<>();
+
+        String fileContent = toDTL();
+        File hgFile;
+        try {
+            hgFile = File.createTempFile("hypergraph", ".dtl");
+        } catch (IOException e) {
+            throw new JoinTreeGenerationException("Could not create temporary file: " + e.getMessage());
+        }
+
+        String htFileName = hgFile.getAbsolutePath().replace(".dtl", ".gml");
+
+        try {
+            PrintWriter out = new PrintWriter(hgFile);
+
+            out.write(fileContent);
+
+            out.close();
+        } catch (FileNotFoundException e) {
+            throw new JoinTreeGenerationException("Error writing hypergraph file: " + e.getMessage());
+        }
+
+        try {
+            Process process = new ProcessBuilder("./hd-gen/hd-gen",
+                    "-graph", hgFile.toString(), "-width", "1", "-gml", "ht", "-complete", "-shrink", "soft").start();
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+            String output = br.lines().collect(Collectors.joining());
+            System.out.println("hd-gen output:" + output);
+        } catch (IOException e) {
+            throw new JoinTreeGenerationException("Error executing BalancedGo");
+        }
+
+        decompositionTree = new SimpleDirectedGraph<HypertreeNode, DefaultEdge>(DefaultEdge.class);
+
+        VertexProvider<HypertreeNode> vp = new VertexProvider<>() {
+            private Pattern edgePattern = Pattern.compile("^\\s*\\{(.*)\\}\\s*[\\{\\(](.*)[\\}\\)]");
+
+            @Override
+            public HypertreeNode buildVertex(String id, Map<String, Attribute> map) {
+                String label = map.get("label").getValue();
+                Matcher edgeMatcher = edgePattern.matcher(label);
+                if (edgeMatcher.find()) {
+                    String[] edges = edgeMatcher.group(1).split(",");
+                    List<String> edgesList = new LinkedList<>();
+                    // Remove whitespace from hyperedges
+                    for (String edge : edges) {
+                        edgesList.add(edge.trim());
+                    }
+
+                    String[] variables = edgeMatcher.group(2).split(",");
+
+                    List<String> variablesList = new LinkedList<>();
+                    // Remove whitespace from hyperedges
+                    for (String var : variables) {
+                        variablesList.add(var.trim());
+                    }
+
+                    return new HypertreeNode(id, edgesList, variablesList);
+                } else {
+                    // In case there is an empty list ...
+                    return null;
+                }
+            }
+        };
+
+        EdgeProvider<HypertreeNode, DefaultEdge> ep = new EdgeProvider<HypertreeNode, DefaultEdge>() {
+            @Override
+            public DefaultEdge buildEdge(HypertreeNode from, HypertreeNode to, String label, Map<String, Attribute> map) {
+                return decompositionTree.addEdge(from, to);
+            }
+        };
+
+        // Read the output of detkdecomp
+        try {
+            File cwd = new File(".");
+            File[] files = cwd.listFiles();
+            for (File file : files) {
+                if (file.getName().matches("ht_\\d+\\.gml")) {
+                    System.out.println("ht file found: "+ file.getName());
+
+                    GmlImporter<HypertreeNode, DefaultEdge> importer = new GmlImporter<>(vp, ep);
+                    importer.importGraph(decompositionTree, file);
+
+                    Iterator<HypertreeNode> it = new BreadthFirstIterator<>(decompositionTree);
+
+                    HypertreeNode root = null;
+                    for (HypertreeNode n : decompositionTree.vertexSet()) {
+                        // In the case of detkdecomp n.id == 0 can also be checked
+                        if (decompositionTree.inDegreeOf(n) == 0) {
+                            root = n;
+                        }
+                    }
+
+                    Files.delete(file.toPath());
+
+                    joinTrees.add(hypertreeToJoinTree(root));
+                }
+            }
+
+            hgFile.delete();
+
+        } catch (ImportException e) {
+            throw new JoinTreeGenerationException("Error importing hypertree file: " + e.getMessage());
+        }
+
+        return joinTrees;
+    }
+
     public JoinTreeNode toJoinTree() throws JoinTreeGenerationException {
         return toJoinTree(new DecompositionOptions());
     }
