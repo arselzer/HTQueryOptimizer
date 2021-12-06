@@ -19,6 +19,7 @@ public class TempTableQueryExecutor implements QueryExecutor {
     protected DBSchema schema;
     protected DecompositionOptions decompositionOptions;
     protected SQLQuery sqlQuery;
+    protected String tablespace;
 
     protected long queryRunningTime;
     protected long dropTime;
@@ -182,6 +183,14 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
     public String getGeneratedFunction() {
         return generatedFunction;
+    }
+
+    public String getTablespace() {
+        return tablespace;
+    }
+
+    public void setTablespace(String tablespace) {
+        this.tablespace = tablespace;
     }
 
     private void enableMergeJoin() throws SQLException {

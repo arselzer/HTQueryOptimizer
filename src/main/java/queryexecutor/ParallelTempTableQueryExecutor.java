@@ -6,6 +6,7 @@ import query.ParallelQueryExecution;
 import query.SQLQuery;
 import schema.TableStatistics;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -22,7 +23,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     private boolean dropTables = true;
     private boolean createIndexes = false;
     private boolean depthOpt = false;
-    private String schemaFile = null;
+    private boolean applyAggregates = false;
 
     private long[] stageRuntimes = new long[] {-1,-1,-1,-1};
 
@@ -44,9 +45,9 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
 
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool, boolean useStatistics,
                                           boolean enableEarlyTermination, boolean dropTables,
-                                          boolean createIndexes, boolean depthOpt, String schemaFile) throws SQLException {
+                                          boolean createIndexes, boolean depthOpt, boolean applyAggregates) throws SQLException {
         this(connectionPool, useStatistics, enableEarlyTermination, dropTables, createIndexes, depthOpt);
-        this.schemaFile = schemaFile;
+        this.applyAggregates = applyAggregates;
     }
 
     public ParallelTempTableQueryExecutor(ConnectionPool connectionPool) throws SQLException {
@@ -70,15 +71,12 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
     }
 
     public StatisticsResultSet executeWithStatistics(String queryStr, boolean booleanQuery, boolean analyze) throws SQLException, QueryConversionException, TableNotFoundException {
-
         long preprocessingStartTime = System.currentTimeMillis();
 
         sqlQuery = new SQLQuery(queryStr, schema);
         sqlQuery.setDecompositionOptions(decompositionOptions);
         sqlQuery.setCreateIndexes(createIndexes);
-        if (schemaFile != null) {
-            sqlQuery.setSchemaFile(schemaFile);
-        }
+        sqlQuery.setApplyAggregates(applyAggregates);
 
         if (useStatistics) {
             Map<String, TableStatistics> statisticsMap = new HashMap<>();
@@ -87,12 +85,35 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
             }
             sqlQuery.setStatistics(statisticsMap);
             sqlQuery.setConnection(connection);
+            sqlQuery.setTablespace(tablespace);
         }
         ParallelQueryExecution queryExecution = sqlQuery.toParallelExecution(booleanQuery);
 
-        System.out.println(queryExecution.getSqlStatements());
-
         this.totalPreprocessingTime = System.currentTimeMillis() - preprocessingStartTime;
+
+        return executeWithStatistics(queryExecution, booleanQuery, analyze);
+    }
+
+    public List<ParallelQueryExecution> listQueryExecutions(String queryStr) throws QueryConversionException, TableNotFoundException, SQLException, IOException {
+        sqlQuery = new SQLQuery(queryStr, schema);
+        sqlQuery.setDecompositionOptions(decompositionOptions);
+        sqlQuery.setCreateIndexes(createIndexes);
+        sqlQuery.setApplyAggregates(applyAggregates);
+
+        if (useStatistics) {
+            Map<String, TableStatistics> statisticsMap = new HashMap<>();
+            for (String tableName : sqlQuery.getRealTables()) {
+                statisticsMap.put(tableName, extractTableStatistics(tableName));
+            }
+            sqlQuery.setStatistics(statisticsMap);
+            sqlQuery.setConnection(connection);
+            sqlQuery.setTablespace(tablespace);
+        }
+        return sqlQuery.enumerateParallelExecutions(false);
+    }
+
+    public StatisticsResultSet executeWithStatistics(ParallelQueryExecution queryExecution, boolean booleanQuery, boolean analyze) throws SQLException, QueryConversionException, TableNotFoundException {
+        System.out.println(queryExecution.getSqlStatements());
 
         this.generatedFunction = "";
 
@@ -151,7 +172,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                                     runningQueries.remove(ps);
 
                                     if (enableEarlyTermination && query.startsWith("CREATE UNLOGGED TABLE")) {
-                                        Matcher matcher = Pattern.compile("CREATE\\s+UNLOGGED\\s+TABLE\\s+(.*)\\s+").matcher(query);
+                                        Matcher matcher = Pattern.compile("CREATE\\s+UNLOGGED\\s+TABLE\\s+([^\\s]*)\\s+").matcher(query);
                                         matcher.find();
                                         String tableName = matcher.group(1);
                                         System.out.println("tableName: " + tableName);

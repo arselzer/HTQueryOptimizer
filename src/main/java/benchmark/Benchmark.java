@@ -8,6 +8,8 @@ import exceptions.TableNotFoundException;
 import hypergraph.DecompositionOptions;
 import hypergraph.WeightedHypergraph;
 import org.apache.commons.cli.*;
+import query.ParallelQueryExecution;
+import query.SQLQuery;
 import queryexecutor.*;
 
 import java.io.*;
@@ -48,7 +50,9 @@ public class Benchmark {
     private boolean createIndexes = false;
     private boolean depthOpt = false;
     private boolean acyclicOpt = true;
-    private String schemaFile = null;
+    private boolean applyAggregates = true;
+    private String tablespace = null;
+    private boolean enumerateJoinTrees = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -94,6 +98,9 @@ public class Benchmark {
         Option disableAcyclicTreeOpt = new Option(null, "no-acyclic-opt", false, "disable the join tree optimization and use BalancedGo");
         Option schemaFile = new Option(null, "schema-file", true, "the schema file to use for parsing the query");
         schemaFile.setType(String.class);
+        Option tablespace = new Option(null, "tablespace", true, "the tablespace to use for generating the temporary tables");
+        tablespace.setType(String.class);
+        Option enumerate = new Option(null, "enumerate", false, "enumerate join trees");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -115,6 +122,8 @@ public class Benchmark {
         options.addOption(depthOpt);
         options.addOption(disableAcyclicTreeOpt);
         options.addOption(schemaFile);
+        options.addOption(tablespace);
+        options.addOption(enumerate);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -206,8 +215,11 @@ public class Benchmark {
         if (cmd.hasOption("no-acyclic-opt")) {
             benchmark.setAcyclicOpt(false);
         }
-        if (cmd.hasOption("schema-file")) {
-            benchmark.setSchemaFile(cmd.getOptionValue("schema-file"));
+        if (cmd.hasOption("tablespace")) {
+            benchmark.setTablespace(cmd.getOptionValue("tablespace"));
+        }
+        if (cmd.hasOption("enumerate")) {
+            benchmark.setEnumerateJoinTrees(true);
         }
 
         File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
@@ -246,7 +258,47 @@ public class Benchmark {
         System.out.println("Running insert script: " + String.join(" ", psqlOutput));
     }
 
+    private List<BenchmarkResult> enumerateBenchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException, TableNotFoundException {
+        ConnectionPool connPool;
+        if (conf.getThreadCount() == null) {
+            connPool = new ConnectionPool(dbURL, connectionProperties);
+        } else {
+            connPool = new ConnectionPool(dbURL, connectionProperties, conf.getThreadCount());
+        }
+
+        ParallelTempTableQueryExecutor optimizedQE = null;
+        try {
+            optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true,
+                    dropTables, createIndexes, depthOpt, applyAggregates);
+        } catch (SQLException e) {
+            throw e;
+            // Rethrow exceptions occurring during setup
+        }
+
+        String dbFileName = conf.getDb();
+        String queryFileName = conf.getQuery();
+        File queryFile = new File(dbRootDir + "/" + dbFileName + "/" + queryFileName);
+        String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
+
+        List<BenchmarkResult> benchmarkResults = new LinkedList<>();
+        List<ParallelQueryExecution> queryExecutions = optimizedQE.listQueryExecutions(query);
+
+        System.out.println("enumerating join trees" + queryExecutions);
+        for (ParallelQueryExecution queryExecution : queryExecutions) {
+            BenchmarkResult result = benchmark(optimizedQE, queryExecution, conf);
+            benchmarkResults.add(result);
+        }
+
+        connPool.close();
+
+        return benchmarkResults;
+    }
+
     private BenchmarkResult benchmark(BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
+        return benchmark(null, null, conf);
+    }
+
+    private BenchmarkResult benchmark(ParallelTempTableQueryExecutor queryExecutor, ParallelQueryExecution queryExecution, BenchmarkConf conf) throws IOException, QueryConversionException, SQLException {
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
         BenchmarkResult result = new BenchmarkResult(conf);
@@ -277,16 +329,17 @@ public class Benchmark {
         }
 
         UnoptimizedQueryExecutor originalQE = null;
-        TempTableQueryExecutor optimizedQE = null;
+        ParallelTempTableQueryExecutor optimizedQE = null;
 
         try {
             originalQE = new UnoptimizedQueryExecutor(conn);
 
-            if (conf.isParallel()) {
-                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true, dropTables, createIndexes, depthOpt, schemaFile);
+            if (queryExecutor != null) {
+                optimizedQE = queryExecutor;
             }
             else {
-                optimizedQE = new TempTableQueryExecutor(connPool, useStatistics);
+                optimizedQE = new ParallelTempTableQueryExecutor(connPool, useStatistics, true,
+                        dropTables, createIndexes, depthOpt, applyAggregates);
             }
         } catch (SQLException e) {
             throw e;
@@ -300,6 +353,7 @@ public class Benchmark {
         }
 
         optimizedQE.setDecompositionOptions(conf.getDecompositionOptions());
+        optimizedQE.setTablespace(tablespace);
 
         /** Execute optimized query **/
 
@@ -320,16 +374,27 @@ public class Benchmark {
                 if (conf.isBooleanQuery()) {
                     optimizedRSWithStatistics = optimizedQE.executeWithStatistics(query, true);
                 } else {
-                    optimizedRSWithStatistics = optimizedQE.executeWithStatistics(query, false);
+                    if (queryExecution == null) {
+                        optimizedRSWithStatistics = optimizedQE
+                                .executeWithStatistics(query, false);
+                    }
+                    else {
+                        optimizedRSWithStatistics = optimizedQE.executeWithStatistics(queryExecution, false, false);
+                    }
                 }
             }
             else {
                 if (conf.isBooleanQuery()) {
-                    optimizedRSWithStatistics = ((ParallelTempTableQueryExecutor) optimizedQE)
+                    optimizedRSWithStatistics = optimizedQE
                             .executeWithStatistics(query, true, true);
                 } else {
-                    optimizedRSWithStatistics = ((ParallelTempTableQueryExecutor)optimizedQE)
-                            .executeWithStatistics(query, false, true);
+                    if (queryExecution == null) {
+                        optimizedRSWithStatistics = optimizedQE
+                                .executeWithStatistics(query, false, true);
+                    }
+                    else {
+                        optimizedRSWithStatistics = optimizedQE.executeWithStatistics(queryExecution, false, true);
+                    }
                 }
 
                 result.setExecutionStatistics(optimizedRSWithStatistics.getStatistics());
@@ -339,16 +404,13 @@ public class Benchmark {
                     analyzeExecutionStatistics.add((AnalyzeExecutionStatistics) executionStatistics);
                 }
             }
-            if (optimizedQE instanceof ParallelTempTableQueryExecutor) {
-                result.setStageRuntimes(((ParallelTempTableQueryExecutor) optimizedQE).getStageRuntimes());
-            }
+            result.setStageRuntimes(optimizedQE.getStageRuntimes());
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
             result.setDropTime(optimizedQE.getDropTime());
             result.setTotalPreprocessingTime(optimizedQE.getTotalPreprocessingTime());
             result.setHypergraphComputationRuntime(optimizedQE.getQuery().getHypergraphGenerationRuntime());
             result.setJoinTreeComputationRuntime(optimizedQE.getQuery().getJoinTreeGenerationRuntime());
-            //result.setStage1Runtime(optimizedQE.getQuery().get);
             result.setExecutionStatistics(optimizedRSWithStatistics.getStatistics());
 
             optimizedRS = optimizedRSWithStatistics.getResultSet();
@@ -540,12 +602,12 @@ public class Benchmark {
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.DETKDECOMP)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("detkdecomp-%02d-%02d", size, run),
                                                 detkdecompOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics,
-                                                run == 1));
+                                                run == 1, 1));
                                     }
                                     if (decompAlgorithms.contains(DecompositionOptions.DecompAlgorithm.BALANCEDGO)) {
                                         confs.add(new BenchmarkConf(dbName, file.getName(), String.format("balancedgo-%02d-%02d", size, run),
                                                 balancedGoOptions, queryTimeout, run, size, runparallel, threadCount, booleanQuery, useStatistics,
-                                                run == 1));
+                                                run == 1, 1));
                                     }
                                 }
                             }
@@ -558,113 +620,128 @@ public class Benchmark {
         return confs;
     }
 
+    public void saveBenchmarkData(BenchmarkConf conf, BenchmarkResult res, File resultsDirectory, SummarizedResultsCSVGenerator csvGenerator) throws IOException, InterruptedException {
+        csvGenerator.addResult(res);
+
+        File subResultsDir = new File(resultsDirectory.getAbsolutePath() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
+        subResultsDir.mkdirs();
+
+        File hypergraphFile = new File(subResultsDir + "/hypergraph.dtl");
+
+        // Write hypergraph
+        if (res.getHypergraph() != null) {
+            PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
+            hypergraphWriter.write(res.getHypergraph().toDTL());
+            hypergraphWriter.close();
+
+            // Write graph rendering
+            res.getHypergraph().toPDF(Paths.get(subResultsDir + "/hypergraph.pdf"));
+        }
+
+        // Write out the java data structure
+        File resultTxtFile = new File(subResultsDir + "/result.txt");
+        PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
+        resultStringWriter.write(res.toString());
+        resultStringWriter.close();
+
+        // Write out the original query
+        File queryFile = new File(subResultsDir + "/query.sql");
+        PrintWriter queryWriter = new PrintWriter(queryFile);
+        queryWriter.write(res.getQuery());
+        queryWriter.close();
+
+        if (res.getGeneratedQuery() != null) {
+            // Write out the optimized generated query
+            File generatedQueryFile = new File(subResultsDir + "/generated.sql");
+            PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
+            generatedQueryWriter.write(res.getGeneratedQuery());
+            generatedQueryWriter.close();
+        }
+
+        // Write out the serialized results as json
+        File resultJsonFile = new File(subResultsDir + "/result.json");
+        PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
+        //resultJsonWriter.write(gson.toJson(res));
+        resultJsonWriter.close();
+
+        if (res.getHypergraph() instanceof WeightedHypergraph) {
+            File hgWeightsFile = new File(subResultsDir + "/hg-weights.csv");
+            PrintWriter weightsWriter = new PrintWriter(hgWeightsFile);
+            weightsWriter.write(((WeightedHypergraph) res.getHypergraph()).toWeightsFile());
+            weightsWriter.close();
+        }
+
+        if (analyzeQuery) {
+            File analyzeJSONFile = new File(subResultsDir + "/analyze.json");
+            PrintWriter analyzeJsonWriter = new PrintWriter(analyzeJSONFile);
+            analyzeJsonWriter.write(res.getAnalyzeJSON());
+            analyzeJsonWriter.close();
+
+            for (ExecutionStatistics executionStatistics : res.getExecutionStatistics()) {
+                AnalyzeExecutionStatistics analyzeExecutionStatistics = (AnalyzeExecutionStatistics) executionStatistics;
+
+                File stageDir = new File(subResultsDir + "/stage-" + executionStatistics.getQueryName());
+                stageDir.mkdirs();
+
+                int i = 1;
+                System.out.println(analyzeExecutionStatistics.getAnalyzeJSONs());
+                for (String analyzeJSON : analyzeExecutionStatistics.getAnalyzeJSONs()) {
+
+                    File analyzeOptimizedJSONFile = new File(stageDir+ "/analyze-" + i + ".json");
+                    PrintWriter analyzeOptimizedJsonWriter = new PrintWriter(analyzeOptimizedJSONFile);
+                    analyzeOptimizedJsonWriter.write(analyzeJSON);
+                    analyzeOptimizedJsonWriter.close();
+
+                    File analyzeOptimizedQueryStringFile = new File(stageDir+ "/analyze-" + i + ".sql");
+                    PrintWriter analyzeOptimizedQueryStringWriter = new PrintWriter(analyzeOptimizedQueryStringFile);
+                    analyzeOptimizedQueryStringWriter.write(analyzeExecutionStatistics.getQueryStrings().get(i-1));
+                    analyzeOptimizedQueryStringWriter.close();
+                    i++;
+                }
+            }
+        }
+
+        String runtimeStatistics = "name,runtime\n";
+
+        if (res.getExecutionStatistics() != null) {
+            for (ExecutionStatistics stats : res.getExecutionStatistics()) {
+                runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "\n";
+            }
+        }
+
+        File statisticsFile = new File(subResultsDir + "/stages-runtimes.csv");
+        PrintWriter statisticsWriter = new PrintWriter(statisticsFile);
+        statisticsWriter.write(runtimeStatistics);
+        statisticsWriter.close();
+
+        Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
+
+        // Do garbage collection because otherwise the benchmark crashes due to OOM ...
+        System.gc();
+        System.runFinalization();
+    }
+
     public void run(File resultsDirectory, SummarizedResultsCSVGenerator csvGenerator) {
         try {
             List<BenchmarkConf> confs = generateBenchmarkConfigs();
 
             for (BenchmarkConf conf : confs) {
-                BenchmarkResult res = benchmark(conf);
+                if (enumerateJoinTrees) {
+                    List<BenchmarkResult> benchmarkResults = enumerateBenchmark(conf);
 
-                csvGenerator.addResult(res);
-
-                File subResultsDir = new File(resultsDirectory.getAbsolutePath() + "/" + conf.getDb() + "/" + conf.getQuery() + "-" + conf.getSuffix());
-                subResultsDir.mkdirs();
-
-                File hypergraphFile = new File(subResultsDir + "/hypergraph.dtl");
-
-                // Write hypergraph
-                if (res.getHypergraph() != null) {
-                    PrintWriter hypergraphWriter = new PrintWriter(hypergraphFile);
-                    hypergraphWriter.write(res.getHypergraph().toDTL());
-                    hypergraphWriter.close();
-
-                    // Write graph rendering
-                    res.getHypergraph().toPDF(Paths.get(subResultsDir + "/hypergraph.pdf"));
-                }
-
-                // Write out the java data structure
-                File resultTxtFile = new File(subResultsDir + "/result.txt");
-                PrintWriter resultStringWriter = new PrintWriter(resultTxtFile);
-                resultStringWriter.write(res.toString());
-                resultStringWriter.close();
-
-                // Write out the original query
-                File queryFile = new File(subResultsDir + "/query.sql");
-                PrintWriter queryWriter = new PrintWriter(queryFile);
-                queryWriter.write(res.getQuery());
-                queryWriter.close();
-
-                if (res.getGeneratedQuery() != null) {
-                    // Write out the optimized generated query
-                    File generatedQueryFile = new File(subResultsDir + "/generated.sql");
-                    PrintWriter generatedQueryWriter = new PrintWriter(generatedQueryFile);
-                    generatedQueryWriter.write(res.getGeneratedQuery());
-                    generatedQueryWriter.close();
-                }
-
-                // Write out the serialized results as json
-                File resultJsonFile = new File(subResultsDir + "/result.json");
-                PrintWriter resultJsonWriter = new PrintWriter(resultJsonFile);
-                //resultJsonWriter.write(gson.toJson(res));
-                resultJsonWriter.close();
-
-                if (res.getHypergraph() instanceof WeightedHypergraph) {
-                    File hgWeightsFile = new File(subResultsDir + "/hg-weights.csv");
-                    PrintWriter weightsWriter = new PrintWriter(hgWeightsFile);
-                    weightsWriter.write(((WeightedHypergraph) res.getHypergraph()).toWeightsFile());
-                    weightsWriter.close();
-                }
-
-                if (analyzeQuery) {
-                    File analyzeJSONFile = new File(subResultsDir + "/analyze.json");
-                    PrintWriter analyzeJsonWriter = new PrintWriter(analyzeJSONFile);
-                    analyzeJsonWriter.write(res.getAnalyzeJSON());
-                    analyzeJsonWriter.close();
-
-                    for (ExecutionStatistics executionStatistics : res.getExecutionStatistics()) {
-                        AnalyzeExecutionStatistics analyzeExecutionStatistics = (AnalyzeExecutionStatistics) executionStatistics;
-
-                        File stageDir = new File(subResultsDir + "/stage-" + executionStatistics.getQueryName());
-                        stageDir.mkdirs();
-
-                        int i = 1;
-                        System.out.println(analyzeExecutionStatistics.getAnalyzeJSONs());
-                        for (String analyzeJSON : analyzeExecutionStatistics.getAnalyzeJSONs()) {
-
-                            File analyzeOptimizedJSONFile = new File(stageDir+ "/analyze-" + i + ".json");
-                            PrintWriter analyzeOptimizedJsonWriter = new PrintWriter(analyzeOptimizedJSONFile);
-                            analyzeOptimizedJsonWriter.write(analyzeJSON);
-                            analyzeOptimizedJsonWriter.close();
-
-                            File analyzeOptimizedQueryStringFile = new File(stageDir+ "/analyze-" + i + ".sql");
-                            PrintWriter analyzeOptimizedQueryStringWriter = new PrintWriter(analyzeOptimizedQueryStringFile);
-                            analyzeOptimizedQueryStringWriter.write(analyzeExecutionStatistics.getQueryStrings().get(i-1));
-                            analyzeOptimizedQueryStringWriter.close();
-                            i++;
-                        }
+                    int joinTreeNo = 1;
+                    for (BenchmarkResult result : benchmarkResults) {
+                        conf.setSuffix(conf.getSuffix() + "-" + joinTreeNo);
+                        joinTreeNo++;
+                        saveBenchmarkData(conf, result, resultsDirectory, csvGenerator);
                     }
                 }
-
-                String runtimeStatistics = "name,runtime\n";
-
-                if (res.getExecutionStatistics() != null) {
-                    for (ExecutionStatistics stats : res.getExecutionStatistics()) {
-                        runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "\n";
-                    }
+                else {
+                    BenchmarkResult res = benchmark(conf);
+                    saveBenchmarkData(conf, res, resultsDirectory, csvGenerator);
                 }
-
-                File statisticsFile = new File(subResultsDir + "/stages-runtimes.csv");
-                PrintWriter statisticsWriter = new PrintWriter(statisticsFile);
-                statisticsWriter.write(runtimeStatistics);
-                statisticsWriter.close();
-
-                Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
-
-                // Do garbage collection because otherwise the benchmark crashes due to OOM ...
-                System.gc();
-                System.runFinalization();
             }
-        } catch (SQLException | IOException | QueryConversionException | InterruptedException e) {
+        } catch (SQLException | IOException | QueryConversionException | InterruptedException | TableNotFoundException e) {
             System.out.println("Error benchmarking: " + e.getMessage());
             e.printStackTrace();
         }
@@ -743,7 +820,11 @@ public class Benchmark {
         this.acyclicOpt = acyclicOpt;
     }
 
-    public void setSchemaFile(String schemaFile) {
-        this.schemaFile = schemaFile;
+    public void setTablespace(String tablespace) {
+        this.tablespace = tablespace;
+    }
+
+    public void setEnumerateJoinTrees(boolean enumerateJoinTrees) {
+        this.enumerateJoinTrees = enumerateJoinTrees;
     }
 }
