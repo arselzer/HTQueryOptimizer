@@ -412,6 +412,7 @@ public class Benchmark {
             result.setHypergraphComputationRuntime(optimizedQE.getQuery().getHypergraphGenerationRuntime());
             result.setJoinTreeComputationRuntime(optimizedQE.getQuery().getJoinTreeGenerationRuntime());
             result.setExecutionStatistics(optimizedRSWithStatistics.getStatistics());
+            result.setQueryExecution(queryExecution);
 
             optimizedRS = optimizedRSWithStatistics.getResultSet();
 
@@ -645,7 +646,7 @@ public class Benchmark {
         resultStringWriter.close();
 
         // Write out the original query
-        File queryFile = new File(subResultsDir + "/query.sql");
+        File queryFile = new File(subResultsDir + "/original-query.sql");
         PrintWriter queryWriter = new PrintWriter(queryFile);
         queryWriter.write(res.getQuery());
         queryWriter.close();
@@ -657,6 +658,19 @@ public class Benchmark {
             generatedQueryWriter.write(res.getGeneratedQuery());
             generatedQueryWriter.close();
         }
+
+        File executionFile = new File(subResultsDir + "/query-execution.sql");
+        PrintWriter executionWriter = new PrintWriter(executionFile);
+        String queryExecutionString = "";
+        for (List<List<String>> stage : res.getQueryExecution().getSqlStatements()) {
+            for (List<String> layer : stage) {
+                for (String query : layer) {
+                    queryExecutionString += query + "\n";
+                }
+            }
+        }
+        executionWriter.write(queryExecutionString);
+        executionWriter.close();
 
         // Write out the serialized results as json
         File resultJsonFile = new File(subResultsDir + "/result.json");
@@ -731,7 +745,13 @@ public class Benchmark {
 
                     int joinTreeNo = 1;
                     for (BenchmarkResult result : benchmarkResults) {
-                        conf.setSuffix(conf.getSuffix() + "-" + joinTreeNo);
+                        System.out.println(conf.getSuffix());
+                        if (conf.getSuffix().matches(".*t[0-9]+$")) {
+                            conf.setSuffix(conf.getSuffix().replaceFirst("-t[0-9]+$", "-t" + joinTreeNo));
+                        }
+                        else {
+                            conf.setSuffix(conf.getSuffix() + "-t" + joinTreeNo);
+                        }
                         joinTreeNo++;
                         saveBenchmarkData(conf, result, resultsDirectory, csvGenerator);
                     }
