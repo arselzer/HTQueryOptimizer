@@ -2,6 +2,7 @@ package benchmark;
 
 import hypergraph.Hypergraph;
 import query.JoinTreeNode;
+import query.ParallelQueryExecution;
 import queryexecutor.ExecutionStatistics;
 
 import java.util.List;
@@ -32,6 +33,7 @@ public class BenchmarkResult {
 
     private String query;
     private String generatedQuery;
+    private ParallelQueryExecution queryExecution;
 
     private String analyzeJSON;
 
@@ -215,6 +217,14 @@ public class BenchmarkResult {
 
     public void setStageRuntimes(long[] stageRuntimes) {
         this.stageRuntimes = stageRuntimes;
+    }
+
+    public ParallelQueryExecution getQueryExecution() {
+        return queryExecution;
+    }
+
+    public void setQueryExecution(ParallelQueryExecution queryExecution) {
+        this.queryExecution = queryExecution;
     }
 
     @Override

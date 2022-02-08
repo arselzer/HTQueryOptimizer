@@ -62,7 +62,7 @@ public class SQLQuery {
 
     private boolean createIndexes = false;
 
-    private boolean applyAggregates = false;
+    private boolean applyAggregates = true;
     List<String> finalProjectAggregates = new LinkedList<>();
     Map<String, List<String>> whereFilters = new HashMap<>();
 
@@ -253,8 +253,6 @@ public class SQLQuery {
 
     public ParallelQueryExecution toParallelExecution(boolean bcq) throws QueryConversionException {
         System.out.println("toParallelExecution");
-
-        System.out.println("schemaFile: " + applyAggregates);
 
         Hypergraph hg;
         if (statistics == null) {
@@ -611,8 +609,8 @@ public class SQLQuery {
             }
 
             String finalQuery = String.format("CREATE VIEW %s AS SELECT %s\n", finalTableName,
-                    applyAggregates ? resultColumns.stream().map(Column::getName).collect(Collectors.joining(", "))
-                                        : String.join(", ", finalProjectAggregates));
+                    applyAggregates ? String.join(", ", finalProjectAggregates)
+                                        : resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
             finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
             dropStatements.dropView(finalTableName);
 
