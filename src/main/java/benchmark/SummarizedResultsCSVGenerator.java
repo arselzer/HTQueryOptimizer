@@ -11,6 +11,7 @@ public class SummarizedResultsCSVGenerator {
             "algorithm",
             "size",
             "run",
+            "joinTreeNo",
             "origRuntime",
             "optQueryRuntime",
             "optTotalRuntime",
@@ -66,6 +67,7 @@ public class SummarizedResultsCSVGenerator {
                 result.getConf().getDecompositionOptions().getAlgorithm().name() + "," +
                 result.getConf().getDbSize() + "," +
                 result.getConf().getRun() + "," +
+                result.getJoinTreeNo() + "," +
                 result.getUnoptimizedRuntime() + "," +
                 result.getOptimizedQueryRuntime() + "," +
                 result.getOptimizedTotalRuntime() + "," +

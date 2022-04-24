@@ -197,8 +197,6 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
-
-
                         });
                     }
                     catch (StopParallelStreamException e) {

@@ -1,5 +1,6 @@
 package query;
 
+import hypergraph.Hypergraph;
 import schema.Column;
 
 import java.util.List;
@@ -9,6 +10,10 @@ public class ParallelQueryExecution {
     private DropStatements dropStatements;
     private List<Column> resultColumns;
     private String finalSelectName;
+
+    private Hypergraph hypergraph;
+
+    private JoinTreeNode joinTree;
 
     public ParallelQueryExecution(List<List<List<String>>> sqlStatements, DropStatements dropStatements, List<Column> resultColumns, String finalSelectName) {
         this.sqlStatements = sqlStatements;
@@ -47,5 +52,21 @@ public class ParallelQueryExecution {
 
     public void setFinalSelectName(String finalSelectName) {
         this.finalSelectName = finalSelectName;
+    }
+
+    public Hypergraph getHypergraph() {
+        return hypergraph;
+    }
+
+    public void setHypergraph(Hypergraph hypergraph) {
+        this.hypergraph = hypergraph;
+    }
+
+    public JoinTreeNode getJoinTree() {
+        return joinTree;
+    }
+
+    public void setJoinTree(JoinTreeNode joinTree) {
+        this.joinTree = joinTree;
     }
 }

@@ -627,7 +627,12 @@ public class SQLQuery {
             resultQueryStages.add(List.of(List.of(finalQuery)));
         }
 
-        return new ParallelQueryExecution(resultQueryStages, dropStatements, resultColumns, finalTableName);
+        ParallelQueryExecution result =
+                new ParallelQueryExecution(resultQueryStages, dropStatements, resultColumns, finalTableName);
+        result.setHypergraph(hypergraph);
+        result.setJoinTree(joinTree);
+
+        return result;
     }
 
     // TODO refactor to use the above method
