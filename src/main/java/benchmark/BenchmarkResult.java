@@ -31,6 +31,8 @@ public class BenchmarkResult {
     private Hypergraph hypergraph;
     private JoinTreeNode joinTree;
 
+    private int joinTreeNo;
+
     private String query;
     private String generatedQuery;
     private ParallelQueryExecution queryExecution;
@@ -225,6 +227,14 @@ public class BenchmarkResult {
 
     public void setQueryExecution(ParallelQueryExecution queryExecution) {
         this.queryExecution = queryExecution;
+    }
+
+    public int getJoinTreeNo() {
+        return joinTreeNo;
+    }
+
+    public void setJoinTreeNo(int joinTreeNo) {
+        this.joinTreeNo = joinTreeNo;
     }
 
     @Override

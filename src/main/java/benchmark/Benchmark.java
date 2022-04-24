@@ -14,8 +14,8 @@ import queryexecutor.*;
 
 import java.io.*;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -72,7 +72,7 @@ public class Benchmark {
         helpFormatter.printHelp("java -cp {jar} \"benchmark.Benchmark\"", "", options, "", true);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         Option help = new Option("h", "help", false, "show this");
         Option setDb = new Option("d", "db", true, "the database(s) to use, default: all");
         Option setTimeout = new Option("t", "timeout", true, "the timeout of queries in seconds, e.g. `-t 20`, default: 25s");
@@ -222,8 +222,30 @@ public class Benchmark {
             benchmark.setEnumerateJoinTrees(true);
         }
 
-        File resultsDirectory = new File("benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date()));
+        String resultsDirectoryName = "benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date());
+        File resultsDirectory = new File(resultsDirectoryName);
         resultsDirectory.mkdirs();
+        File latestDirectory = new File("latest-results");
+        // Delete old "latest" results
+        if (latestDirectory.exists()) {
+            Files.walkFileTree(latestDirectory.toPath(), new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    Files.delete(dir);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
+        latestDirectory.mkdirs();
+
+        Path link = Paths.get("latest-results/" + resultsDirectoryName);
+        Files.createSymbolicLink(link, resultsDirectory.toPath().toAbsolutePath());
 
         SummarizedResultsCSVGenerator csvGenerator = new SummarizedResultsCSVGenerator();
 
@@ -284,8 +306,10 @@ public class Benchmark {
         List<ParallelQueryExecution> queryExecutions = optimizedQE.listQueryExecutions(query);
 
         System.out.println("enumerating join trees" + queryExecutions);
+        int joinTreeNo = 1;
         for (ParallelQueryExecution queryExecution : queryExecutions) {
             BenchmarkResult result = benchmark(optimizedQE, queryExecution, conf);
+            result.setJoinTreeNo(joinTreeNo++);
             benchmarkResults.add(result);
         }
 
@@ -404,7 +428,7 @@ public class Benchmark {
                     analyzeExecutionStatistics.add((AnalyzeExecutionStatistics) executionStatistics);
                 }
             }
-            result.setStageRuntimes(optimizedQE.getStageRuntimes());
+            result.setStageRuntimes(optimizedQE.getStageRuntimes().clone());
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
             result.setDropTime(optimizedQE.getDropTime());
@@ -448,8 +472,8 @@ public class Benchmark {
             System.err.println("Table not found: " + e.getMessage());
         }
 
-        result.setHypergraph(optimizedQE.getHypergraph());
-        result.setJoinTree(optimizedQE.getJoinTree());
+        result.setHypergraph(queryExecution.getHypergraph());
+        result.setJoinTree(queryExecution.getJoinTree());
         result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
 
         /** Execute original (unoptimized) query **/
@@ -645,6 +669,11 @@ public class Benchmark {
         resultStringWriter.write(res.toString());
         resultStringWriter.close();
 
+        File jointreeFile = new File(subResultsDir + "/jointree.txt");
+        PrintWriter jointreeStringWriter = new PrintWriter(jointreeFile);
+        jointreeStringWriter.write(res.getJoinTree().toString());
+        jointreeStringWriter.close();
+
         // Write out the original query
         File queryFile = new File(subResultsDir + "/original-query.sql");
         PrintWriter queryWriter = new PrintWriter(queryFile);
@@ -743,16 +772,14 @@ public class Benchmark {
                 if (enumerateJoinTrees) {
                     List<BenchmarkResult> benchmarkResults = enumerateBenchmark(conf);
 
-                    int joinTreeNo = 1;
                     for (BenchmarkResult result : benchmarkResults) {
                         System.out.println(conf.getSuffix());
                         if (conf.getSuffix().matches(".*t[0-9]+$")) {
-                            conf.setSuffix(conf.getSuffix().replaceFirst("-t[0-9]+$", "-t" + joinTreeNo));
+                            conf.setSuffix(conf.getSuffix().replaceFirst("-t[0-9]+$", "-t" + result.getJoinTreeNo()));
                         }
                         else {
-                            conf.setSuffix(conf.getSuffix() + "-t" + joinTreeNo);
+                            conf.setSuffix(conf.getSuffix() + "-t" + result.getJoinTreeNo());
                         }
-                        joinTreeNo++;
                         saveBenchmarkData(conf, result, resultsDirectory, csvGenerator);
                     }
                 }
@@ -761,6 +788,7 @@ public class Benchmark {
                     saveBenchmarkData(conf, res, resultsDirectory, csvGenerator);
                 }
             }
+            System.out.println("Saved benchmark results to: " + resultsDirectory.toString());
         } catch (SQLException | IOException | QueryConversionException | InterruptedException | TableNotFoundException e) {
             System.out.println("Error benchmarking: " + e.getMessage());
             e.printStackTrace();
