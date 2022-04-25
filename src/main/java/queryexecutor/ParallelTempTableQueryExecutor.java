@@ -138,6 +138,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                     List<String> analyzeJSONQueryStrings = new LinkedList<>();
                     long startTime = System.currentTimeMillis();
 
+                    Map<String, Integer> queryRows = new HashMap<>();
+
                     if (emptyResult.get()) {
                         break;
                     }
@@ -184,6 +186,8 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                                         rsCount.close();
                                         getCountStmt.close();
 
+                                        queryRows.put(query, rowCount);
+
                                         if (rowCount == 0) {
                                             emptyResult.set(true);
                                             System.out.println("result is empty!");
@@ -211,7 +215,7 @@ public class ParallelTempTableQueryExecutor extends TempTableQueryExecutor {
                     long timeDifference = System.currentTimeMillis() - startTime;
 
                     statisticsList.add(new AnalyzeExecutionStatistics("layer-" + layerCount,
-                            layer, timeDifference, analyzeJSONs, analyzeJSONQueryStrings));
+                            layer, timeDifference, queryRows, analyzeJSONs, analyzeJSONQueryStrings));
                     layerCount++;
                 }
 

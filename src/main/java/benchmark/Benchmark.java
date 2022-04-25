@@ -744,15 +744,20 @@ public class Benchmark {
             }
         }
 
-        String runtimeStatistics = "name,runtime\n";
+        String runtimeStatistics = "name,runtime,rowcounts,queries-rows\n";
 
         if (res.getExecutionStatistics() != null) {
             for (ExecutionStatistics stats : res.getExecutionStatistics()) {
-                runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "\n";
+                runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "," +
+                                stats.getQueryRows().values().stream().map(i -> i.toString()).collect(Collectors.joining(";")) + "," +
+                                stats.getQueryStrings().stream()
+                                .map(queryStr -> "\"" + queryStr.replace("\n", "\\n") + ": " +
+                                        stats.getQueryRows().get(queryStr))
+                                        .collect(Collectors.joining(";")) + "\"\n";
             }
         }
 
-        File statisticsFile = new File(subResultsDir + "/stages-runtimes.csv");
+        File statisticsFile = new File(subResultsDir + "/layers-runtimes.csv");
         PrintWriter statisticsWriter = new PrintWriter(statisticsFile);
         statisticsWriter.write(runtimeStatistics);
         statisticsWriter.close();

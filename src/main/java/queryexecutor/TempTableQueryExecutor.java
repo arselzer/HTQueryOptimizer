@@ -129,7 +129,8 @@ public class TempTableQueryExecutor implements QueryExecutor {
 
             queryRunningTime = System.currentTimeMillis() - startTime;
 
-            statisticsList.add(new ExecutionStatistics("query", List.of(functionStr), queryRunningTime));
+            statisticsList.add(new ExecutionStatistics("query", List.of(functionStr), queryRunningTime, null));
+            // TODO queryRows ?
 
             System.out.println("total time elapsed: " + queryRunningTime);
 
