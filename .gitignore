@@ -8,4 +8,4 @@ dependency-reduced-pom.xml
 .ipynb_checkpoints
 graphics/
 jointree_search/
-data/musicbrainz/mbdump
+data/musicbrainz/mbdump/
