@@ -140,14 +140,18 @@ public class Hypergraph {
         return root;
     }
 
-    /**
-     * Generate a join tree with default options
-     *
-     * @return
-     * @throws JoinTreeGenerationException
-     */
-
     public List<JoinTreeNode> enumerateJoinTrees(DecompositionOptions options) throws JoinTreeGenerationException, IOException {
+        return enumerateJoinTrees(options, false);
+    }
+
+        /**
+         * Generate a join tree with default options
+         *
+         * @return
+         * @throws JoinTreeGenerationException
+         */
+
+    public List<JoinTreeNode> enumerateJoinTrees(DecompositionOptions options, boolean enumerateRerootings) throws JoinTreeGenerationException, IOException {
         List<JoinTreeNode> joinTrees = new LinkedList<>();
 
         String fileContent = toDTL();
@@ -243,7 +247,8 @@ public class Hypergraph {
                         }
                     }
 
-                    Files.delete(file.toPath());
+                    // Files.delete(file.toPath());
+                    // TODO add parameter
 
                     joinTrees.add(hypertreeToJoinTree(root));
                 }
@@ -253,6 +258,14 @@ public class Hypergraph {
 
         } catch (ImportException e) {
             throw new JoinTreeGenerationException("Error importing hypertree file: " + e.getMessage());
+        }
+
+        if (enumerateRerootings) {
+            List<JoinTreeNode> rerootedJoinTrees = new LinkedList<>();
+            for (JoinTreeNode joinTreeNode : joinTrees) {
+                rerootedJoinTrees.addAll(joinTreeNode.getRerootedTrees());
+            }
+            return rerootedJoinTrees;
         }
 
         return joinTrees;

@@ -1,0 +1,1 @@
+SELECT * FROM "country_area", "release_country", "area", "artist", "artist_alias", "label", "gender" WHERE "country_area"."area" = "release_country"."country" AND "country_area"."area" = "area"."id" AND "area"."id" = "artist"."area" AND "artist"."id" = "artist_alias"."artist" AND "area"."id" = "label"."area" AND "artist"."gender" = "gender"."id";

@@ -213,8 +213,8 @@ public class SQLQuery {
         folder.delete();
     }
 
-    public List<ParallelQueryExecution> enumerateParallelExecutions(boolean bcq) throws QueryConversionException, IOException {
-        List<JoinTreeNode> joinTrees = new LinkedList<>();
+    public List<ParallelQueryExecution> enumerateParallelExecutions(boolean bcq, boolean enumerateRerootings) throws QueryConversionException, IOException {
+        List<JoinTreeNode> joinTrees;
         List<ParallelQueryExecution> queryExecutions = new LinkedList<>();
 
         Hypergraph hg;
@@ -236,7 +236,7 @@ public class SQLQuery {
 
         try {
             long startTime = System.currentTimeMillis();
-            joinTrees = hg.enumerateJoinTrees(decompositionOptions);
+            joinTrees = hg.enumerateJoinTrees(decompositionOptions, enumerateRerootings);
             this.joinTreeGenerationRuntime = System.currentTimeMillis() - startTime;
         } catch (JoinTreeGenerationException e) {
             throw new QueryConversionException("Error generating join tree: " + e.getMessage());
@@ -245,6 +245,7 @@ public class SQLQuery {
         List<ParallelQueryExecution> executions = new LinkedList<>();
 
         for (JoinTreeNode joinTreeNode : joinTrees) {
+            System.out.println(joinTreeNode);
             queryExecutions.add(toParallelExecution(hg, joinTreeNode, bcq));
         }
 
@@ -285,6 +286,7 @@ public class SQLQuery {
     public ParallelQueryExecution toParallelExecution(Hypergraph hg, JoinTreeNode joinTree, boolean bcq) throws QueryConversionException {
         List<List<List<String>>> resultQueryStages = new LinkedList<>();
         String finalTableName = "htqo_" + UUID.randomUUID().toString().replace("-", "");
+        System.out.println("tablespace: " + tablespace);
 
         DropStatements dropStatements = new DropStatements();
 
@@ -306,7 +308,11 @@ public class SQLQuery {
                 resultColumns.add(new Column(node, realColumn.getType()));
             }
         } else {
+            //System.out.println("column aliases: " + columnAliases);
             for (String projectCol : projectColumns) {
+                //System.out.println("project col: " + projectCol);
+                //System.out.println("project col 2: " + columnAliases.get(projectCol));
+
                 Column realColumn = columnByNameMap.get(columnAliases.get(projectCol));
                 String hyperedge = hg.getColumnToVariableMapping().get(projectCol);
                 Column newColumn = new Column(hyperedge, realColumn.getType());
@@ -414,7 +420,7 @@ public class SQLQuery {
                                     String.join(", ", columnRewrites.size() > 0 ? columnRewrites : List.of("1")),
                                     tableName, tableAliasName);
                             aliasedTables.add(baseViewQuery);
-                        } else {
+                        } else { // DISTINCT
                             String baseViewQuery = String.format("(SELECT %s FROM %s) sq",
                                     String.join(", ", filteredColumnRewrites.size() > 0 ? filteredColumnRewrites : List.of("1")),
                                     tableName);
@@ -428,19 +434,27 @@ public class SQLQuery {
 
                 if (aliasedTables.size() == 1) {
                     sqlStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 1));
-                    dropStatements.dropView(getNodeIdentifier(node, 1));
+                    //sqlStatement += String.format("CREATE TEMPORARY TABLE %s\n", getNodeIdentifier(node, 1));
+                    if (!stage1.contains(sqlStatement)) {
+                        dropStatements.dropView(getNodeIdentifier(node, 1));
+                    }
                 } else {
                     sqlStatement += String.format("CREATE UNLOGGED TABLE %s %s\n",
                             getNodeIdentifier(node, 1),
                             tablespace == null ? "" : String.format("TABLESPACE %s", tablespace));
-                    dropStatements.dropTable(getNodeIdentifier(node, 1));
+                    if (!stage1.contains(sqlStatement)) {
+                        dropStatements.dropTable(getNodeIdentifier(node, 1));
+                    }
                 }
 
-                sqlStatement += String.format("AS SELECT %s FROM %s;\n",
+                sqlStatement += String.format("AS SELECT DISTINCT %s FROM %s;\n",
                         String.join(", ", node.getAttributes()),
                         String.join(" NATURAL INNER JOIN ", aliasedTables));
 
-                stage1.add(sqlStatement);
+                // Sometimes parts of the tree are duplicated
+                if (!stage1.contains(sqlStatement)) {
+                    stage1.add(sqlStatement);
+                }
             }
         }
 
@@ -496,7 +510,7 @@ public class SQLQuery {
                             getNodeIdentifier(node, 2),
                             tablespace == null ? "" : String.format("TABLESPACE %s", tablespace));
                     dropStatements.dropTable(getNodeIdentifier(node, 2));
-                    sqlStatement += String.format("AS SELECT *\n");
+                    sqlStatement += String.format("AS SELECT  *\n");
                     sqlStatement += String.format("FROM %s\n", getNodeIdentifier(node, 1));
                     sqlStatement += String.format("WHERE %s;\n", String.join(" AND ", semiJoins));
 
@@ -521,7 +535,6 @@ public class SQLQuery {
         }
 
         List<String> aliasViews = new LinkedList<>();
-
         // Create views for the last layer (which are just an alias for the views from stage 1)
         for (JoinTreeNode node : joinLayers.get(joinLayers.size() - 1)) {
             String createStatement = String.format("CREATE VIEW %s\n", getNodeIdentifier(node, 2))
@@ -545,6 +558,8 @@ public class SQLQuery {
                 for (JoinTreeNode node : layer) {
                     JoinTreeNode parent = node.getPredecessor();
 
+                    //System.out.println("node: " + node);
+                    //System.out.println("parent: " + parent);
                     String parentName;
                     if (parent.getPredecessor() == null) {
                         parentName = getNodeIdentifier(parent, 2);
@@ -592,7 +607,8 @@ public class SQLQuery {
 
             // Create one view for the root node
             topStatement += String.format("CREATE VIEW %s\n", getNodeIdentifier(joinTree, 3));
-            topStatement += String.format("AS SELECT DISTINCT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
+            //topStatement += String.format("AS SELECT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
+            topStatement += String.format("AS SELECT * FROM %s;\n", getNodeIdentifier(joinTree, 2));
             dropStatements.dropView(getNodeIdentifier(joinTree, 3));
 
             stage3.add(List.of(topStatement));
@@ -608,10 +624,43 @@ public class SQLQuery {
                 }
             }
 
+             // TODO add cli argument
+            boolean parallelizeJoinSplit = false;
+
+            System.out.println(joinTree.getFinalJoinSplit());
+            List<List<JoinTreeNode>> joinSplit = joinTree.getFinalJoinSplit();
+
+            List<String> groupNames = new LinkedList<>();
+            if (!parallelizeJoinSplit) {
+                int groupIndex = 1;
+                for (List<JoinTreeNode> group : joinSplit) {
+                    String groupName = "htqo_group_" + groupIndex + UUID.randomUUID().toString().replace("-", "");
+                    String groupQuery = String.format("CREATE UNLOGGED TABLE %s AS SELECT *\n", groupName);
+                    groupQuery += String.format("FROM %s;\n",
+                            group.stream().map(node -> getNodeIdentifier(node, 3))
+                                    .collect(Collectors.joining(" NATURAL INNER JOIN ")));
+                    groupNames.add(groupName);
+                    resultQueryStages.add(List.of(List.of(groupQuery)));
+                    dropStatements.dropTable(groupName);
+                    groupIndex++;
+                }
+            }
+            else {
+                // TODO implement
+            }
+
+//            String finalQuery = String.format("CREATE VIEW %s AS SELECT %s\n", finalTableName,
+//                    applyAggregates ? String.join(", ", finalProjectAggregates)
+//                                        : resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
+//            finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
+//            dropStatements.dropView(finalTableName);
+//
+//            resultQueryStages.add(List.of(List.of(finalQuery)));
+
             String finalQuery = String.format("CREATE VIEW %s AS SELECT %s\n", finalTableName,
                     applyAggregates ? String.join(", ", finalProjectAggregates)
-                                        : resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
-            finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", allStage3Tables));
+                            : resultColumns.stream().map(Column::getName).collect(Collectors.joining(", ")));
+            finalQuery += String.format("FROM %s;\n", String.join(" NATURAL INNER JOIN ", groupNames));
             dropStatements.dropView(finalTableName);
 
             resultQueryStages.add(List.of(List.of(finalQuery)));

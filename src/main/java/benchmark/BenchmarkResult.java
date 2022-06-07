@@ -5,6 +5,7 @@ import query.JoinTreeNode;
 import query.ParallelQueryExecution;
 import queryexecutor.ExecutionStatistics;
 
+import java.util.HashMap;
 import java.util.List;
 
 public class BenchmarkResult {
@@ -16,7 +17,7 @@ public class BenchmarkResult {
     private long optimizedQueryRuntime;
     private long dropTime;
     private long totalPreprocessingTime;
-    private long[] stageRuntimes;
+    private List<Long> stageRuntimes;
 
     private boolean optimizedQueryTimeout = false;
     private boolean unoptimizedQueryTimeout = false;
@@ -40,6 +41,9 @@ public class BenchmarkResult {
     private String analyzeJSON;
 
     private List<ExecutionStatistics> executionStatistics;
+
+    private HashMap<String, Integer> originalRowCount;
+    private HashMap<String, Integer> optimizedRowCount;
 
     BenchmarkResult(BenchmarkConf conf) {
         this.conf = conf;
@@ -213,11 +217,12 @@ public class BenchmarkResult {
         this.totalPreprocessingTime = totalPreprocessingTime;
     }
 
-    public long[] getStageRuntimes() {
+
+    public List<Long> getStageRuntimes() {
         return stageRuntimes;
     }
 
-    public void setStageRuntimes(long[] stageRuntimes) {
+    public void setStageRuntimes(List<Long> stageRuntimes) {
         this.stageRuntimes = stageRuntimes;
     }
 
@@ -235,6 +240,22 @@ public class BenchmarkResult {
 
     public void setJoinTreeNo(int joinTreeNo) {
         this.joinTreeNo = joinTreeNo;
+    }
+
+    public HashMap<String, Integer> getOriginalRowCount() {
+        return originalRowCount;
+    }
+
+    public void setOriginalRowCount(HashMap<String, Integer> originalRowCount) {
+        this.originalRowCount = originalRowCount;
+    }
+
+    public HashMap<String, Integer> getOptimizedRowCount() {
+        return optimizedRowCount;
+    }
+
+    public void setOptimizedRowCount(HashMap<String, Integer> optimizedRowCount) {
+        this.optimizedRowCount = optimizedRowCount;
     }
 
     @Override

@@ -1,0 +1,5 @@
+min max attributes in node
+select distinct pushing duplicate elimination downward
+group by possibly with attrs in root
+select count distinct
+select count distinct primary key

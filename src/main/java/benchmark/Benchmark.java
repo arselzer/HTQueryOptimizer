@@ -53,6 +53,8 @@ public class Benchmark {
     private boolean applyAggregates = true;
     private String tablespace = null;
     private boolean enumerateJoinTrees = false;
+    private boolean enumerateReroot = false;
+    private boolean skipExecution = false;
 
     public Benchmark(String dbRootDir, Properties connectionProperties, String dbURL) {
         this.dbRootDir = dbRootDir;
@@ -101,6 +103,14 @@ public class Benchmark {
         Option tablespace = new Option(null, "tablespace", true, "the tablespace to use for generating the temporary tables");
         tablespace.setType(String.class);
         Option enumerate = new Option(null, "enumerate", false, "enumerate join trees");
+        Option dbName = new Option(null, "dbname", true, "DB name");
+        dbName.setType(String.class);
+        Option user = new Option(null, "user", true, "user");
+        user.setType(String.class);
+        Option password = new Option(null, "password", true, "password");
+        password.setType(String.class);
+        Option reroot = new Option(null, "reroot", false, "enumerate join tree rerootings");
+        Option skipExecutionOption = new Option(null, "skip-execution", false, "skip the actual execution and only generate join trees, etc.");
 
         options.addOption(help);
         options.addOption(setDb);
@@ -124,6 +134,12 @@ public class Benchmark {
         options.addOption(schemaFile);
         options.addOption(tablespace);
         options.addOption(enumerate);
+        options.addOption(dbName);
+        options.addOption(user);
+        options.addOption(password);
+        options.addOption(enumerate);
+        options.addOption(reroot);
+        options.addOption(skipExecutionOption);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null;
@@ -141,16 +157,29 @@ public class Benchmark {
         }
 
         String url = "jdbc:postgresql://localhost/testdb?loggerLevel=TRACE&loggerFile=pgjdbc.log";
-        String user = "test";
-        String password = "test";
+        String userStr = "test";
+        String passwordStr = "test";
 
-        Properties properties = new Properties();
-        properties.setProperty("user", user);
-        properties.setProperty("password", password);
+
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         Benchmark benchmark;
+        if (cmd.hasOption("dbname")) {
+            url = "jdbc:postgresql://localhost/" + cmd.getOptionValue("dbname") + "?loggerLevel=TRACE&loggerFile=pgjdbc.log";
+        }
+        if (cmd.hasOption("user")) {
+            userStr = cmd.getOptionValue("user");
+        }
+        if (cmd.hasOption("password")) {
+            passwordStr = cmd.getOptionValue("password");
+        }
+
+        Properties properties = new Properties();
+        properties.setProperty("user", userStr);
+        properties.setProperty("password", passwordStr);
+
+        System.out.println("connecting to DB: " + url);;
         if (cmd.hasOption("db")) {
             benchmark = new Benchmark(System.getProperty("user.dir") + "/data", properties, url, cmd.getOptionValue("db"));
         } else {
@@ -220,6 +249,12 @@ public class Benchmark {
         }
         if (cmd.hasOption("enumerate")) {
             benchmark.setEnumerateJoinTrees(true);
+        }
+        if (cmd.hasOption("reroot")) {
+            benchmark.setEnumerateReroot(true);
+        }
+        if (cmd.hasOption("skip-execution")) {
+            benchmark.setSkipExecution(true);
         }
 
         String resultsDirectoryName = "benchmark-results-" + new SimpleDateFormat("yyyy-MM-dd-HH:mm:ss").format(new Date());
@@ -296,6 +331,10 @@ public class Benchmark {
             throw e;
             // Rethrow exceptions occurring during setup
         }
+        optimizedQE.setTablespace(tablespace);
+        optimizedQE.setTimeout(queryTimeout);
+
+
 
         String dbFileName = conf.getDb();
         String queryFileName = conf.getQuery();
@@ -303,7 +342,7 @@ public class Benchmark {
         String query = Files.lines(queryFile.toPath()).collect(Collectors.joining("\n"));
 
         List<BenchmarkResult> benchmarkResults = new LinkedList<>();
-        List<ParallelQueryExecution> queryExecutions = optimizedQE.listQueryExecutions(query);
+        List<ParallelQueryExecution> queryExecutions = optimizedQE.listQueryExecutions(query, enumerateReroot);
 
         System.out.println("enumerating join trees" + queryExecutions);
         int joinTreeNo = 1;
@@ -376,6 +415,10 @@ public class Benchmark {
             optimizedQE.setTimeout(conf.getQueryTimeout());
         }
 
+        if (skipExecution) {
+            optimizedQE.setSkipExecution(true);
+        }
+
         optimizedQE.setDecompositionOptions(conf.getDecompositionOptions());
         optimizedQE.setTablespace(tablespace);
 
@@ -386,7 +429,7 @@ public class Benchmark {
 
         HashMap<String, Integer> optimizedRowCount = new HashMap<>();
 
-        result.setStageRuntimes(new long[] {-1,-1,-1,-1});
+        result.setStageRuntimes(List.of(-1L,-1L,-1L,-1L));
 
         StatisticsResultSet optimizedRSWithStatistics = null;
         ResultSet optimizedRS = null;
@@ -401,6 +444,7 @@ public class Benchmark {
                     if (queryExecution == null) {
                         optimizedRSWithStatistics = optimizedQE
                                 .executeWithStatistics(query, false);
+                        queryExecution = optimizedQE.getQuery().toParallelExecution();
                     }
                     else {
                         optimizedRSWithStatistics = optimizedQE.executeWithStatistics(queryExecution, false, false);
@@ -415,6 +459,7 @@ public class Benchmark {
                     if (queryExecution == null) {
                         optimizedRSWithStatistics = optimizedQE
                                 .executeWithStatistics(query, false, true);
+                        queryExecution = optimizedQE.getQuery().toParallelExecution();
                     }
                     else {
                         optimizedRSWithStatistics = optimizedQE.executeWithStatistics(queryExecution, false, true);
@@ -428,7 +473,8 @@ public class Benchmark {
                     analyzeExecutionStatistics.add((AnalyzeExecutionStatistics) executionStatistics);
                 }
             }
-            result.setStageRuntimes(optimizedQE.getStageRuntimes().clone());
+
+            result.setStageRuntimes(optimizedQE.getStageRuntimes());
             result.setOptimizedTotalRuntime(System.currentTimeMillis() - startTimeOptimized);
             result.setOptimizedQueryRuntime(optimizedQE.getQueryRunningTime());
             result.setDropTime(optimizedQE.getDropTime());
@@ -440,40 +486,49 @@ public class Benchmark {
 
             optimizedRS = optimizedRSWithStatistics.getResultSet();
 
-            ResultSetMetaData metaData = optimizedRS.getMetaData();
-            int colCount = metaData.getColumnCount();
-            result.setOptimizedColumns(colCount);
+            // optimizedRS is null if the execution is skipped
+            if (optimizedRS != null) {
+                ResultSetMetaData metaData = optimizedRS.getMetaData();
+                int colCount = metaData.getColumnCount();
+                result.setOptimizedColumns(colCount);
 
-            int optimizedCount = 0;
-            if (!checkCorrectness) {
-                optimizedRS.last();
-                optimizedCount = optimizedRS.getRow();
-            } else {
-                while (optimizedRS.next()) {
-                    String row = "";
-                    for (int i = 1; i <= colCount; i++) {
-                        row += optimizedRS.getString(i) + ",";
+                int optimizedCount = 0;
+                if (!checkCorrectness) {
+                    optimizedRS.last();
+                    optimizedCount = optimizedRS.getRow();
+                } else {
+                    while (optimizedRS.next()) {
+                        String row = "";
+                        for (int i = 1; i <= colCount; i++) {
+                            row += optimizedRS.getString(i) + ",";
+                        }
+                        optimizedRowCount.putIfAbsent(row, 1);
+                        optimizedRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
+
+                        optimizedCount++;
                     }
-                    optimizedRowCount.putIfAbsent(row, 1);
-                    optimizedRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
-
-                    optimizedCount++;
                 }
+
+                result.setOptimizedRows(optimizedCount);
+
+                // Close the resultSet to close the PreparedStatement such that no memory is leaked
+                optimizedRS.close();
             }
-
-            result.setOptimizedRows(optimizedCount);
-
-            // Close the resultSet to close the PreparedStatement such that no memory is leaked
-            optimizedRS.close();
         } catch (SQLException e) {
-            System.err.println("Timeout or error: " + e.getMessage());
+            System.err.println("Timeout or error: " + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
             result.setOptimizedQueryTimeout(true);
         } catch (TableNotFoundException e) {
             System.err.println("Table not found: " + e.getMessage());
         }
 
-        result.setHypergraph(queryExecution.getHypergraph());
-        result.setJoinTree(queryExecution.getJoinTree());
+        if (queryExecution != null) {
+            result.setHypergraph(queryExecution.getHypergraph());
+            result.setJoinTree(queryExecution.getJoinTree());
+        }
+        else {
+            result.setHypergraph(optimizedQE.getHypergraph());
+            result.setJoinTree(optimizedQE.getJoinTree());
+        }
         result.setGeneratedQuery(optimizedQE.getGeneratedFunction());
 
         /** Execute original (unoptimized) query **/
@@ -493,74 +548,76 @@ public class Benchmark {
 
         HashMap<String, Integer> originalRowCount = new HashMap<>();
         ResultSet originalRS = null;
-        try {
-            conn.prepareStatement("vacuum analyze;").execute();
-            long startTimeUnoptimized = System.currentTimeMillis();
-            if (conf.isBooleanQuery()) {
-                originalRS = originalQE.executeBoolean(query, analyzeQuery);
-            }
-            else {
-                originalRS = originalQE.execute(query, analyzeQuery);
-            }
-            result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
-
-            if (!analyzeQuery) {
-                ResultSetMetaData metaData = originalRS.getMetaData();
-                int colCount = metaData.getColumnCount();
-                result.setUnoptimizedColumns(colCount);
-
-                int originalCount = 0;
-                if (!checkCorrectness) {
-                    originalRS.last();
-                    originalCount = originalRS.getRow();
+        if (!skipExecution) {
+            try {
+                conn.prepareStatement("vacuum analyze;").execute();
+                long startTimeUnoptimized = System.currentTimeMillis();
+                if (conf.isBooleanQuery()) {
+                    originalRS = originalQE.executeBoolean(query, analyzeQuery);
                 } else {
-                    while (originalRS.next()) {
-                        String row = "";
-                        for (int i = 1; i <= colCount; i++) {
-                            row += originalRS.getString(i) + ",";
+                    originalRS = originalQE.execute(query, analyzeQuery);
+                }
+                result.setUnoptimizedRuntime(System.currentTimeMillis() - startTimeUnoptimized);
+
+                if (!analyzeQuery) {
+                    ResultSetMetaData metaData = originalRS.getMetaData();
+                    int colCount = metaData.getColumnCount();
+                    result.setUnoptimizedColumns(colCount);
+
+                    int originalCount = 0;
+                    if (!checkCorrectness) {
+                        originalRS.last();
+                        originalCount = originalRS.getRow();
+                    } else {
+                        while (originalRS.next()) {
+                            String row = "";
+                            for (int i = 1; i <= colCount; i++) {
+                                row += originalRS.getString(i) + ",";
+                            }
+                            originalRowCount.putIfAbsent(row, 1);
+                            originalRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
+
+                            originalCount++;
                         }
-                        originalRowCount.putIfAbsent(row, 1);
-                        originalRowCount.computeIfPresent(row, (__, cnt) -> cnt + 1);
-
-                        originalCount++;
                     }
+
+                    result.setUnoptimizedRows(originalCount);
+                } else {
+                    String analyzeJSON = "";
+
+                    while (originalRS.next()) {
+                        analyzeJSON += originalRS.getString(1);
+                    }
+
+                    result.setAnalyzeJSON(analyzeJSON);
                 }
 
-                result.setUnoptimizedRows(originalCount);
+                originalRS.close();
+            } catch (SQLException e) {
+                System.err.println("Timeout or error: " + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
+                result.setUnoptimizedQueryTimeout(true);
+            } catch (TableNotFoundException e) {
+                System.err.println("Table not found: " + e.getMessage());
             }
-            else {
-                String analyzeJSON = "";
 
-                while (originalRS.next()) {
-                    analyzeJSON += originalRS.getString(1);
+            // Check if all rows occur the same number of times
+            boolean correctResult = true;
+
+            for (String key : optimizedRowCount.keySet()) {
+                Integer optCount = optimizedRowCount.get(key);
+                Integer origCount = originalRowCount.get(key);
+                if (!optCount.equals(origCount)) {
+                    correctResult = false;
+                    System.err.printf("Row counts of row %s do not match: %s (orig) vs %s (opt)\n", key, origCount, optCount);
                 }
-
-                result.setAnalyzeJSON(analyzeJSON);
             }
 
-            originalRS.close();
-        } catch (SQLException e) {
-            System.err.println("Timeout or error: " + e.getMessage());
-            result.setUnoptimizedQueryTimeout(true);
-        } catch (TableNotFoundException e) {
-            System.err.println("Table not found: " + e.getMessage());
-        }
-
-        // Check if all rows occur the same number of times
-        boolean correctResult = true;
-
-        for (String key : optimizedRowCount.keySet()) {
-            Integer optCount = optimizedRowCount.get(key);
-            Integer origCount = originalRowCount.get(key);
-            if (!optCount.equals(origCount)) {
-                correctResult = false;
-                System.err.printf("Row counts of row %s do not match: %s (orig) vs %s (opt)\n", key, origCount, optCount);
-            }
+            result.setOptimizedRowCount(optimizedRowCount);
+            result.setOriginalRowCount(originalRowCount);
+            result.setOptimizedResultCorrect(correctResult);
         }
 
         conn.close();
-
-        result.setOptimizedResultCorrect(correctResult);
 
         return result;
     }
@@ -691,10 +748,12 @@ public class Benchmark {
         File executionFile = new File(subResultsDir + "/query-execution.sql");
         PrintWriter executionWriter = new PrintWriter(executionFile);
         String queryExecutionString = "";
-        for (List<List<String>> stage : res.getQueryExecution().getSqlStatements()) {
-            for (List<String> layer : stage) {
-                for (String query : layer) {
-                    queryExecutionString += query + "\n";
+        if (res.getQueryExecution() != null) {
+            for (List<List<String>> stage : res.getQueryExecution().getSqlStatements()) {
+                for (List<String> layer : stage) {
+                    for (String query : layer) {
+                        queryExecutionString += query + "\n";
+                    }
                 }
             }
         }
@@ -714,53 +773,70 @@ public class Benchmark {
             weightsWriter.close();
         }
 
-        if (analyzeQuery) {
-            File analyzeJSONFile = new File(subResultsDir + "/analyze.json");
-            PrintWriter analyzeJsonWriter = new PrintWriter(analyzeJSONFile);
-            analyzeJsonWriter.write(res.getAnalyzeJSON());
-            analyzeJsonWriter.close();
+        if (!skipExecution) {
+            if (checkCorrectness) {
+                File originalRowsFile = new File(subResultsDir + "/original-rows.csv");
+                File optimizedRowsFile = new File(subResultsDir + "/optimized-rows.csv");
+                PrintWriter originalRowsWriter = new PrintWriter(originalRowsFile);
+                PrintWriter optimizedRowsWriter = new PrintWriter(optimizedRowsFile);
+                for (String row : res.getOriginalRowCount().keySet()) {
+                    originalRowsWriter.println(row);
+                }
+                originalRowsWriter.close();
+                for (String row : res.getOptimizedRowCount().keySet()) {
+                    optimizedRowsWriter.println(row);
+                }
+                optimizedRowsWriter.close();
+            }
 
-            for (ExecutionStatistics executionStatistics : res.getExecutionStatistics()) {
-                AnalyzeExecutionStatistics analyzeExecutionStatistics = (AnalyzeExecutionStatistics) executionStatistics;
+            if (analyzeQuery) {
+                File analyzeJSONFile = new File(subResultsDir + "/analyze.json");
+                PrintWriter analyzeJsonWriter = new PrintWriter(analyzeJSONFile);
+                analyzeJsonWriter.write(res.getAnalyzeJSON());
+                analyzeJsonWriter.close();
 
-                File stageDir = new File(subResultsDir + "/stage-" + executionStatistics.getQueryName());
-                stageDir.mkdirs();
+                for (ExecutionStatistics executionStatistics : res.getExecutionStatistics()) {
+                    AnalyzeExecutionStatistics analyzeExecutionStatistics = (AnalyzeExecutionStatistics) executionStatistics;
 
-                int i = 1;
-                System.out.println(analyzeExecutionStatistics.getAnalyzeJSONs());
-                for (String analyzeJSON : analyzeExecutionStatistics.getAnalyzeJSONs()) {
+                    File stageDir = new File(subResultsDir + "/stage-" + executionStatistics.getQueryName());
+                    stageDir.mkdirs();
 
-                    File analyzeOptimizedJSONFile = new File(stageDir+ "/analyze-" + i + ".json");
-                    PrintWriter analyzeOptimizedJsonWriter = new PrintWriter(analyzeOptimizedJSONFile);
-                    analyzeOptimizedJsonWriter.write(analyzeJSON);
-                    analyzeOptimizedJsonWriter.close();
+                    int i = 1;
+                    System.out.println(analyzeExecutionStatistics.getAnalyzeJSONs());
+                    for (String analyzeJSON : analyzeExecutionStatistics.getAnalyzeJSONs()) {
 
-                    File analyzeOptimizedQueryStringFile = new File(stageDir+ "/analyze-" + i + ".sql");
-                    PrintWriter analyzeOptimizedQueryStringWriter = new PrintWriter(analyzeOptimizedQueryStringFile);
-                    analyzeOptimizedQueryStringWriter.write(analyzeExecutionStatistics.getQueryStrings().get(i-1));
-                    analyzeOptimizedQueryStringWriter.close();
-                    i++;
+                        File analyzeOptimizedJSONFile = new File(stageDir + "/analyze-" + i + ".json");
+                        PrintWriter analyzeOptimizedJsonWriter = new PrintWriter(analyzeOptimizedJSONFile);
+                        analyzeOptimizedJsonWriter.write(analyzeJSON);
+                        analyzeOptimizedJsonWriter.close();
+
+                        File analyzeOptimizedQueryStringFile = new File(stageDir + "/analyze-" + i + ".sql");
+                        PrintWriter analyzeOptimizedQueryStringWriter = new PrintWriter(analyzeOptimizedQueryStringFile);
+                        analyzeOptimizedQueryStringWriter.write(analyzeExecutionStatistics.getQueryStrings().get(i - 1));
+                        analyzeOptimizedQueryStringWriter.close();
+                        i++;
+                    }
                 }
             }
-        }
 
-        String runtimeStatistics = "name,runtime,rowcounts,queries-rows\n";
+            String runtimeStatistics = "name,runtime,rowcounts,queries-rows\n";
 
-        if (res.getExecutionStatistics() != null) {
-            for (ExecutionStatistics stats : res.getExecutionStatistics()) {
-                runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "," +
-                                stats.getQueryRows().values().stream().map(i -> i.toString()).collect(Collectors.joining(";")) + "," +
-                                stats.getQueryStrings().stream()
-                                .map(queryStr -> "\"" + queryStr.replace("\n", "\\n") + ": " +
-                                        stats.getQueryRows().get(queryStr))
-                                        .collect(Collectors.joining(";")) + "\"\n";
+            if (res.getExecutionStatistics() != null) {
+                for (ExecutionStatistics stats : res.getExecutionStatistics()) {
+                    runtimeStatistics += stats.getQueryName() + "," + stats.getRuntime() + "," +
+                            stats.getQueryRows().values().stream().map(i -> i.toString()).collect(Collectors.joining(";")) + "," +
+                            stats.getQueryStrings().stream()
+                                    .map(queryStr -> "\"" + queryStr.replace("\n", "\\n") + ": " +
+                                            stats.getQueryRows().get(queryStr))
+                                    .collect(Collectors.joining(";")) + "\"\n";
+                }
             }
-        }
 
-        File statisticsFile = new File(subResultsDir + "/layers-runtimes.csv");
-        PrintWriter statisticsWriter = new PrintWriter(statisticsFile);
-        statisticsWriter.write(runtimeStatistics);
-        statisticsWriter.close();
+            File statisticsFile = new File(subResultsDir + "/layers-runtimes.csv");
+            PrintWriter statisticsWriter = new PrintWriter(statisticsFile);
+            statisticsWriter.write(runtimeStatistics);
+            statisticsWriter.close();
+        }
 
         Files.write(Paths.get(resultsDirectory + "/summary.csv"), csvGenerator.getCSV().getBytes());
 
@@ -776,6 +852,18 @@ public class Benchmark {
             for (BenchmarkConf conf : confs) {
                 if (enumerateJoinTrees) {
                     List<BenchmarkResult> benchmarkResults = enumerateBenchmark(conf);
+
+                    // Copy hypertree files
+                    File cwd = new File(".");
+                    File[] files = cwd.listFiles();
+                    for (File file : files) {
+                        if (file.getName().matches("ht_\\d+\\.gml")) {
+                            Path joinTreeDirectory = Path.of(resultsDirectory.getAbsolutePath() + "/" + conf.getDb() + "/" + conf.getQuery() + "-trees");
+                            Files.createDirectories(joinTreeDirectory);
+                            Files.copy(file.toPath(), Path.of(joinTreeDirectory.toAbsolutePath() + "/" + file.getName()));
+                            Files.delete(file.toPath());
+                        }
+                    }
 
                     for (BenchmarkResult result : benchmarkResults) {
                         System.out.println(conf.getSuffix());
@@ -879,5 +967,13 @@ public class Benchmark {
 
     public void setEnumerateJoinTrees(boolean enumerateJoinTrees) {
         this.enumerateJoinTrees = enumerateJoinTrees;
+    }
+
+    public void setEnumerateReroot(boolean enumerateReroot) {
+        this.enumerateReroot = enumerateReroot;
+    }
+
+    public void setSkipExecution(boolean skipExecution) {
+        this.skipExecution = skipExecution;
     }
 }

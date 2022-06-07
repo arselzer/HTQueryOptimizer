@@ -1,12 +1,20 @@
 package query;
 
+import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
+import exceptions.JoinTreeGenerationException;
 import hypergraph.Hypergraph;
+import net.sf.jsqlparser.statement.select.Join;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class JoinTreeNode {
+    @SerializedName("children")
     private List<JoinTreeNode> successors = new LinkedList<>();
     // Predecessor is marked transient to prevent cycles when serializing
     private transient JoinTreeNode predecessor = null;
@@ -43,18 +51,13 @@ public class JoinTreeNode {
                 HashSet<String> remainingAttributes = new HashSet<>(node.getAttributes());
 
                 HashSet<String> toKeep = new HashSet<>(projectColumns);
-                // Add all attributes occuring in predecessor nodes
+                // Add all attributes occurring in predecessor nodes
                 if (node.getPredecessor() != null) {
                     for (String table : node.getTables()) {
                         for (String predecessorTable : node.getPredecessor().getTables()) {
                             if (!table.equals(predecessorTable)) {
                                 Set<String> semiJoinAttributes = new HashSet<>(hg.getEdgeByName(table).getNodes());
                                 semiJoinAttributes.retainAll(hg.getEdgeByName(predecessorTable).getNodes());
-//                                System.out.println(hg.getEdges());
-//                                System.out.println(table);
-//                                System.out.println(hg.getEdgeByName(table).getNodes());
-//                                System.out.println(hg.getEdgeByName(predecessorTable).getNodes());
-//                                System.out.println("semijoin  attrs: " + semiJoinAttributes);
                                 toKeep.addAll(semiJoinAttributes);
                             }
                         }
@@ -157,6 +160,47 @@ public class JoinTreeNode {
             nodes.addAll(layer);
         }
         return nodes;
+    }
+
+    public List<List<JoinTreeNode>> getFinalJoinSplit() {
+        List<List<JoinTreeNode>> joinSplit = new LinkedList<>();
+        String json = toJSON();
+        System.out.println("json: " + json);
+
+        File jsonFile;
+        try {
+            jsonFile = new File("jointree.json");
+
+            PrintWriter out = new PrintWriter(jsonFile);
+            out.write(json);
+            out.close();
+
+            Process process = new ProcessBuilder("python3", "split.py", "-t", "10", "jointree.json").start();
+            BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String output = br.lines().collect(Collectors.joining());
+            // System.out.println(output);
+
+            String jsonOutputString = Files.readString(Path.of("grouping.json"));
+
+            Map<String, List> jsonOutput = (new Gson()).fromJson(jsonOutputString, Map.class);
+
+            Set<JoinTreeNode> allNodes = getAllNodes();
+            Map<String, JoinTreeNode> allNodesByTableName = new HashMap<>();
+            for (JoinTreeNode node : allNodes) {
+                allNodesByTableName.put(node.getTables().get(0), node);
+            }
+            jsonOutput.values().forEach(group -> {
+                List<JoinTreeNode> joinGroup = new LinkedList<>();
+                for (String tableName : (List<String>) group) {
+                    joinGroup.add(allNodesByTableName.get(tableName));
+                }
+                joinSplit.add(joinGroup);
+            });
+        } catch (IOException e) {
+            System.out.println("Error creating temp file: " + e);
+        }
+
+        return joinSplit;
     }
 
     /**
@@ -279,6 +323,53 @@ public class JoinTreeNode {
         return balancednessValuesSum / count;
     }
 
+    private JoinTreeNode createCopyOfSubtree(JoinTreeNode excludeSuccessor) {
+        JoinTreeNode newRoot = new JoinTreeNode();
+        newRoot.setTables(new LinkedList<>(getTables()));
+        newRoot.setAttributes(new LinkedList<>(getAttributes()));
+        List<JoinTreeNode> newSuccessors = new LinkedList<>();
+        for (JoinTreeNode successor : getSuccessors()) {
+            if (!successor.equals(excludeSuccessor)) {
+                JoinTreeNode successorCopy = successor.createCopyOfSubtree(null);
+                successorCopy.setPredecessor(newRoot);
+                newSuccessors.add(successorCopy);
+            }
+        }
+        newRoot.setSuccessors(newSuccessors);
+        return newRoot;
+    }
+
+    public Set<JoinTreeNode> getRerootedTrees() {
+        Set<JoinTreeNode> rerootedTrees = new HashSet<>();
+        Set<JoinTreeNode> allNodes = getAllNodes();
+
+        for (JoinTreeNode node : allNodes) {
+            // Create a copy of the subtree of the current tree node
+            JoinTreeNode newTree = node.createCopyOfSubtree(null);
+            // Keep track of the *copy* of the current subtree, i.e., its predecessors
+            JoinTreeNode currentNewSubtree = newTree;
+            // Keep track of the current predecessor to exclude it from the subtree
+            JoinTreeNode currentNode = node;
+            JoinTreeNode currentPredecessor = currentNode.getPredecessor();
+
+            while (currentPredecessor != null) {
+                JoinTreeNode newPredecessorSubtree = currentPredecessor.createCopyOfSubtree(currentNode);
+                currentNewSubtree.successors.add(newPredecessorSubtree);
+                newPredecessorSubtree.setPredecessor(currentPredecessor);
+
+                currentNewSubtree = newPredecessorSubtree;
+                currentNode = currentPredecessor;
+                currentPredecessor = currentPredecessor.getPredecessor();
+            }
+
+            rerootedTrees.add(newTree);
+        }
+
+        System.out.println("original: " + this);
+        System.out.println("rerooted: " + rerootedTrees);
+        return rerootedTrees;
+    }
+
     public List<JoinTreeNode> getSuccessors() {
         return successors;
     }
@@ -316,6 +407,12 @@ public class JoinTreeNode {
         return toIndentedString();
     }
 
+    public String toJSON() {
+        Gson gson = new Gson();
+        Map<String, JoinTreeNode> map = new HashMap<>();
+        map.put("tree", this);
+        return gson.toJson(map);
+    }
 
     public String toIndentedString() {
         return toIndentedString(0);
@@ -335,7 +432,8 @@ public class JoinTreeNode {
                 "tables=" + tables +
                 ", attributes=" + attributes +
                 ", successors=[" + successorsString +
-                "]}";
+                "], predecessor= " + (predecessor == null ? "null": "not null") +
+                "}";
     }
 
     @Override

@@ -72,10 +72,10 @@ public class SummarizedResultsCSVGenerator {
                 result.getOptimizedQueryRuntime() + "," +
                 result.getOptimizedTotalRuntime() + "," +
                 result.getDropTime() + "," +
-                result.getStageRuntimes()[0] + "," +
-                result.getStageRuntimes()[1] + "," +
-                result.getStageRuntimes()[2] + "," +
-                result.getStageRuntimes()[3] + "," +
+                result.getStageRuntimes().get(0) + "," +
+                result.getStageRuntimes().get(1) + "," +
+                result.getStageRuntimes().get(2) + "," +
+                result.getStageRuntimes().get(3) + "," +
                 result.getTotalPreprocessingTime() + "," +
                 result.getHypergraphComputationRuntime() + "," +
                 result.getJoinTreeComputationRuntime() + "," +
