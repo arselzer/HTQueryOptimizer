@@ -1,42 +1,6 @@
 package at.ac.tuwien.dbai.hgtools.sql2hg;
 
-import net.sf.jsqlparser.expression.AllComparisonExpression;
-import net.sf.jsqlparser.expression.AnalyticExpression;
-import net.sf.jsqlparser.expression.AnyComparisonExpression;
-import net.sf.jsqlparser.expression.ArrayExpression;
-import net.sf.jsqlparser.expression.CaseExpression;
-import net.sf.jsqlparser.expression.CastExpression;
-import net.sf.jsqlparser.expression.CollateExpression;
-import net.sf.jsqlparser.expression.DateTimeLiteralExpression;
-import net.sf.jsqlparser.expression.DateValue;
-import net.sf.jsqlparser.expression.DoubleValue;
-import net.sf.jsqlparser.expression.ExpressionVisitor;
-import net.sf.jsqlparser.expression.ExtractExpression;
-import net.sf.jsqlparser.expression.Function;
-import net.sf.jsqlparser.expression.HexValue;
-import net.sf.jsqlparser.expression.IntervalExpression;
-import net.sf.jsqlparser.expression.JdbcNamedParameter;
-import net.sf.jsqlparser.expression.JdbcParameter;
-import net.sf.jsqlparser.expression.JsonExpression;
-import net.sf.jsqlparser.expression.KeepExpression;
-import net.sf.jsqlparser.expression.LongValue;
-import net.sf.jsqlparser.expression.MySQLGroupConcat;
-import net.sf.jsqlparser.expression.NextValExpression;
-import net.sf.jsqlparser.expression.NotExpression;
-import net.sf.jsqlparser.expression.NullValue;
-import net.sf.jsqlparser.expression.NumericBind;
-import net.sf.jsqlparser.expression.OracleHierarchicalExpression;
-import net.sf.jsqlparser.expression.OracleHint;
-import net.sf.jsqlparser.expression.Parenthesis;
-import net.sf.jsqlparser.expression.RowConstructor;
-import net.sf.jsqlparser.expression.SignedExpression;
-import net.sf.jsqlparser.expression.StringValue;
-import net.sf.jsqlparser.expression.TimeKeyExpression;
-import net.sf.jsqlparser.expression.TimeValue;
-import net.sf.jsqlparser.expression.TimestampValue;
-import net.sf.jsqlparser.expression.UserVariable;
-import net.sf.jsqlparser.expression.ValueListExpression;
-import net.sf.jsqlparser.expression.WhenClause;
+import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.arithmetic.Addition;
 import net.sf.jsqlparser.expression.operators.arithmetic.BitwiseAnd;
 import net.sf.jsqlparser.expression.operators.arithmetic.BitwiseLeftShift;
@@ -51,33 +15,21 @@ import net.sf.jsqlparser.expression.operators.arithmetic.Multiplication;
 import net.sf.jsqlparser.expression.operators.arithmetic.Subtraction;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
-import net.sf.jsqlparser.expression.operators.relational.Between;
-import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
-import net.sf.jsqlparser.expression.operators.relational.ExistsExpression;
-import net.sf.jsqlparser.expression.operators.relational.FullTextSearch;
-import net.sf.jsqlparser.expression.operators.relational.GreaterThan;
-import net.sf.jsqlparser.expression.operators.relational.GreaterThanEquals;
-import net.sf.jsqlparser.expression.operators.relational.InExpression;
-import net.sf.jsqlparser.expression.operators.relational.IsBooleanExpression;
-import net.sf.jsqlparser.expression.operators.relational.IsNullExpression;
-import net.sf.jsqlparser.expression.operators.relational.JsonOperator;
-import net.sf.jsqlparser.expression.operators.relational.LikeExpression;
-import net.sf.jsqlparser.expression.operators.relational.Matches;
-import net.sf.jsqlparser.expression.operators.relational.MinorThan;
-import net.sf.jsqlparser.expression.operators.relational.MinorThanEquals;
-import net.sf.jsqlparser.expression.operators.relational.NotEqualsTo;
-import net.sf.jsqlparser.expression.operators.relational.RegExpMatchOperator;
-import net.sf.jsqlparser.expression.operators.relational.RegExpMySQLOperator;
-import net.sf.jsqlparser.expression.operators.relational.SimilarToExpression;
+import net.sf.jsqlparser.expression.operators.conditional.XorExpression;
+import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
+import net.sf.jsqlparser.statement.alter.AlterSession;
+import net.sf.jsqlparser.statement.alter.AlterSystemStatement;
+import net.sf.jsqlparser.statement.alter.RenameTableStatement;
 import net.sf.jsqlparser.statement.alter.sequence.AlterSequence;
 import net.sf.jsqlparser.statement.comment.Comment;
 import net.sf.jsqlparser.statement.create.index.CreateIndex;
 import net.sf.jsqlparser.statement.create.schema.CreateSchema;
 import net.sf.jsqlparser.statement.create.sequence.CreateSequence;
+import net.sf.jsqlparser.statement.create.synonym.CreateSynonym;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.create.view.AlterView;
 import net.sf.jsqlparser.statement.create.view.CreateView;
@@ -104,6 +56,7 @@ import net.sf.jsqlparser.statement.select.SubSelect;
 import net.sf.jsqlparser.statement.select.TableFunction;
 import net.sf.jsqlparser.statement.select.ValuesList;
 import net.sf.jsqlparser.statement.select.WithItem;
+import net.sf.jsqlparser.statement.show.ShowTablesStatement;
 import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
@@ -132,6 +85,16 @@ public class QueryVisitorUnsupportedAdapter
 	@Override
 	public void visit(WithItem withItem) {
 		throwException(withItem);
+	}
+
+	@Override
+	public void visit(SavepointStatement savepointStatement) {
+
+	}
+
+	@Override
+	public void visit(RollbackStatement rollbackStatement) {
+
 	}
 
 	@Override
@@ -220,8 +183,18 @@ public class QueryVisitorUnsupportedAdapter
 	}
 
 	@Override
+	public void visit(ResetStatement resetStatement) {
+
+	}
+
+	@Override
 	public void visit(ShowColumnsStatement set) {
 		throwException(set);
+	}
+
+	@Override
+	public void visit(ShowTablesStatement showTablesStatement) {
+
 	}
 
 	@Override
@@ -277,6 +250,21 @@ public class QueryVisitorUnsupportedAdapter
 	@Override
 	public void visit(AllTableColumns allTableColumns) {
 		throwException(allTableColumns);
+	}
+
+	@Override
+	public void visit(AllValue allValue) {
+
+	}
+
+	@Override
+	public void visit(IsDistinctExpression isDistinctExpression) {
+
+	}
+
+	@Override
+	public void visit(GeometryDistance geometryDistance) {
+
 	}
 
 	@Override
@@ -425,6 +413,11 @@ public class QueryVisitorUnsupportedAdapter
 	}
 
 	@Override
+	public void visit(XorExpression xorExpression) {
+
+	}
+
+	@Override
 	public void visit(Between between) {
 		throwException(between);
 	}
@@ -495,11 +488,6 @@ public class QueryVisitorUnsupportedAdapter
 	}
 
 	@Override
-	public void visit(AllComparisonExpression allComparisonExpression) {
-		throwException(allComparisonExpression);
-	}
-
-	@Override
 	public void visit(AnyComparisonExpression anyComparisonExpression) {
 		throwException(anyComparisonExpression);
 	}
@@ -532,6 +520,11 @@ public class QueryVisitorUnsupportedAdapter
 	@Override
 	public void visit(CastExpression cast) {
 		throwException(cast);
+	}
+
+	@Override
+	public void visit(TryCastExpression tryCastExpression) {
+
 	}
 
 	@Override
@@ -610,6 +603,11 @@ public class QueryVisitorUnsupportedAdapter
 	}
 
 	@Override
+	public void visit(RowGetExpression rowGetExpression) {
+
+	}
+
+	@Override
 	public void visit(OracleHint hint) {
 		throwException(hint);
 	}
@@ -665,6 +663,46 @@ public class QueryVisitorUnsupportedAdapter
 	}
 
 	@Override
+	public void visit(ArrayConstructor arrayConstructor) {
+
+	}
+
+	@Override
+	public void visit(VariableAssignment variableAssignment) {
+
+	}
+
+	@Override
+	public void visit(XMLSerializeExpr xmlSerializeExpr) {
+
+	}
+
+	@Override
+	public void visit(TimezoneExpression timezoneExpression) {
+
+	}
+
+	@Override
+	public void visit(JsonAggregateFunction jsonAggregateFunction) {
+
+	}
+
+	@Override
+	public void visit(JsonFunction jsonFunction) {
+
+	}
+
+	@Override
+	public void visit(ConnectByRootOperator connectByRootOperator) {
+
+	}
+
+	@Override
+	public void visit(OracleNamedFunctionParameter oracleNamedFunctionParameter) {
+
+	}
+
+	@Override
 	public void visit(DeclareStatement aThis) {
 		throwException(aThis);
 	}
@@ -686,6 +724,36 @@ public class QueryVisitorUnsupportedAdapter
 
 	@Override
 	public void visit(CreateFunctionalStatement createFunctionalStatement) {
+
+	}
+
+	@Override
+	public void visit(CreateSynonym createSynonym) {
+
+	}
+
+	@Override
+	public void visit(AlterSession alterSession) {
+
+	}
+
+	@Override
+	public void visit(IfElseStatement ifElseStatement) {
+
+	}
+
+	@Override
+	public void visit(RenameTableStatement renameTableStatement) {
+
+	}
+
+	@Override
+	public void visit(PurgeStatement purgeStatement) {
+
+	}
+
+	@Override
+	public void visit(AlterSystemStatement alterSystemStatement) {
 
 	}
 

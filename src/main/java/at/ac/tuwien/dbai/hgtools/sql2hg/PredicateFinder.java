@@ -61,7 +61,7 @@ public class PredicateFinder implements FromItemVisitor, SelectVisitor, SelectIt
 	public PredicateDefinition getPredicate(WithItem view) {
 		PredicateDefinition pred = null;
 		name = view.getName();
-		SelectBody sb = view.getSelectBody();
+		SelectBody sb = view.getSubSelect().getSelectBody();
 		if (sb instanceof PlainSelect) {
 			pred = getPredicate((PlainSelect) sb);
 		} else if (sb instanceof SetOperationList) {

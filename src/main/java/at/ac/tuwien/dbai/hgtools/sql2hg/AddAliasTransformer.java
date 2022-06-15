@@ -84,7 +84,7 @@ public class AddAliasTransformer {
 					item.accept(vExpression);
 				}
 			}
-			withItem.getSelectBody().accept(vSelect);
+			withItem.getSubSelect().getSelectBody().accept(vSelect);
 		}
 
 	}

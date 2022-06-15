@@ -123,8 +123,9 @@ public class GeneralQueryFinder {
                     if (j.isNatural()) {
                         throwException(j);
                         findEqualities(j);
-                    } else if (j.getOnExpression() != null) {
-                        j.getOnExpression().accept(vExpression);
+                    } else if (j.getOnExpressions() != null && j.getOnExpressions().size() > 0) {
+                        //j.getOnExpression().accept(vExpression);
+                        j.getOnExpressions().forEach(onExpression -> onExpression.accept(vExpression));
                     }
                 }
             }
@@ -214,8 +215,8 @@ public class GeneralQueryFinder {
 
         @Override
         public void visit(Table table) {
-            String tableWholeName = table.getFullyQualifiedName();
-            String tableAliasName = Util.getTableAliasName(table);
+            String tableWholeName = table.getFullyQualifiedName().replace("\"", "");
+            String tableAliasName = Util.getTableAliasName(table).replace("\"", "");
             Predicate pred = schema.newPredicate(tableWholeName); // TODO problematic line
             pred.setAlias(tableAliasName);
             tables.put(tableAliasName, pred);
@@ -328,14 +329,14 @@ public class GeneralQueryFinder {
         private Predicate predOf(Column col) {
             Predicate res = null;
             if (col.getTable() != null) {
-                String tableName = col.getTable().getName();
+                String tableName = col.getTable().getName().replace("\"", "");
                 res = tables.get(tableName);
                 if (res == null) {
                     throw new RuntimeException("The table " + tableName + " does not exist.");
                 }
             } else {
                 for (Predicate pred : tables.values()) {
-                    if (pred.existsAttribute(col.getColumnName())) {
+                    if (pred.existsAttribute(col.getColumnName().replace("\"", ""))) {
                         return pred;
                     }
                 }
@@ -348,7 +349,7 @@ public class GeneralQueryFinder {
         public void visit(InExpression expr) {
             if (expr.getLeftExpression() != null) {
                 expr.getRightItemsList().accept(this);
-                String left = ((Column) expr.getLeftExpression()).getFullyQualifiedName();
+                String left = ((Column) expr.getLeftExpression()).getFullyQualifiedName().replace("\"", "");
                 filters.add(left + ";" + expr);
             }
         }

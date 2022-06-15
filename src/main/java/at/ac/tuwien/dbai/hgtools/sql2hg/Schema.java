@@ -44,7 +44,7 @@ public class Schema implements Iterable<PredicateDefinition> {
 	}
 
 	public Predicate newPredicate(String predName) {
-		PredicateDefinition def = definitions.get(predName.toLowerCase());
+		PredicateDefinition def = definitions.get(predName.replace("\"", "").toLowerCase());
 		if (def == null) {
 			throw new UnknownPredicateException(predName);
 		}

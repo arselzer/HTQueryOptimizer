@@ -94,7 +94,7 @@ public abstract class NameTransformer {
 					item.accept(vSelectItem);
 				}
 			}
-			withItem.getSelectBody().accept(vSelect);
+			withItem.getSubSelect().getSelectBody().accept(vSelect);
 		}
 
 	}

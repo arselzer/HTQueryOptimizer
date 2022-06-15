@@ -296,7 +296,7 @@ public class PredicateBuilder {
 			}
 
 			Select newSubSelect = new Select();
-			newSubSelect.setSelectBody(withItem.getSelectBody());
+			newSubSelect.setSelectBody(withItem.getSubSelect().getSelectBody());
 			PredicateBuilder pb = new PredicateBuilder(alias, viewAttrs, viewNames);
 			pb.buildPredicates(newSubSelect, quotes);
 			sel2pb.put(newSubSelect, pb);

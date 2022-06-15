@@ -518,7 +518,8 @@ public class Benchmark {
             System.err.println("Timeout or error: " + e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
             result.setOptimizedQueryTimeout(true);
         } catch (TableNotFoundException e) {
-            System.err.println("Table not found: " + e.getMessage());
+            System.err.println("" +
+                    "Table not found: " + e.getMessage());
         }
 
         if (queryExecution != null) {

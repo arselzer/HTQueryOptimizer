@@ -84,7 +84,7 @@ public class TableNamesFinder {
 					item.accept(vExpression);
 				}
 			}
-			withItem.getSelectBody().accept(this);
+			withItem.getSubSelect().getSelectBody().accept(this);
 		}
 
 	}

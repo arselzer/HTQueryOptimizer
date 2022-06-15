@@ -101,7 +101,7 @@ public class ConjunctiveQueryFinder extends QueryVisitorUnsupportedAdapter {
 				aliasesBuffer.add(new Alias(item.toString()));
 			}
 		}
-		withItem.getSelectBody().accept(this);
+		withItem.getSubSelect().getSelectBody().accept(this);
 		if (currentViewInfo.pred != null) {
 			schema.addPredicateDefinition(currentViewInfo.def, currentViewInfo.pred);
 		}

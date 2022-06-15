@@ -4,15 +4,20 @@ import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.arithmetic.*;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
+import net.sf.jsqlparser.expression.operators.conditional.XorExpression;
 import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
+import net.sf.jsqlparser.statement.alter.AlterSession;
+import net.sf.jsqlparser.statement.alter.AlterSystemStatement;
+import net.sf.jsqlparser.statement.alter.RenameTableStatement;
 import net.sf.jsqlparser.statement.alter.sequence.AlterSequence;
 import net.sf.jsqlparser.statement.comment.Comment;
 import net.sf.jsqlparser.statement.create.index.CreateIndex;
 import net.sf.jsqlparser.statement.create.schema.CreateSchema;
 import net.sf.jsqlparser.statement.create.sequence.CreateSequence;
+import net.sf.jsqlparser.statement.create.synonym.CreateSynonym;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.create.view.AlterView;
 import net.sf.jsqlparser.statement.create.view.CreateView;
@@ -24,6 +29,7 @@ import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
 import net.sf.jsqlparser.statement.replace.Replace;
 import net.sf.jsqlparser.statement.select.*;
+import net.sf.jsqlparser.statement.show.ShowTablesStatement;
 import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
@@ -101,6 +107,21 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(AllValue allValue) {
+
+    }
+
+    @Override
+    public void visit(IsDistinctExpression isDistinctExpression) {
+
+    }
+
+    @Override
+    public void visit(GeometryDistance geometryDistance) {
+
+    }
+
+    @Override
     public void visit(SelectExpressionItem selectExpressionItem) {
         selectExpressionItem.getExpression().accept(this);
     }
@@ -134,6 +155,16 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(SavepointStatement savepointStatement) {
+
+    }
+
+    @Override
+    public void visit(RollbackStatement rollbackStatement) {
+
+    }
+
+    @Override
     public void visit(Comment comment) {
 
     }
@@ -151,6 +182,11 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     @Override
     public void visit(ShowColumnsStatement showColumnsStatement) {
         // ?
+    }
+
+    @Override
+    public void visit(ShowTablesStatement showTablesStatement) {
+
     }
 
     @Override
@@ -306,6 +342,11 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(XorExpression xorExpression) {
+
+    }
+
+    @Override
     public void visit(Between between) {
 
     }
@@ -381,11 +422,6 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
-    public void visit(AllComparisonExpression allComparisonExpression) {
-
-    }
-
-    @Override
     public void visit(AnyComparisonExpression anyComparisonExpression) {
 
     }
@@ -417,6 +453,11 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
 
     @Override
     public void visit(CastExpression castExpression) {
+
+    }
+
+    @Override
+    public void visit(TryCastExpression tryCastExpression) {
 
     }
 
@@ -496,6 +537,11 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(RowGetExpression rowGetExpression) {
+
+    }
+
+    @Override
     public void visit(OracleHint oracleHint) {
 
     }
@@ -532,6 +578,46 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
 
     @Override
     public void visit(ArrayExpression arrayExpression) {
+
+    }
+
+    @Override
+    public void visit(ArrayConstructor arrayConstructor) {
+
+    }
+
+    @Override
+    public void visit(VariableAssignment variableAssignment) {
+
+    }
+
+    @Override
+    public void visit(XMLSerializeExpr xmlSerializeExpr) {
+
+    }
+
+    @Override
+    public void visit(TimezoneExpression timezoneExpression) {
+
+    }
+
+    @Override
+    public void visit(JsonAggregateFunction jsonAggregateFunction) {
+
+    }
+
+    @Override
+    public void visit(JsonFunction jsonFunction) {
+
+    }
+
+    @Override
+    public void visit(ConnectByRootOperator connectByRootOperator) {
+
+    }
+
+    @Override
+    public void visit(OracleNamedFunctionParameter oracleNamedFunctionParameter) {
 
     }
 
@@ -611,6 +697,11 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
     }
 
     @Override
+    public void visit(ResetStatement resetStatement) {
+
+    }
+
+    @Override
     public void visit(Merge merge) {
         unsupported("MERGE");
     }
@@ -657,6 +748,36 @@ public class SQLQueryParser implements StatementVisitor, SelectVisitor, SelectIt
 
     @Override
     public void visit(CreateFunctionalStatement createFunctionalStatement) {
+
+    }
+
+    @Override
+    public void visit(CreateSynonym createSynonym) {
+
+    }
+
+    @Override
+    public void visit(AlterSession alterSession) {
+
+    }
+
+    @Override
+    public void visit(IfElseStatement ifElseStatement) {
+
+    }
+
+    @Override
+    public void visit(RenameTableStatement renameTableStatement) {
+
+    }
+
+    @Override
+    public void visit(PurgeStatement purgeStatement) {
+
+    }
+
+    @Override
+    public void visit(AlterSystemStatement alterSystemStatement) {
 
     }
 

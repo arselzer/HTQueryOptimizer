@@ -86,8 +86,8 @@ public class TableReplacer {
 					item.accept(vExpression);
 				}
 			}
-			if (withItem.getSelectBody() != null) {
-				withItem.getSelectBody().accept(this);
+			if (withItem.getSubSelect().getSelectBody() != null) {
+				withItem.getSubSelect().getSelectBody().accept(this);
 			}
 		}
 

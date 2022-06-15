@@ -229,8 +229,8 @@ public class QueryExtractor extends QueryVisitorNoExpressionAdapter {
 		tmpViews.clear();
 		Select body = new Select();
 		body.setWithItemsList(withItemsList);
-		body.setSelectBody(withItem.getSelectBody());
-		prefixes.put(withItem.getSelectBody(), makeName(basePrefix, viewName));
+		body.setSelectBody(withItem.getSubSelect().getSelectBody());
+		prefixes.put(withItem.getSubSelect().getSelectBody(), makeName(basePrefix, viewName));
 		QueryExtractor qe = new QueryExtractor(schema, nameToViewMap, viewToGraphMap, viewSelItems,
 				makeName(basePrefix, viewName), prefixes);
 		qe.run(body);
@@ -283,7 +283,7 @@ public class QueryExtractor extends QueryVisitorNoExpressionAdapter {
 				String aliasName = (fromItem.getAlias() != null) ? fromItem.getAlias().getName() : createViewName();
 				WithItem table = new WithItem();
 				table.setName(aliasName);
-				table.setSelectBody(subSelect.getSelectBody());
+				table.getSubSelect().setSelectBody(subSelect.getSelectBody());
 
 				subSelect.setAlias(new Alias(aliasName));
 
@@ -311,7 +311,7 @@ public class QueryExtractor extends QueryVisitorNoExpressionAdapter {
 				String aliasName = (joinItem.getAlias() != null) ? joinItem.getAlias().getName() : createViewName();
 				WithItem table = new WithItem();
 				table.setName(aliasName);
-				table.setSelectBody(subSelect.getSelectBody());
+				table.getSubSelect().setSelectBody(subSelect.getSelectBody());
 
 				subSelect.setAlias(new Alias(aliasName));
 
@@ -400,7 +400,7 @@ public class QueryExtractor extends QueryVisitorNoExpressionAdapter {
 			String aliasName = (item.getAlias() != null) ? item.getAlias().getName() : createViewName();
 			WithItem table = new WithItem();
 			table.setName(aliasName);
-			table.setSelectBody(exprItem.getSelectBody());
+			table.getSubSelect().setSelectBody(exprItem.getSelectBody());
 
 			exprItem.setAlias(new Alias(aliasName));
 
@@ -555,9 +555,9 @@ public class QueryExtractor extends QueryVisitorNoExpressionAdapter {
 				currEdge.setNegation(expr.isNot());
 				if (expr.getLeftExpression() != null) {
 					expr.getLeftExpression().accept(this);
-				} else if (expr.getLeftItemsList() != null) {
+				} /*else if (expr.getLeftItemsList() != null) {
 					expr.getLeftItemsList().accept(this);
-				}
+				}*/ // TODO update
 				expr.getRightItemsList().accept(this);
 			}
 		}

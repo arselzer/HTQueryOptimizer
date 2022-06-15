@@ -36,7 +36,7 @@ public class JoinTreeNode {
     }
 
     public String getIdentifier(int stage) {
-        return getIdentifier() + "_stage_" + stage;
+        return "htqo_stage_" + stage + "_" + String.join("_", tables);
     }
 
     /**

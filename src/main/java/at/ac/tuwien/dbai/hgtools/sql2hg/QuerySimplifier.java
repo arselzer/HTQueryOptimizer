@@ -130,7 +130,7 @@ public class QuerySimplifier extends QueryVisitorNoExpressionAdapter {
 	private LinkedList<String> dependenciesOf(WithItem v, HashMap<String, WithItem> views) {
 		// views are already simplified: there are only tables in the from
 		LinkedList<String> res = new LinkedList<>();
-		PlainSelect ps = (PlainSelect) v.getSelectBody();
+		PlainSelect ps = (PlainSelect) v.getSubSelect().getSelectBody();
 		if (ps.getFromItem() != null) {
 			String t = ((Table) ps.getFromItem()).getName();
 			if (views.containsKey(t)) {
@@ -216,7 +216,7 @@ public class QuerySimplifier extends QueryVisitorNoExpressionAdapter {
 			if (views.containsKey(name)) {
 				WithItem view = views.get(name);
 				res.add(view);
-				res.addAll(findViewsOf((PlainSelect) view.getSelectBody(), views));
+				res.addAll(findViewsOf((PlainSelect) view.getSubSelect().getSelectBody(), views));
 			}
 		}
 		if (sel.getJoins() != null) {
@@ -225,7 +225,7 @@ public class QuerySimplifier extends QueryVisitorNoExpressionAdapter {
 				if (views.containsKey(name)) {
 					WithItem view = views.get(name);
 					res.add(view);
-					res.addAll(findViewsOf((PlainSelect) view.getSelectBody(), views));
+					res.addAll(findViewsOf((PlainSelect) view.getSubSelect().getSelectBody(), views));
 				}
 			}
 		}
@@ -251,7 +251,7 @@ public class QuerySimplifier extends QueryVisitorNoExpressionAdapter {
 				tempBody.addSelectItems(item);
 			}
 		}
-		view.setSelectBody(tempBody);
+		view.getSubSelect().setSelectBody(tempBody);
 		tmpSelectItems = null;
 		tempBody = null;
 		tempPrefix = "";

@@ -11,16 +11,16 @@ public class Equality {
 		if (pred1 == null || attr1 == null || pred2 == null || attr2 == null) {
 			throw new NullPointerException();
 		}
-		if (!pred1.existsAttribute(attr1)) {
+		if (!pred1.existsAttribute(attr1.replace("\"", ""))) {
 			throw new IllegalArgumentException(attr1 + " is not an attribute of " + pred1);
 		}
-		if (!pred2.existsAttribute(attr2)) {
+		if (!pred2.existsAttribute(attr2.replace("\"", ""))) {
 			throw new IllegalArgumentException(attr2 + " is not an attribute of " + pred2);
 		}
 		this.pred1 = pred1;
-		this.attr1 = attr1;
+		this.attr1 = attr1.replace("\"", "");
 		this.pred2 = pred2;
-		this.attr2 = attr2;
+		this.attr2 = attr2.replace("\"", "");
 	}
 
 	public Predicate getPredicate1() {

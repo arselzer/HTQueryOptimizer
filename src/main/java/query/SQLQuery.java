@@ -132,11 +132,23 @@ public class SQLQuery {
 
     private void findProjectColumnsAndAliases() throws QueryConversionException, TableNotFoundException {
         try {
+            System.out.println("parsing query: " + query);
             stmt = CCJSqlParserUtil.parse(query);
+
+            System.out.println("stmt: " + stmt);
 
             SQLQueryParser queryParser = new SQLQueryParser(stmt, dbSchema);
 
             tableAliases = queryParser.getAliases();
+            Map<String, String> tableAliasesWithoutQuotes = new HashMap<>();
+            for (String key : tableAliases.keySet()) {
+                tableAliasesWithoutQuotes.put(key.replace("\"", ""),
+                        tableAliases.get(key).replace("\"", ""));
+            }
+
+            tableAliases = tableAliasesWithoutQuotes;
+
+            System.out.println("tableAliases: " + tableAliases);
 
             // Make sure that the project columns are fully quantified
             projectColumns = new LinkedList<>();
@@ -166,7 +178,9 @@ public class SQLQuery {
 
             System.out.println("project columns: " + projectColumns);
 
-            aliasTables = queryParser.getTables();
+            aliasTables = queryParser.getTables().stream()
+                    .map(tableName -> tableName.replace("\"", ""))
+                    .collect(Collectors.toSet());
 
             // Fill all column aliases: e.g. renamed.a -> original.a
             columnAliases = new HashMap<>();
@@ -181,8 +195,9 @@ public class SQLQuery {
                     columnAliases.put(aliasTableName + "." + c.getName(), realTableName + "." + c.getName());
                 }
             }
+            System.out.println(columnAliases);
         } catch (JSQLParserException e) {
-            throw new QueryConversionException("Error parsing SQL statement: " + e.getMessage());
+            throw new QueryConversionException("Error parsing SQL statement: " + e.getMessage() + Arrays.toString(e.getStackTrace()));
         }
     }
 

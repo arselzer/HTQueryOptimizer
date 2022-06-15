@@ -3,11 +3,15 @@ package at.ac.tuwien.dbai.hgtools.sql2hg;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
+import net.sf.jsqlparser.statement.alter.AlterSession;
+import net.sf.jsqlparser.statement.alter.AlterSystemStatement;
+import net.sf.jsqlparser.statement.alter.RenameTableStatement;
 import net.sf.jsqlparser.statement.alter.sequence.AlterSequence;
 import net.sf.jsqlparser.statement.comment.Comment;
 import net.sf.jsqlparser.statement.create.index.CreateIndex;
 import net.sf.jsqlparser.statement.create.schema.CreateSchema;
 import net.sf.jsqlparser.statement.create.sequence.CreateSequence;
+import net.sf.jsqlparser.statement.create.synonym.CreateSynonym;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.create.view.AlterView;
 import net.sf.jsqlparser.statement.create.view.CreateView;
@@ -34,6 +38,7 @@ import net.sf.jsqlparser.statement.select.SubSelect;
 import net.sf.jsqlparser.statement.select.TableFunction;
 import net.sf.jsqlparser.statement.select.ValuesList;
 import net.sf.jsqlparser.statement.select.WithItem;
+import net.sf.jsqlparser.statement.show.ShowTablesStatement;
 import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
@@ -90,6 +95,16 @@ public class QueryVisitorNoExpressionAdapter
 	@Override
 	public void visit(SelectExpressionItem selectExpressionItem) {
 		// empty implementation
+	}
+
+	@Override
+	public void visit(SavepointStatement savepointStatement) {
+
+	}
+
+	@Override
+	public void visit(RollbackStatement rollbackStatement) {
+
 	}
 
 	@Override
@@ -178,8 +193,18 @@ public class QueryVisitorNoExpressionAdapter
 	}
 
 	@Override
+	public void visit(ResetStatement resetStatement) {
+
+	}
+
+	@Override
 	public void visit(ShowColumnsStatement set) {
 		// empty implementation
+	}
+
+	@Override
+	public void visit(ShowTablesStatement showTablesStatement) {
+
 	}
 
 	@Override
@@ -249,6 +274,36 @@ public class QueryVisitorNoExpressionAdapter
 
 	@Override
 	public void visit(CreateFunctionalStatement createFunctionalStatement) {
+
+	}
+
+	@Override
+	public void visit(CreateSynonym createSynonym) {
+
+	}
+
+	@Override
+	public void visit(AlterSession alterSession) {
+
+	}
+
+	@Override
+	public void visit(IfElseStatement ifElseStatement) {
+
+	}
+
+	@Override
+	public void visit(RenameTableStatement renameTableStatement) {
+
+	}
+
+	@Override
+	public void visit(PurgeStatement purgeStatement) {
+
+	}
+
+	@Override
+	public void visit(AlterSystemStatement alterSystemStatement) {
 
 	}
 
